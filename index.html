@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SGI — Guarda Nacional Republicana</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --blue: #1a3a5c;
+    --blue-mid: #1e5094;
+    --blue-light: #d6e8fa;
+    --blue-pale: #eef5fc;
+    --red: #8b1a1a;
+    --red-light: #fdeaea;
+    --green: #1a4a2e;
+    --green-light: #e3f5eb;
+    --amber: #7a4a00;
+    --amber-light: #fef3d6;
+    --gray-50: #f7f8fa;
+    --gray-100: #eef0f3;
+    --gray-200: #dde1e7;
+    --gray-400: #9aa3af;
+    --gray-600: #5a6472;
+    --gray-900: #0f1923;
+    --border: #dde1e7;
+    --radius: 6px;
+    --radius-lg: 10px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: var(--gray-50); color: var(--gray-900); font-size: 14px; line-height: 1.6; }
+  .hidden { display: none !important; }
+
+  /* ---- AUTH PAGES ---- */
+  .auth-wrap { min-height: 100vh; display: flex; }
+  .auth-side { width: 420px; background: var(--blue); display: flex; flex-direction: column; justify-content: center; padding: 3rem; }
+  .auth-side h1 { font-size: 28px; font-weight: 600; color: #fff; letter-spacing: -0.5px; line-height: 1.2; margin-bottom: 1rem; }
+  .auth-side p { color: rgba(255,255,255,0.6); font-size: 13px; line-height: 1.7; }
+  .auth-side .badge { display: inline-block; background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.8); font-size: 11px; font-family: 'IBM Plex Mono', monospace; padding: 4px 10px; border-radius: 20px; margin-bottom: 2rem; letter-spacing: 0.05em; }
+  .auth-side .divider { width: 32px; height: 2px; background: rgba(255,255,255,0.25); margin: 1.5rem 0; }
+  .auth-side .stat { margin-bottom: 0.75rem; }
+  .auth-side .stat-num { font-size: 22px; font-weight: 600; color: #fff; font-family: 'IBM Plex Mono', monospace; }
+  .auth-side .stat-label { font-size: 11px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.08em; }
+  .auth-form-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem; }
+  .auth-card { width: 100%; max-width: 420px; }
+  .auth-card h2 { font-size: 20px; font-weight: 600; margin-bottom: 0.25rem; }
+  .auth-card .sub { font-size: 13px; color: var(--gray-600); margin-bottom: 2rem; }
+
+  /* ---- FORM ELEMENTS ---- */
+  .field { margin-bottom: 1rem; }
+  .field label { display: block; font-size: 12px; font-weight: 500; color: var(--gray-600); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  input, select, textarea { width: 100%; font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; color: var(--gray-900); outline: none; transition: border 0.15s, box-shadow 0.15s; }
+  input:focus, select:focus, textarea:focus { border-color: var(--blue-mid); box-shadow: 0 0 0 3px rgba(30,80,148,0.1); }
+  textarea { resize: vertical; min-height: 80px; }
+
+  /* ---- BUTTONS ---- */
+  .btn { display: inline-flex; align-items: center; gap: 6px; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; font-weight: 500; padding: 9px 18px; border-radius: var(--radius); border: 1px solid transparent; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .btn-primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .btn-primary:hover { background: #0f2a45; }
+  .btn-danger-fill { background: var(--red); color: #fff; border-color: var(--red); }
+  .btn-danger-fill:hover { background: #6b1414; }
+  .btn-success-fill { background: var(--green); color: #fff; border-color: var(--green); }
+  .btn-success-fill:hover { background: #123820; }
+  .btn-outline { background: #fff; color: var(--gray-900); border-color: var(--border); }
+  .btn-outline:hover { background: var(--gray-50); }
+  .btn-ghost { background: transparent; color: var(--gray-600); border-color: transparent; padding: 6px 10px; }
+  .btn-ghost:hover { background: var(--gray-100); color: var(--gray-900); }
+  .btn-full { width: 100%; justify-content: center; padding: 11px; font-size: 14px; }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn-itp { background: var(--red); color: #fff; border-color: var(--red); }
+  .btn-itp:hover { background: #6b1414; }
+
+  /* ---- ALERTS ---- */
+  .alert { padding: 10px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 1rem; border: 1px solid; }
+  .alert-error { background: var(--red-light); border-color: #f5c6c6; color: var(--red); }
+  .alert-success { background: var(--green-light); border-color: #b8dfc8; color: var(--green); }
+  .alert-warning { background: var(--amber-light); border-color: #f5dca0; color: var(--amber); }
+  .alert-info { background: var(--blue-pale); border-color: #b8d4f0; color: var(--blue); }
+
+  /* ---- NAV ---- */
+  .navbar { background: var(--blue); height: 56px; display: flex; align-items: center; padding: 0 1.5rem; gap: 0; position: sticky; top: 0; z-index: 50; }
+  .nav-brand { display: flex; align-items: center; gap: 10px; margin-right: 2rem; }
+  .nav-logo { width: 32px; height: 32px; background: rgba(255,255,255,0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #fff; font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.05em; }
+  .nav-title { font-size: 14px; font-weight: 600; color: #fff; letter-spacing: 0.02em; }
+  .nav-links { display: flex; gap: 2px; flex: 1; }
+  .nav-link { font-size: 13px; font-weight: 400; color: rgba(255,255,255,0.65); padding: 6px 14px; border-radius: 5px; cursor: pointer; transition: all 0.15s; border: none; background: none; font-family: 'IBM Plex Sans', sans-serif; }
+  .nav-link:hover { color: #fff; background: rgba(255,255,255,0.1); }
+  .nav-link.active { color: #fff; background: rgba(255,255,255,0.15); font-weight: 500; }
+  .nav-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+  .nav-user { font-size: 12px; color: rgba(255,255,255,0.6); font-family: 'IBM Plex Mono', monospace; }
+  .nav-admin-badge { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.8); font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 500; letter-spacing: 0.05em; }
+  .nav-logout { font-size: 12px; color: rgba(255,255,255,0.5); background: none; border: none; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; padding: 4px 8px; border-radius: 4px; }
+  .nav-logout:hover { color: #fff; background: rgba(255,255,255,0.1); }
+
+  /* ---- LAYOUT ---- */
+  .page { padding: 2rem 1.5rem; max-width: 1280px; margin: 0 auto; }
+  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.75rem; }
+  .page-title { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+  .page-sub { font-size: 13px; color: var(--gray-600); margin-top: 2px; }
+
+  /* ---- STAT CARDS ---- */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 1.75rem; }
+  .stat-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.1rem 1.25rem; }
+  .stat-card .s-label { font-size: 11px; font-weight: 500; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; }
+  .stat-card .s-num { font-size: 28px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; line-height: 1; }
+  .stat-card .s-num.blue { color: var(--blue-mid); }
+  .stat-card .s-num.green { color: var(--green); }
+  .stat-card .s-num.red { color: var(--red); }
+  .stat-card .s-num.amber { color: var(--amber); }
+
+  /* ---- QUICK ACTIONS ---- */
+  .action-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 1.75rem; max-width: 560px; }
+  .action-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; cursor: pointer; transition: all 0.15s; }
+  .action-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+  .action-card.inc:hover { border-color: var(--blue-mid); }
+  .action-card.itp:hover { border-color: var(--red); }
+  .action-icon { width: 38px; height: 38px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+  .action-icon.blue { background: var(--blue-pale); }
+  .action-icon.red { background: var(--red-light); }
+  .action-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+  .action-card p { font-size: 12px; color: var(--gray-600); }
+
+  /* ---- CHARTS ---- */
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 1.75rem; }
+  .chart-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; }
+  .chart-title { font-size: 13px; font-weight: 600; color: var(--gray-600); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 1rem; }
+
+  /* ---- TABLE ---- */
+  .table-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+  .table-card-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 11px; font-weight: 600; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.07em; padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--border); background: var(--gray-50); }
+  td { padding: 12px 16px; border-bottom: 1px solid var(--gray-100); font-size: 13px; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--gray-50); }
+  .empty-state { padding: 3rem; text-align: center; color: var(--gray-400); }
+  .empty-state svg { margin: 0 auto 1rem; opacity: 0.4; }
+  .empty-state p { font-size: 13px; }
+
+  /* ---- BADGES ---- */
+  .badge { display: inline-block; font-size: 11px; font-weight: 500; padding: 2px 9px; border-radius: 20px; font-family: 'IBM Plex Mono', monospace; }
+  .badge-blue { background: var(--blue-pale); color: var(--blue); }
+  .badge-green { background: var(--green-light); color: var(--green); }
+  .badge-amber { background: var(--amber-light); color: var(--amber); }
+  .badge-red { background: var(--red-light); color: var(--red); }
+  .badge-gray { background: var(--gray-100); color: var(--gray-600); }
+  .badge-admin { background: var(--blue); color: #fff; }
+
+  /* ---- MODAL ---- */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(15,25,35,0.5); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 1rem; backdrop-filter: blur(2px); }
+  .modal { background: #fff; border-radius: var(--radius-lg); width: 100%; max-width: 540px; max-height: 92vh; overflow-y: auto; box-shadow: var(--shadow-md); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); }
+  .modal-title { font-size: 15px; font-weight: 600; }
+  .modal-body { padding: 1.5rem; }
+  .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+  .modal-close { background: none; border: none; cursor: pointer; color: var(--gray-400); padding: 4px; border-radius: 4px; display: flex; }
+  .modal-close:hover { color: var(--gray-900); background: var(--gray-100); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-full { grid-column: 1 / -1; }
+
+  /* ---- ADMIN ---- */
+  .user-pending-banner { background: var(--amber-light); border: 1px solid #f5dca0; border-radius: var(--radius); padding: 10px 14px; font-size: 13px; color: var(--amber); margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
+
+  /* ---- LOADING ---- */
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---- RESPONSIVE ---- */
+  @media (max-width: 768px) {
+    .auth-side { display: none; }
+    .charts-grid { grid-template-columns: 1fr; }
+    .action-cards { max-width: 100%; }
+    .form-grid { grid-template-columns: 1fr; }
+    .nav-user, .nav-admin-badge { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ==================== LOGIN ==================== -->
+<div id="page-login" class="auth-wrap">
+  <div class="auth-side">
+    <span class="badge">GNR · SISTEMA SGI</span>
+    <h1>Sistema de Gestão de Incidentes</h1>
+    <div class="divider"></div>
+    <p>Plataforma interna da Guarda Nacional Republicana para registo e acompanhamento de incidentes e ocorrências tático-policiais.</p>
+    <div class="divider"></div>
+    <div class="stat"><div class="stat-num" id="side-total">—</div><div class="stat-label">Registos totais</div></div>
+  </div>
+  <div class="auth-form-wrap">
+    <div class="auth-card">
+      <h2>Entrar</h2>
+      <p class="sub">Acesso restrito a emails @gnr.pt</p>
+      <div id="login-alert" class="hidden"></div>
+      <div class="field"><label>Email institucional</label><input type="email" id="login-email" placeholder="utilizador@gnr.pt" autocomplete="email"></div>
+      <div class="field"><label>Palavra-passe</label><input type="password" id="login-pw" placeholder="••••••••" autocomplete="current-password"></div>
+      <button class="btn btn-primary btn-full" id="btn-login" onclick="doLogin()">Entrar</button>
+      <p style="text-align:center;margin-top:1.25rem;font-size:13px;color:var(--gray-600)">Sem conta? <a href="#" style="color:var(--blue-mid);text-decoration:none;font-weight:500" onclick="showPage('register');return false">Solicitar acesso</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== REGISTER ==================== -->
+<div id="page-register" class="auth-wrap hidden">
+  <div class="auth-side">
+    <span class="badge">GNR · ACESSO NOVO</span>
+    <h1>Solicitar Acesso ao SGI</h1>
+    <div class="divider"></div>
+    <p>O registo é exclusivo para elementos da GNR com email institucional @gnr.pt. A conta fica pendente até aprovação por um administrador.</p>
+    <div class="divider"></div>
+    <p style="font-size:12px;color:rgba(255,255,255,0.4);font-family:'IBM Plex Mono',monospace">Apenas @gnr.pt</p>
+  </div>
+  <div class="auth-form-wrap">
+    <div class="auth-card">
+      <h2>Criar Conta</h2>
+      <p class="sub">Preencha os dados institucionais</p>
+      <div id="reg-alert" class="hidden"></div>
+      <div class="form-grid">
+        <div class="field form-full"><label>Nome completo</label><input type="text" id="reg-nome" placeholder="Nome e Apelido"></div>
+        <div class="field"><label>Posto / Função</label><input type="text" id="reg-posto" placeholder="Ex: Cabo, Sargento..."></div>
+        <div class="field"><label>Email @gnr.pt</label><input type="email" id="reg-email" placeholder="nome@gnr.pt"></div>
+        <div class="field"><label>Palavra-passe</label><input type="password" id="reg-pw" placeholder="Mín. 8 caracteres"></div>
+        <div class="field"><label>Confirmar palavra-passe</label><input type="password" id="reg-pw2" placeholder="Repetir palavra-passe"></div>
+      </div>
+      <button class="btn btn-primary btn-full" id="btn-reg" onclick="doRegister()">Solicitar Acesso</button>
+      <p style="text-align:center;margin-top:1.25rem;font-size:13px;color:var(--gray-600)"><a href="#" style="color:var(--blue-mid);text-decoration:none;font-weight:500" onclick="showPage('login');return false">← Voltar ao login</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== APP ==================== -->
+<div id="page-app" class="hidden">
+  <nav class="navbar">
+    <div class="nav-brand">
+      <div class="nav-logo">GNR</div>
+      <span class="nav-title">SGI</span>
+    </div>
+    <div class="nav-links">
+      <button class="nav-link active" id="nav-dashboard" onclick="showSection('dashboard')">Dashboard</button>
+      <button class="nav-link" id="nav-incidentes" onclick="showSection('incidentes')">Incidentes</button>
+      <button class="nav-link" id="nav-itp" onclick="showSection('itp')">ITP</button>
+      <button class="nav-link hidden" id="nav-admin" onclick="showSection('admin')">Administração</button>
+    </div>
+    <div class="nav-right">
+      <span class="nav-user" id="nav-user-label"></span>
+      <span class="nav-admin-badge hidden" id="nav-admin-badge">ADMIN</span>
+      <button class="nav-logout" onclick="doLogout()">Sair</button>
+    </div>
+  </nav>
+
+  <!-- DASHBOARD -->
+  <div id="section-dashboard" class="page">
+    <div class="page-header">
+      <div><div class="page-title" id="dash-greeting">Dashboard</div><div class="page-sub" id="dash-date"></div></div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="s-label">Incidentes</div><div class="s-num blue" id="s-inc">0</div></div>
+      <div class="stat-card"><div class="s-label">ITP</div><div class="s-num red" id="s-itp">0</div></div>
+      <div class="stat-card"><div class="s-label">Este mês</div><div class="s-num" id="s-mes">0</div></div>
+      <div class="stat-card"><div class="s-label">Em curso</div><div class="s-num amber" id="s-curso">0</div></div>
+      <div class="stat-card"><div class="s-label">Resolvidos</div><div class="s-num green" id="s-res">0</div></div>
+    </div>
+    <div class="action-cards">
+      <div class="action-card inc" onclick="openModal('modal-inc')">
+        <div class="action-icon blue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1e5094" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+        <h3>Novo Incidente</h3><p>Registar ocorrência policial</p>
+      </div>
+      <div class="action-card itp" onclick="openModal('modal-itp')">
+        <div class="action-icon red"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8b1a1a" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+        <h3>Novo ITP</h3><p>Incidente tático-policial</p>
+      </div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card"><div class="chart-title">Distribuição por tipo</div><canvas id="chart-tipo" height="200"></canvas></div>
+      <div class="chart-card"><div class="chart-title">Evolução mensal</div><canvas id="chart-mensal" height="200"></canvas></div>
+    </div>
+    <div class="table-card">
+      <div class="table-card-header"><span style="font-size:14px;font-weight:600">Registos recentes</span><button class="btn btn-ghost btn-sm" onclick="showSection('incidentes')">Ver todos →</button></div>
+      <div id="dash-recent"></div>
+    </div>
+  </div>
+
+  <!-- INCIDENTES -->
+  <div id="section-incidentes" class="page hidden">
+    <div class="page-header">
+      <div><div class="page-title">Incidentes</div><div class="page-sub" id="inc-count-label"></div></div>
+      <button class="btn btn-primary" onclick="openModal('modal-inc')">+ Novo Incidente</button>
+    </div>
+    <div class="table-card"><div id="table-inc-wrap"></div></div>
+  </div>
+
+  <!-- ITP -->
+  <div id="section-itp" class="page hidden">
+    <div class="page-header">
+      <div><div class="page-title">Incidentes Tático-Policiais</div><div class="page-sub" id="itp-count-label"></div></div>
+      <button class="btn btn-itp" onclick="openModal('modal-itp')">+ Novo ITP</button>
+    </div>
+    <div class="table-card"><div id="table-itp-wrap"></div></div>
+  </div>
+
+  <!-- ADMIN -->
+  <div id="section-admin" class="page hidden">
+    <div class="page-header"><div class="page-title">Gestão de Utilizadores</div></div>
+    <div id="admin-wrap"></div>
+  </div>
+</div>
+
+<!-- MODAL: Novo Incidente -->
+<div id="modal-inc" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Registar Incidente</span>
+      <button class="modal-close" onclick="closeModal('modal-inc')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="inc-alert" class="hidden"></div>
+      <div class="form-grid">
+        <div class="field form-full"><label>Tipo de incidente *</label>
+          <select id="inc-tipo"><option value="">Selecionar...</option><option>Acidente de viação</option><option>Furto / Roubo</option><option>Violência doméstica</option><option>Desordem pública</option><option>Incêndio</option><option>Tráfico de estupefacientes</option><option>Violência entre pessoas</option><option>Outro</option></select></div>
+        <div class="field form-full"><label>Localização *</label><input type="text" id="inc-local" placeholder="Morada, localidade ou referência"></div>
+        <div class="field"><label>Data e hora *</label><input type="datetime-local" id="inc-data"></div>
+        <div class="field"><label>Gravidade *</label>
+          <select id="inc-grav"><option value="">Selecionar...</option><option>Baixa</option><option>Média</option><option>Alta</option><option>Crítica</option></select></div>
+        <div class="field"><label>Estado</label>
+          <select id="inc-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
+        <div class="field form-full"><label>Descrição</label><textarea id="inc-desc" placeholder="Descreva o incidente..."></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-inc')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-inc" onclick="saveIncidente()">Guardar Registo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Novo ITP -->
+<div id="modal-itp" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Registar ITP</span>
+      <button class="modal-close" onclick="closeModal('modal-itp')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="itp-alert" class="hidden"></div>
+      <div class="form-grid">
+        <div class="field form-full"><label>Tipo de ITP *</label>
+          <select id="itp-tipo"><option value="">Selecionar...</option><option>Sequestro / Reféns</option><option>Barricado armado</option><option>Tiroteio ativo</option><option>Atentado terrorista</option><option>Perseguição de alto risco</option><option>Ameaça de bomba</option><option>Outro</option></select></div>
+        <div class="field form-full"><label>Localização *</label><input type="text" id="itp-local" placeholder="Morada ou referência"></div>
+        <div class="field"><label>Data e hora *</label><input type="datetime-local" id="itp-data"></div>
+        <div class="field"><label>Negociador responsável</label><input type="text" id="itp-neg" placeholder="Nome do negociador"></div>
+        <div class="field"><label>Nº de suspeitos</label><input type="number" id="itp-sus" min="0" value="0"></div>
+        <div class="field"><label>Nº de reféns</label><input type="number" id="itp-ref" min="0" value="0"></div>
+        <div class="field"><label>Estado</label>
+          <select id="itp-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
+        <div class="field form-full"><label>Descrição tática</label><textarea id="itp-desc" placeholder="Situação tática, recursos envolvidos..."></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-itp')">Cancelar</button>
+      <button class="btn btn-itp" id="btn-save-itp" onclick="saveITP()">Guardar ITP</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- #app -->
+
+<script>
+// ==================== SUPABASE ====================
+const SUPABASE_URL = 'https://crbyrnjbxuemdzqelhbs.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNyYnlybmpieHVlbWR6cWVsaGJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MzgzNzEsImV4cCI6MjA5MjAxNDM3MX0.o-r98TbzkHWPX7gpHVzVXqKsIQgJOQgECMNVCLSjFCE';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let currentProfile = null;
+let allIncidentes = [];
+let allITPs = [];
+
+// ==================== AUTH ====================
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pw = document.getElementById('login-pw').value;
+  const btn = document.getElementById('btn-login');
+  showAlert('login-alert', '', '');
+  if (!email.endsWith('@gnr.pt')) { showAlert('login-alert', 'error', 'Apenas emails @gnr.pt são permitidos.'); return; }
+  btn.innerHTML = '<span class="spinner"></span> A entrar...'; btn.disabled = true;
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+  btn.innerHTML = 'Entrar'; btn.disabled = false;
+  if (error) { showAlert('login-alert', 'error', 'Credenciais inválidas. Verifique o email e palavra-passe.'); return; }
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
+  if (!profile || !profile.approved) { await sb.auth.signOut(); showAlert('login-alert', 'warning', 'Conta pendente de aprovação por um administrador.'); return; }
+  currentUser = data.user; currentProfile = profile;
+  enterApp();
+}
+
+async function doRegister() {
+  const nome = document.getElementById('reg-nome').value.trim();
+  const posto = document.getElementById('reg-posto').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pw = document.getElementById('reg-pw').value;
+  const pw2 = document.getElementById('reg-pw2').value;
+  const btn = document.getElementById('btn-reg');
+  showAlert('reg-alert', '', '');
+  if (!nome || !posto || !email || !pw) { showAlert('reg-alert', 'error', 'Preencha todos os campos.'); return; }
+  if (!email.endsWith('@gnr.pt')) { showAlert('reg-alert', 'error', 'Apenas emails @gnr.pt são aceites.'); return; }
+  if (pw.length < 8) { showAlert('reg-alert', 'error', 'A palavra-passe deve ter mínimo 8 caracteres.'); return; }
+  if (pw !== pw2) { showAlert('reg-alert', 'error', 'As palavras-passe não coincidem.'); return; }
+  btn.innerHTML = '<span class="spinner"></span> A registar...'; btn.disabled = true;
+  const { error } = await sb.auth.signUp({ email, password: pw, options: { data: { nome, posto } } });
+  btn.innerHTML = 'Solicitar Acesso'; btn.disabled = false;
+  if (error) { showAlert('reg-alert', 'error', error.message); return; }
+  showAlert('reg-alert', 'success', 'Conta criada com sucesso! Aguarde aprovação de um administrador antes de entrar.');
+}
+
+async function doLogout() {
+  await sb.auth.signOut(); currentUser = null; currentProfile = null;
+  allIncidentes = []; allITPs = [];
+  if (window._chartTipo) { window._chartTipo.destroy(); window._chartTipo = null; }
+  if (window._chartMensal) { window._chartMensal.destroy(); window._chartMensal = null; }
+  showPage('login');
+}
+
+// ==================== APP INIT ====================
+async function enterApp() {
+  showPage('app');
+  document.getElementById('nav-user-label').textContent = currentProfile.posto + ' ' + currentProfile.nome.split(' ')[0];
+  if (currentProfile.role === 'admin') {
+    document.getElementById('nav-admin').classList.remove('hidden');
+    document.getElementById('nav-admin-badge').classList.remove('hidden');
+  }
+  await loadData();
+  showSection('dashboard');
+}
+
+async function loadData() {
+  const [incRes, itpRes] = await Promise.all([
+    sb.from('incidentes').select('*').order('created_at', { ascending: false }),
+    sb.from('itps').select('*').order('created_at', { ascending: false })
+  ]);
+  allIncidentes = incRes.data || [];
+  allITPs = itpRes.data || [];
+  // side stat
+  document.getElementById('side-total').textContent = (allIncidentes.length + allITPs.length).toString().padStart(3, '0');
+}
+
+// ==================== NAVIGATION ====================
+function showPage(p) {
+  ['login','register','app'].forEach(x => document.getElementById('page-'+x).classList.add('hidden'));
+  document.getElementById('page-'+p).classList.remove('hidden');
+}
+function showSection(s) {
+  ['dashboard','incidentes','itp','admin'].forEach(x => {
+    document.getElementById('section-'+x).classList.add('hidden');
+    const nb = document.getElementById('nav-'+x);
+    if (nb) nb.classList.remove('active');
+  });
+  document.getElementById('section-'+s).classList.remove('hidden');
+  const nb = document.getElementById('nav-'+s);
+  if (nb) nb.classList.add('active');
+  if (s === 'dashboard') renderDashboard();
+  if (s === 'incidentes') renderTableIncidentes();
+  if (s === 'itp') renderTableITP();
+  if (s === 'admin') renderAdmin();
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.remove('hidden');
+  const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  const local = now.toISOString().slice(0,16);
+  if (id === 'modal-inc') { document.getElementById('inc-data').value = local; showAlert('inc-alert','',''); }
+  if (id === 'modal-itp') { document.getElementById('itp-data').value = local; showAlert('itp-alert','',''); }
+}
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal('modal-inc'); closeModal('modal-itp'); } });
+
+// ==================== ALERTS ====================
+function showAlert(id, type, msg) {
+  const el = document.getElementById(id);
+  if (!type || !msg) { el.className = 'hidden'; return; }
+  el.className = 'alert alert-' + type;
+  el.textContent = msg;
+}
+
+// ==================== DASHBOARD ====================
+function renderDashboard() {
+  const now = new Date();
+  document.getElementById('dash-greeting').textContent = 'Bom dia, ' + currentProfile.posto + ' ' + currentProfile.nome.split(' ')[0];
+  document.getElementById('dash-date').textContent = now.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const all = [...allIncidentes, ...allITPs];
+  document.getElementById('s-inc').textContent = allIncidentes.length;
+  document.getElementById('s-itp').textContent = allITPs.length;
+  document.getElementById('s-mes').textContent = all.filter(x => new Date(x.created_at).getMonth() === now.getMonth() && new Date(x.created_at).getFullYear() === now.getFullYear()).length;
+  document.getElementById('s-curso').textContent = all.filter(x => x.estado === 'Em curso').length;
+  document.getElementById('s-res').textContent = all.filter(x => x.estado === 'Resolvido').length;
+
+  const recent = [...allIncidentes.map(x=>({...x,_t:'inc'})), ...allITPs.map(x=>({...x,_t:'itp'}))]
+    .sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0,6);
+  document.getElementById('dash-recent').innerHTML = recent.length ? `
+    <table><thead><tr><th>Tipo</th><th>Localização</th><th>Data</th><th>Estado</th></tr></thead><tbody>
+    ${recent.map(r => `<tr>
+      <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:${r._t==='itp'?'var(--red)':'var(--blue-mid)'}"></span>${r.tipo}</span></td>
+      <td style="color:var(--gray-600)">${r.local}</td>
+      <td style="color:var(--gray-600);font-family:'IBM Plex Mono',monospace;font-size:12px">${new Date(r.data_hora).toLocaleDateString('pt-PT')}</td>
+      <td>${estadoBadge(r.estado)}</td>
+    </tr>`).join('')}</tbody></table>` : '<div class="empty-state"><p>Sem registos ainda.</p></div>';
+
+  renderCharts();
+}
+
+function renderCharts() {
+  if (typeof Chart === 'undefined') return;
+  const tipos = {};
+  allIncidentes.forEach(x => tipos[x.tipo] = (tipos[x.tipo]||0)+1);
+  allITPs.forEach(x => tipos['ITP: '+x.tipo] = (tipos['ITP: '+x.tipo]||0)+1);
+
+  const tipoCtx = document.getElementById('chart-tipo').getContext('2d');
+  if (window._chartTipo) window._chartTipo.destroy();
+  window._chartTipo = new Chart(tipoCtx, { type: 'doughnut', data: { labels: Object.keys(tipos), datasets: [{ data: Object.values(tipos), backgroundColor: ['#1e5094','#8b1a1a','#1a4a2e','#7a4a00','#534AB7','#0F6E56','#993C1D'], borderWidth: 2, borderColor: '#fff' }] }, options: { plugins: { legend: { position: 'bottom', labels: { font: { size: 11, family: "'IBM Plex Sans'" }, padding: 12 } } } } });
+
+  const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const incM = Array(12).fill(0), itpM = Array(12).fill(0);
+  allIncidentes.forEach(x => incM[new Date(x.created_at).getMonth()]++);
+  allITPs.forEach(x => itpM[new Date(x.created_at).getMonth()]++);
+  const mensalCtx = document.getElementById('chart-mensal').getContext('2d');
+  if (window._chartMensal) window._chartMensal.destroy();
+  window._chartMensal = new Chart(mensalCtx, { type: 'bar', data: { labels: months, datasets: [{ label: 'Incidentes', data: incM, backgroundColor: '#d6e8fa', borderRadius: 4 }, { label: 'ITP', data: itpM, backgroundColor: '#fdeaea', borderRadius: 4 }] }, options: { plugins: { legend: { labels: { font: { size: 11, family: "'IBM Plex Sans'" } } } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 11 } } }, y: { ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } } } } });
+}
+
+// ==================== BADGES ====================
+function estadoBadge(e) {
+  const m = { 'Em curso': 'badge-amber', 'Resolvido': 'badge-green', 'Arquivado': 'badge-gray' };
+  return `<span class="badge ${m[e]||'badge-gray'}">${e}</span>`;
+}
+function gravBadge(g) {
+  const m = { 'Baixa': 'badge-green', 'Média': 'badge-amber', 'Alta': 'badge-red', 'Crítica': 'badge-red' };
+  return `<span class="badge ${m[g]||'badge-gray'}">${g||'—'}</span>`;
+}
+
+// ==================== TABLES ====================
+function renderTableIncidentes() {
+  document.getElementById('inc-count-label').textContent = allIncidentes.length + ' registo(s)';
+  const el = document.getElementById('table-inc-wrap');
+  if (!allIncidentes.length) { el.innerHTML = '<div class="empty-state"><p>Sem incidentes registados.</p></div>'; return; }
+  el.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>Tipo</th><th>Localização</th><th>Data/Hora</th><th>Gravidade</th><th>Estado</th><th>Autor</th></tr></thead>
+    <tbody>${allIncidentes.map(r => `<tr>
+      <td style="font-weight:500">${r.tipo}</td>
+      <td style="color:var(--gray-600)">${r.local}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gray-600)">${new Date(r.data_hora).toLocaleString('pt-PT', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
+      <td>${gravBadge(r.gravidade)}</td>
+      <td>${estadoBadge(r.estado)}</td>
+      <td style="color:var(--gray-600);font-size:12px">${r.autor_nome||'—'}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function renderTableITP() {
+  document.getElementById('itp-count-label').textContent = allITPs.length + ' registo(s)';
+  const el = document.getElementById('table-itp-wrap');
+  if (!allITPs.length) { el.innerHTML = '<div class="empty-state"><p>Sem ITP registados.</p></div>'; return; }
+  el.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>Tipo</th><th>Localização</th><th>Data/Hora</th><th>Negociador</th><th>Suspeitos</th><th>Reféns</th><th>Estado</th></tr></thead>
+    <tbody>${allITPs.map(r => `<tr>
+      <td style="font-weight:500">${r.tipo}</td>
+      <td style="color:var(--gray-600)">${r.local}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gray-600)">${new Date(r.data_hora).toLocaleString('pt-PT', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
+      <td>${r.negociador||'—'}</td>
+      <td style="text-align:center;font-family:'IBM Plex Mono',monospace">${r.num_suspeitos}</td>
+      <td style="text-align:center;font-family:'IBM Plex Mono',monospace">${r.num_refens}</td>
+      <td>${estadoBadge(r.estado)}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+// ==================== SAVE RECORDS ====================
+async function saveIncidente() {
+  const tipo = document.getElementById('inc-tipo').value;
+  const local = document.getElementById('inc-local').value.trim();
+  const data = document.getElementById('inc-data').value;
+  const grav = document.getElementById('inc-grav').value;
+  const estado = document.getElementById('inc-estado').value;
+  const desc = document.getElementById('inc-desc').value.trim();
+  const btn = document.getElementById('btn-save-inc');
+  showAlert('inc-alert','','');
+  if (!tipo||!local||!data||!grav) { showAlert('inc-alert','error','Preencha todos os campos obrigatórios.'); return; }
+  btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+  const { error } = await sb.from('incidentes').insert({ tipo, local, data_hora: new Date(data).toISOString(), gravidade: grav, estado, descricao: desc, autor_id: currentUser.id, autor_nome: currentProfile.nome });
+  btn.innerHTML = 'Guardar Registo'; btn.disabled = false;
+  if (error) { showAlert('inc-alert','error','Erro ao guardar: '+error.message); return; }
+  closeModal('modal-inc');
+  resetForm(['inc-tipo','inc-local','inc-grav','inc-desc']);
+  await loadData();
+  showSection('dashboard');
+}
+
+async function saveITP() {
+  const tipo = document.getElementById('itp-tipo').value;
+  const local = document.getElementById('itp-local').value.trim();
+  const data = document.getElementById('itp-data').value;
+  const neg = document.getElementById('itp-neg').value.trim() || currentProfile.nome;
+  const sus = parseInt(document.getElementById('itp-sus').value) || 0;
+  const ref = parseInt(document.getElementById('itp-ref').value) || 0;
+  const estado = document.getElementById('itp-estado').value;
+  const desc = document.getElementById('itp-desc').value.trim();
+  const btn = document.getElementById('btn-save-itp');
+  showAlert('itp-alert','','');
+  if (!tipo||!local||!data) { showAlert('itp-alert','error','Preencha todos os campos obrigatórios.'); return; }
+  btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+  const { error } = await sb.from('itps').insert({ tipo, local, data_hora: new Date(data).toISOString(), negociador: neg, num_suspeitos: sus, num_refens: ref, estado, descricao: desc, autor_id: currentUser.id, autor_nome: currentProfile.nome });
+  btn.innerHTML = 'Guardar ITP'; btn.disabled = false;
+  if (error) { showAlert('itp-alert','error','Erro ao guardar: '+error.message); return; }
+  closeModal('modal-itp');
+  resetForm(['itp-tipo','itp-local','itp-neg','itp-desc']);
+  document.getElementById('itp-sus').value = '0'; document.getElementById('itp-ref').value = '0';
+  await loadData();
+  showSection('dashboard');
+}
+
+function resetForm(ids) { ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); }
+
+// ==================== ADMIN ====================
+async function renderAdmin() {
+  const { data: users } = await sb.from('profiles').select('*').order('created_at');
+  const pending = (users||[]).filter(x => !x.approved).length;
+  const el = document.getElementById('admin-wrap');
+  el.innerHTML = `
+    ${pending > 0 ? `<div class="user-pending-banner"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${pending} conta(s) aguardam aprovação</div>` : ''}
+    <div class="table-card">
+      <div class="table-card-header"><span style="font-size:14px;font-weight:600">Utilizadores registados</span><span class="badge badge-blue">${(users||[]).length} total</span></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Nome</th><th>Email</th><th>Posto</th><th>Papel</th><th>Estado</th><th>Ações</th></tr></thead>
+        <tbody>${(users||[]).map(u => `<tr>
+          <td style="font-weight:${u.id===currentUser.id?'600':'400'}">${u.nome}${u.id===currentUser.id?' <span style="font-size:11px;color:var(--gray-400)">(eu)</span>':''}</td>
+          <td style="font-size:12px;font-family:\'IBM Plex Mono\',monospace;color:var(--gray-600)">${u.email}</td>
+          <td style="color:var(--gray-600)">${u.posto}</td>
+          <td><span class="badge ${u.role==='admin'?'badge-admin':'badge-blue'}">${u.role==='admin'?'Admin':'Negociador'}</span></td>
+          <td><span class="badge ${u.approved?'badge-green':'badge-amber'}">${u.approved?'Aprovado':'Pendente'}</span></td>
+          <td><div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${!u.approved && u.id!==currentUser.id ? `<button class="btn btn-success-fill btn-sm" onclick="adminAction('approve','${u.id}')">Aprovar</button>` : ''}
+            ${u.approved && u.id!==currentUser.id && u.role==='negotiator' ? `<button class="btn btn-outline btn-sm" onclick="adminAction('promote','${u.id}')">→ Admin</button>` : ''}
+            ${u.approved && u.id!==currentUser.id && u.role==='admin' ? `<button class="btn btn-outline btn-sm" onclick="adminAction('demote','${u.id}')">→ Negociador</button>` : ''}
+            ${u.id!==currentUser.id ? `<button class="btn btn-danger-fill btn-sm" onclick="adminAction('remove','${u.id}')">Remover</button>` : ''}
+          </div></td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`;
+}
+
+async function adminAction(action, uid) {
+  if (action === 'approve') await sb.from('profiles').update({ approved: true }).eq('id', uid);
+  else if (action === 'promote') await sb.from('profiles').update({ role: 'admin' }).eq('id', uid);
+  else if (action === 'demote') await sb.from('profiles').update({ role: 'negotiator' }).eq('id', uid);
+  else if (action === 'remove') {
+    if (!confirm('Remover este utilizador permanentemente?')) return;
+    await sb.from('profiles').delete().eq('id', uid);
+  }
+  renderAdmin();
+}
+
+// ==================== INIT ====================
+(async () => {
+  const { data } = await sb.auth.getSession();
+  if (data.session) {
+    const { data: profile } = await sb.from('profiles').select('*').eq('id', data.session.user.id).single();
+    if (profile && profile.approved) {
+      currentUser = data.session.user; currentProfile = profile;
+      enterApp();
+    } else {
+      await sb.auth.signOut(); showPage('login');
+    }
+  } else { showPage('login'); }
+})();
+</script>
+</body>
+</html>
