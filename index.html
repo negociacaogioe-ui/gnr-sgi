@@ -680,8 +680,8 @@ function addPDFHeader(doc, titulo, subtitulo) {
   doc.setDrawColor(200,168,75);
   doc.setLineWidth(0.8);
   doc.line(0,32,pageW,32);
-  try { doc.addImage(PDF_GNR,'JPEG',4,5,30,40); } catch(e){}
-  try { doc.addImage(PDF_NEG,'JPEG',pageW-30,5,26,35); } catch(e){}
+  try { doc.addImage(PDF_GNR,'JPEG',4,8,30,50); } catch(e){}
+  try { doc.addImage(PDF_NEG,'JPEG',pageW-30,8,26,40); } catch(e){}
   doc.setTextColor(255,255,255);
   doc.setFontSize(13);
   doc.setFont('helvetica','bold');
