@@ -3654,7 +3654,7 @@ async function renderAdmin(){
           <td>
             <select onchange="updateUserCter('${u.id}',this.value)" style="font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);max-width:140px">
               <option value="">— Sem CTer —</option>
-              ${['CTer Aveiro','CTer Beja','CTer Braga','CTer Bragança','CTer Castelo Branco','CTer Coimbra','CTer Évora','CTer Faro','CTer Guarda','CTer Leiria','CTer Lisboa','CTer Portalegre','CTer Porto','CTer Santarém','CTer Setúbal','CTer Viana do Castelo','CTer Vila Real','CTer Viseu','CTer Açores','CTer Madeira','UI/GIOE'].map(c=>`<option value="${c}" ${u.cter===c?'selected':''}>${c}</option>`).join('')}
+              ${['CTer Aveiro','CTer Beja','CTer Braga','CTer Bragança','CTer Castelo Branco','CTer Coimbra','CTer Évora','CTer Faro','CTer Guarda','CTer Leiria','CTer Lisboa','CTer Portalegre','CTer Porto','CTer Santarém','CTer Setúbal','CTer Viana do Castelo','CTer Vila Real','CTer Viseu','CTer Açores','CTer Madeira','UCCF','UI/GIOE'].map(c=>`<option value="${c}" ${u.cter===c?'selected':''}>${c}</option>`).join('')}
             </select>
           </td>
           <td><span class="badge ${u.role==='admin'?'badge-admin':u.role==='investigacao_criminal'?'badge-itp':'badge-neg'}">${u.role==='admin'?'Admin':u.role==='investigacao_criminal'?'Inv. Criminal':'Negociador'}</span></td>
