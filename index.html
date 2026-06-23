@@ -3170,7 +3170,181 @@ function toggleAdminFormacao() {
   icon.style.transform = content.classList.contains('hidden') ? '' : 'rotate(180deg)';
 }
 
+// ===== EXERCÍCIOS DE FORMAÇÃO (ADMIN) =====
+const EXERCICIO_BUILTIN = {
+  id: 'builtin-001',
+  numero: 'GNR-2025-VD-EX-0012',
+  data: '7 de março de 2025',
+  tipo: 'Violência Doméstica — Vício de Jogo — Ameaça de Suicídio com Menor (6.º piso)',
+  urgencia: 'CRÍTICA',
+  escalada_itp: true,
+  conteudo: `<div style="font-family:'IBM Plex Sans',sans-serif;max-width:860px">
+  <div style="background:var(--gn);color:#fff;border-radius:var(--rl) var(--rl) 0 0;padding:1.5rem 2rem;display:flex;justify-content:space-between;align-items:flex-start">
+    <div>
+      <div style="font-size:11px;letter-spacing:.1em;color:var(--gold);font-weight:600;text-transform:uppercase;margin-bottom:4px">Guarda Nacional Republicana · GIOE — Negociação</div>
+      <div style="font-size:20px;font-weight:700">Relatório de Ocorrência — Violência Doméstica</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:4px">USO EXCLUSIVO PARA FORMAÇÃO E EXERCÍCIOS PRÁTICOS</div>
+    </div>
+    <div style="background:#c0392b;border-radius:8px;padding:.5rem 1rem;text-align:center;flex-shrink:0">
+      <div style="font-size:10px;color:rgba(255,255,255,.8);font-weight:600">URGÊNCIA</div>
+      <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:.05em">CRÍTICA</div>
+    </div>
+  </div>
+  <div style="border:1px solid var(--border);border-top:none;padding:1.25rem 2rem;background:#fff">
+    <div style="font-size:11px;font-weight:700;color:var(--gn);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;border-bottom:2px solid var(--gn);padding-bottom:.4rem">Informação Geral da Ocorrência</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem .5rem;font-size:13px">
+      <div><b>Nº Ocorrência:</b> GNR-2025-VD-EX-0012</div><div><b>Data:</b> 7 de março de 2025</div>
+      <div><b>Hora da chamada:</b> 14h32</div><div><b>Hora de despacho:</b> 14h34</div>
+      <div><b>Posto territorial:</b> Destacamento de Lisboa — Posto do Lumiar</div>
+      <div><b>Tipo:</b> Violência Doméstica — Vício de Jogo — <span style="color:#c0392b;font-weight:600">Ameaça de suicídio com menor (6.º piso)</span></div>
+      <div style="grid-column:1/-1"><b>Patrulha despachada:</b> Bravo-7 (Cabo Fonseca / Guarda Monteiro) + Bravo-2 como apoio</div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--border);border-top:none">
+    <div style="padding:1.25rem 1.5rem;background:#fff;border-right:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:700;color:var(--gn);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;border-bottom:2px solid var(--gn);padding-bottom:.4rem">Denunciante</div>
+      <div style="font-size:13px;line-height:1.8"><b>Nome:</b> Cátia Ferreira<br><b>Morada:</b> Rua Padre Américo, 43, 6.º Dto. — 1600-548 Lisboa<br><b>Relação:</b> Vizinha do mesmo andar<br><b>Presença no local:</b> Sim, no corredor</div>
+    </div>
+    <div style="padding:1.25rem 1.5rem;background:#fff">
+      <div style="font-size:11px;font-weight:700;color:var(--gn);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;border-bottom:2px solid var(--gn);padding-bottom:.4rem">Local da Ocorrência</div>
+      <div style="font-size:13px;line-height:1.8">Rua Padre Américo, 43, 6.º Esq. — 1600-548 Lisboa<br><b>Tipo:</b> Apartamento T3 (Bloco de 8 pisos, anos 80)<br><b>Piso:</b> 6.º andar — janela da sala sem grade de proteção<br><b>Ocupantes:</b> Casal + filha de 6 anos<br><b>Historial:</b> 1 chamada anterior (dez. 2024) — sem detenção<br><b>Iluminação:</b> Dia claro</div>
+    </div>
+  </div>
+  <div style="border:1px solid var(--border);border-top:none;padding:1.25rem 2rem;background:#fff">
+    <div style="font-size:11px;font-weight:700;color:var(--gn);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;border-bottom:2px solid var(--gn);padding-bottom:.4rem">Relato da Denunciante (Transcrição da Chamada)</div>
+    <div style="background:#f8f9fa;border-left:3px solid var(--gm);padding:1rem 1.25rem;font-size:13px;line-height:1.9;color:#2d2d2d;font-style:italic;margin-bottom:.75rem">"Preciso de ajuda, por favor! O meu vizinho do lado está em cima da janela com a filha ao colo. Ouço a mulher a chorar e a gritar para ele largar a menina. Ele está a berrar que perdeu tudo, que não quer mais saber de nada, que a leva com ele. A criança não faz nada, só está a chorar. Eu vi quando ele abriu a janela — está mesmo no parapeito. Por favor venham já, isto está horrível."</div>
+    <div style="font-size:12px;color:var(--gray600);display:grid;grid-template-columns:1fr 1fr;gap:.25rem .5rem">
+      <div><b>Duração:</b> 2m 17s</div><div><b>Operador CODU-GNR:</b> Guarda Principal Baptista</div>
+      <div><b>Estado emocional:</b> Muito agitada, choro, voz entrecortada</div>
+      <div><b>Info adicional:</b> Confirma que a filha está ao colo do suspeito no parapeito da janela</div>
+    </div>
+  </div>
+  <div style="border:1px solid #c0392b;border-top:none;padding:1rem 2rem;background:#fdf0ef">
+    <span style="font-size:11px;font-weight:700;color:#c0392b;text-transform:uppercase;letter-spacing:.08em">⚠ Nota Operacional:</span>
+    <span style="font-size:13px;color:#7a1a1a"> Suspeito no parapeito exterior da janela do 6.º andar com menor (6 anos) ao colo. Ameaça de salto conjunto. <b>Ativar protocolo ITP — negociação imediata.</b> Elemento tático deve aguardar indicação do negociador antes de qualquer aproximação visível do exterior.</span>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--border);border-top:none">
+    <div style="padding:1.25rem 1.5rem;background:#fff;border-right:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:700;color:var(--gn);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;border-bottom:2px solid var(--gn);padding-bottom:.4rem">Perfil do Suspeito</div>
+      <div style="font-size:13px;line-height:1.9"><b>Nome:</b> Marco António Delgado Sousa<br><b>Idade:</b> 41 anos<br><b>Profissão:</b> Técnico de informática (desempregado desde out. 2024)<br><b>Compleição:</b> Média, aprox. 1,78 m<br><b>Ocorrências anteriores:</b> 1 (violência doméstica, dez. 2024 — arquivado)<br><b>Substâncias:</b> Sem registo de álcool/drogas — vício comportamental (jogo)<br><b>Armas registadas:</b> Nenhuma<br><b>Acompanhamento psiquiátrico:</b> Sem registo</div>
+    </div>
+    <div style="padding:1.25rem 1.5rem;background:#fff">
+      <div style="font-size:11px;font-weight:700;color:var(--gn);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;border-bottom:2px solid var(--gn);padding-bottom:.4rem">Cronologia Após Despacho</div>
+      <div style="font-size:13px;line-height:1.9"><b>14h41</b> — Patrulha Bravo-7 no local. Corredor do 6.º piso evacuado.<br><b>14h43</b> — Contacto telefónico com a companheira (Inês Sousa). Confirma filha com o suspeito na sala trancada por dentro.<br><b>14h46</b> — Suspeito visível na janela. Filha ao colo, a chorar. Verbalizações: <i>"Não tenho para onde ir. Se ela me tira a Beatriz, não há razão para ficar."</i><br><b>14h48</b> — Negociador solicitado via CODU. GIOE ativado.<br><b>14h52</b> — Perímetro de segurança estabelecido. Evacuação de transeuntes na rua.</div>
+    </div>
+  </div>
+  <div style="border:1px solid var(--border);border-top:none;padding:1.25rem 2rem;background:#fff">
+    <div style="font-size:11px;font-weight:700;color:var(--gn);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;border-bottom:2px solid var(--gn);padding-bottom:.4rem">Contexto Psicossocial — Para os Negociadores</div>
+    <div style="font-size:13px;line-height:1.9;color:#2d2d2d">
+      <p>A companheira, <b>Inês Sousa</b> (38 anos, enfermeira), relata que o marido começou a jogar online em 2022, inicialmente em pequenas quantias através de plataformas de apostas desportivas. Progrediu rapidamente para casino online e, no último ano, passou a frequentar o Casino Estoril e o Casino de Lisboa com regularidade crescente.</p>
+      <p>Nos últimos 6 meses, Marco contraiu dívidas estimadas em <b>€ 87.000</b>: créditos bancários (€ 23.000), empréstimos a familiares e amigos (€ 18.000) e a agiotas não identificados (≥ € 46.000). Vendeu o veículo familiar sem consentimento da companheira e acumulou 3 meses de renda em falta.</p>
+      <p>Na semana passada, Inês comunicou-lhe que pretendia pedir divórcio e requerer a <b>guarda exclusiva da filha Beatriz (6 anos)</b>, citando instabilidade económica grave e ambiente familiar degradado. Marco reagiu com agressividade verbal. Hoje, ao receber carta bancária com processo de penhora, entrou em colapso emocional abrupto.</p>
+      <p>Marco não tem historial de agressão física anterior. Nas últimas semanas apresentava insónia, isolamento social progressivo e recusou apoio psicológico proposto pela companheira. Sem consumo de substâncias conhecido.</p>
+      <div style="background:var(--gp);border-radius:var(--r);padding:.75rem 1rem;margin-top:.5rem;font-size:12px;color:var(--gm)"><i class="fas fa-phone" style="color:var(--gl)"></i> <b>Nº de telemóvel do suspeito (fornecido pela companheira):</b> 966 *** *** — negociador deve iniciar contacto imediato após avaliação da situação.</div>
+    </div>
+  </div>
+  <div style="border:1px solid #1e5c28;border-top:none;padding:1.25rem 2rem;background:#f0f7f1">
+    <div style="font-size:11px;font-weight:700;color:var(--gn);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;border-bottom:2px solid var(--gn);padding-bottom:.4rem">Dilema Operacional — Para Análise em Exercício</div>
+    <div style="font-size:13px;line-height:1.9;color:#1a3a1f">
+      <p>O suspeito encontra-se no parapeito da janela do 6.º andar com a filha ao colo. A criança não apresenta sinais de resistência ativa — aparenta estar em estado de choque. O suspeito <b>não usa força física sobre a menor</b>, mas a sua posição representa risco imediato de vida para ambos.</p>
+      <p>A companheira permanece no interior do apartamento, separada da sala por uma porta fechada por dentro. Está em estado de pânico mas colaborante ao telefone. Existe potencial para ser usada como elemento de comunicação auxiliar.</p>
+      <p>O suspeito não apresentou ameaças a terceiros. A sua verbalização centra-se na perda — emprego, dinheiro, família e, sobretudo, a filha. <b>O vínculo afetivo com Beatriz é simultaneamente o fator de risco e o maior recurso terapêutico disponível.</b></p>
+    </div>
+  </div>
+  <div style="border:1px solid var(--border);border-top:none;padding:1.25rem 2rem;background:#fff;border-radius:0 0 var(--rl) var(--rl)">
+    <div style="font-size:11px;font-weight:700;color:var(--gn);text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem;border-bottom:2px solid var(--gn);padding-bottom:.4rem">Questões para Debate</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;font-size:13px">
+      <div style="background:#f8f9fa;border-radius:var(--r);padding:.75rem 1rem;border-left:3px solid var(--red)"><div style="font-weight:600;color:#8b1a1a;margin-bottom:.3rem;font-size:12px">🔺 Escalada para ITP</div><div style="color:#444;font-size:12px;line-height:1.6">Este incidente reúne os critérios para classificação como ITP? A presença da filha ao colo no parapeito configura situação de refém? Que elementos determinam a ativação do protocolo?</div></div>
+      <div style="background:#f8f9fa;border-radius:var(--r);padding:.75rem 1rem;border-left:3px solid var(--gl)"><div style="font-weight:600;color:var(--gn);margin-bottom:.3rem;font-size:12px">📞 Estratégia de Primeiro Contacto</div><div style="color:#444;font-size:12px;line-height:1.6">Como iniciar o contacto com Marco? Ligação direta, através de Inês, voz do corredor? Quais os riscos de cada abordagem? Qual o tom e a linguagem a privilegiar no primeiro minuto?</div></div>
+      <div style="background:#f8f9fa;border-radius:var(--r);padding:.75rem 1rem;border-left:3px solid var(--gl)"><div style="font-weight:600;color:var(--gn);margin-bottom:.3rem;font-size:12px">👶 Segurança da Menor</div><div style="color:#444;font-size:12px;line-height:1.6">Que estratégias verbais podem levar Marco a colocar Beatriz dentro do apartamento? Existe janela de oportunidade? Como evitar que qualquer verbalização precipite o salto?</div></div>
+      <div style="background:#f8f9fa;border-radius:var(--r);padding:.75rem 1rem;border-left:3px solid var(--gl)"><div style="font-weight:600;color:var(--gn);margin-bottom:.3rem;font-size:12px">💔 Linha Temática da Negociação</div><div style="color:#444;font-size:12px;line-height:1.6">Marco centra-se na perda e no vínculo com a filha. Como usar este vínculo afetivo como âncora emocional sem cair em promessas que não podem ser cumpridas? Qual o papel do amor paternal nesta negociação?</div></div>
+      <div style="background:#f8f9fa;border-radius:var(--r);padding:.75rem 1rem;border-left:3px solid var(--gl)"><div style="font-weight:600;color:var(--gn);margin-bottom:.3rem;font-size:12px">👩 Papel da Companheira Inês</div><div style="color:#444;font-size:12px;line-height:1.6">Deve Inês ser preparada para falar com Marco? Que instruções concretas dar-lhe? Quais os riscos de a envolver diretamente? Como gerir o seu estado emocional para não contaminar a negociação?</div></div>
+      <div style="background:#f8f9fa;border-radius:var(--r);padding:.75rem 1rem;border-left:3px solid var(--red)"><div style="font-weight:600;color:#8b1a1a;margin-bottom:.3rem;font-size:12px">🚨 Coordenação Tática</div><div style="color:#444;font-size:12px;line-height:1.6">Como gerir a tensão entre urgência tática (risco imediato de queda) e o tempo necessário para criar ligação empática? Quando é que a intervenção física se justifica e quem toma essa decisão?</div></div>
+    </div>
+    <div style="margin-top:1.5rem;padding:1rem 1.25rem;background:var(--gn);border-radius:var(--r);font-size:12px;color:rgba(255,255,255,.8);text-align:center">
+      Nº Ocorrência: GNR-2025-VD-EX-0012 | Violência Doméstica — Vício de Jogo — Ameaça de Suicídio com Menor (6.º Piso)<br>
+      <span style="color:var(--gold);font-weight:600">DOCUMENTO RESERVADO — USO EXCLUSIVO EM EXERCÍCIOS DE FORMAÇÃO — GNR · GIOE</span>
+    </div>
+  </div>
+</div>`
+};
+
+function renderExerciciosList(dbExercises) {
+  const all = [EXERCICIO_BUILTIN, ...(dbExercises||[])];
+  return `
+    <div style="margin-bottom:1.25rem;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:14px;font-weight:600;color:var(--gn)">${all.length} exercício${all.length!==1?'s':''} disponível${all.length!==1?'s':''}</span>
+    </div>
+    ${all.map(ex => `
+      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:1rem 1.25rem;margin-bottom:.75rem;cursor:pointer;transition:all .15s;border-left:4px solid ${ex.escalada_itp||ex.itp?'var(--red)':'var(--gl)'}"
+        onclick="verExercicio('${ex.id}')"
+        onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)'"
+        onmouseout="this.style.boxShadow='none'">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:.3rem">
+              <span style="font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--gray600)">${ex.numero||ex.id}</span>
+              ${ex.urgencia?`<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${ex.urgencia==='CRÍTICA'?'#c0392b':ex.urgencia==='ALTA'?'#e67e22':'#27ae60'};color:#fff">${ex.urgencia}</span>`:''}
+              ${(ex.escalada_itp||ex.itp)?`<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(139,26,26,.1);color:var(--red);border:1px solid var(--red)">↑ Escalada ITP</span>`:''}
+            </div>
+            <div style="font-size:14px;font-weight:600;color:var(--gn)">${ex.tipo||ex.titulo||'Exercício'}</div>
+            <div style="font-size:12px;color:var(--gray600);margin-top:.2rem">Data do exercício: ${ex.data||'—'}</div>
+          </div>
+          <i class="fas fa-chevron-right" style="color:var(--gl)"></i>
+        </div>
+      </div>`).join('')}`;
+}
+
+function verExercicio(id) {
+  const wrap = document.getElementById('exercicio-detail-wrap');
+  const list = document.getElementById('exercicios-list');
+  let ex;
+  if (id === 'builtin-001') ex = EXERCICIO_BUILTIN;
+  if (!ex) return;
+  list.classList.add('hidden');
+  wrap.classList.remove('hidden');
+  wrap.innerHTML = `
+    <button onclick="voltarExercicios()" class="btn btn-outline btn-sm" style="margin-bottom:1.25rem">
+      <i class="fas fa-arrow-left"></i> Voltar à lista de exercícios
+    </button>
+    ${ex.conteudo}`;
+  wrap.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function voltarExercicios() {
+  document.getElementById('exercicio-detail-wrap').classList.add('hidden');
+  document.getElementById('exercicios-list').classList.remove('hidden');
+}
+
 async function openFormacaoAdmin(area) {
+  if (area === 'exercicios_admin') {
+    ['dashboard','incidentes','itp','formacao','formacao-detalhe','admin'].forEach(x => {
+      const el = document.getElementById('section-' + x);
+      if (el) el.classList.add('hidden');
+    });
+    document.getElementById('section-formacao-detalhe').classList.remove('hidden');
+    const el = document.getElementById('formacao-detalhe-content');
+
+    // Load exercises from DB
+    const { data: exRows } = await sb.from('formacao_exercicios').select('*').order('created_at', { ascending: false }).catch(() => ({ data: [] }));
+    const exercises = exRows || [];
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:1.5rem">
+        <div style="width:56px;height:56px;background:var(--gn);border-radius:var(--rl);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;border:2px solid var(--gold)">📋</div>
+        <div>
+          <h2 style="font-size:20px;font-weight:600;color:var(--gn)">Exercícios de Formação</h2>
+          <p style="font-size:13px;color:var(--gray600)">Banco de cenários táticos para negociadores — acesso restrito a administradores</p>
+        </div>
+        <span style="margin-left:auto;background:var(--gn);color:var(--gold);font-size:11px;padding:4px 12px;border-radius:20px;font-weight:600;border:1px solid var(--gold)">ADMIN</span>
+      </div>
+      <div id="exercicios-list">
+        ${renderExerciciosList(exercises)}
+      </div>
+      <div id="exercicio-detail-wrap" class="hidden"></div>`;
+    return;
+  }
+
   if (area === 'apresentacao_gioe') {
     const info = FORMACAO_AREAS_ADMIN.find(a => a.area === area);
 
@@ -3239,6 +3413,7 @@ const FORMACAO_AREAS = [
 
 const FORMACAO_AREAS_ADMIN = [
   { area:'apresentacao_gioe', titulo:'Apresentação Núcleo de Negociação GIOE', icon:'🎯', color:'#1A3A1F', accent:'#C8A84B', desc:'Apresentação exclusiva — Estrutura e Recursos Humanos' },
+  { area:'exercicios_admin',  titulo:'Exercícios de Formação',                  icon:'📋', color:'#1A1A3A', accent:'#C8A84B', desc:'Banco de exercícios e cenários táticos — acesso restrito' },
 ];
 
 let formacaoData = {};
