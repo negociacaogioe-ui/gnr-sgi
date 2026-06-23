@@ -639,6 +639,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
           <div id="detail-badges"></div>
           <button id="detail-edit-btn" class="btn btn-outline btn-sm" onclick="openDetailEdit()" title="Editar" style="display:none"><i class="fas fa-pencil-alt"></i> Editar</button>
           <button id="detail-delete-btn" class="btn btn-danger btn-sm" onclick="deleteCurrentDetail()" title="Eliminar" style="display:none"><i class="fas fa-trash"></i> Eliminar</button>
+          <button id="detail-whatsapp-btn" class="btn btn-sm" onclick="partilharViaWhatsApp()" title="Partilhar via WhatsApp" style="background:#25D366;color:#fff;border-color:#25D366;display:none"><i class="fab fa-whatsapp"></i> Partilhar</button>
         </div>
       </div>
       <div class="tabs-nav" id="tabs-nav">
@@ -1187,8 +1188,10 @@ function openRecord(type,record){
   const isAdmin = currentProfile?.role === 'admin';
   const editBtn = document.getElementById('detail-edit-btn');
   const delBtn = document.getElementById('detail-delete-btn');
+  const waBtn = document.getElementById('detail-whatsapp-btn');
   if (editBtn) editBtn.style.display = isAdmin ? '' : 'none';
   if (delBtn) delBtn.style.display = isAdmin ? '' : 'none';
+  if (waBtn) waBtn.style.display = '';
   // Remove treino badge if present
   document.getElementById('treino-badge')?.remove();
 }
@@ -1211,6 +1214,30 @@ async function deleteCurrentDetail() {
   if (error) { alert('Erro ao eliminar: ' + error.message); return; }
   await loadData();
   goBack();
+}
+
+function partilharViaWhatsApp(){
+  if(!currentDetail)return;
+  const{type,record:r}=currentDetail;
+  const isItp=type==='itp';
+  const label=isItp?'🚨 NOVO ITP':'📋 NOVO INCIDENTE';
+  const dataHora=r.data_hora?new Date(r.data_hora).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+  const linhas=[
+    `${label} — GNR GIOE Negociação`,
+    ``,
+    `🗂 *Tipo:* ${r.tipo||'—'}`,
+    `📍 *Local:* ${r.local||'—'}`,
+    `🕐 *Data/Hora:* ${dataHora}`,
+    r.cter?`🏛 *CTer:* ${r.cter}`:'',
+    isItp&&r.num_suspeitos!=null?`👤 *Suspeitos:* ${r.num_suspeitos}  |  Reféns: ${r.num_refens||0}`:'',
+    isItp&&r.negociador?`🤝 *Negociador:* ${r.negociador}`:'',
+    !isItp&&r.gravidade?`⚠️ *Gravidade:* ${r.gravidade}`:'',
+    r.estado?`📌 *Estado:* ${r.estado}`:'',
+    r.descricao?`\n📝 *Resumo:*\n${r.descricao.slice(0,300)}${r.descricao.length>300?'…':''}`:'',
+    ``,
+    `_Enviado via SGI · GIOE Negociação_`
+  ].filter(l=>l!=='').join('\n');
+  window.open('https://wa.me/?text='+encodeURIComponent(linhas),'_blank');
 }
 
 function goBack(){
@@ -3718,7 +3745,14 @@ async function adminAction(action,uid){
     await sb.from('profiles').update({role:'investigacao_criminal',nivel_acesso:'operacional',approved:true}).eq('id',uid);
     await sb.from('notificacoes').insert({tipo:'sistema',mensagem:'O seu acesso de Investigação Criminal foi configurado. Já pode aceder ao SGI.',destinatario_id:uid});
   }
-  else if(action==='remove'){if(!confirm('Remover utilizador?'))return;await sb.from('profiles').delete().eq('id',uid);}
+  else if(action==='remove'){
+    if(!confirm('Remover utilizador? Esta ação é irreversível e permitirá que o email seja reutilizado para nova conta.'))return;
+    // 1. Apagar perfil (garante limpeza de dados locais)
+    await sb.from('profiles').delete().eq('id',uid);
+    // 2. Apagar de auth.users via RPC (necessário para permitir re-registo com o mesmo email)
+    const{error:authErr}=await sb.rpc('admin_delete_user',{target_user_id:uid});
+    if(authErr)console.warn('RPC admin_delete_user:',authErr.message);
+  }
   renderAdmin();
 }
 
