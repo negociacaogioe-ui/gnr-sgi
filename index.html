@@ -292,7 +292,7 @@ body.is-mobile{overflow-x:hidden}
 body.is-mobile .navbar{display:none!important}
 
 /* Mobile header fixed */
-#mob-header{display:none;position:fixed;top:0;left:0;right:0;height:var(--mob-header-h);background:var(--gn);border-bottom:2px solid var(--gold);z-index:200;align-items:center;padding:0 1rem;gap:10px}
+#mob-header{display:none;position:fixed;top:0;left:0;right:0;height:var(--mob-header-h);background:var(--gn);border-bottom:2px solid var(--gold);z-index:350;align-items:center;padding:0 1rem;gap:10px}
 body.is-mobile #mob-header{display:flex}
 
 /* Mobile app wrapper */
@@ -1352,6 +1352,9 @@ function setupRealtimeSync() {
         if (!document.getElementById('section-itp').classList.contains('hidden')) renderTableITP();
       }
     })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notificacoes', filter: 'destinatario_id=eq.' + currentUser.id }, async () => {
+      try{ await loadNotifications(); }catch(e){}
+    })
     .subscribe();
 }
 
@@ -1869,6 +1872,7 @@ async function saveIncidente(){
   closeModal('modal-inc');
   ['inc-tipo','inc-local','inc-cter','inc-grav','inc-desc','inc-contacto-vitima','inc-contacto-agressor'].forEach(id=>document.getElementById(id).value='');
   await sb.from('historico').insert({tabela:'incidentes',registo_id:(await sb.from('incidentes').select('id').order('created_at',{ascending:false}).limit(1)).data?.[0]?.id,acao:'criado',autor_id:currentUser.id,autor_nome:currentProfile.nome}).catch(()=>{});
+  await notificarListaIncidente(tipo, local, 'inc');
   await loadData();showSection('dashboard');
 }
 
@@ -4052,7 +4056,7 @@ async function renderAdmin(){
         <span class="badge badge-green">${(users||[]).length} total</span>
       </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>Nome</th><th>Email</th><th>Posto</th><th>CTer</th><th>Papel</th><th>Estado</th><th>Nível de Acesso</th><th>Ações</th></tr></thead>
+        <thead><tr><th>Nome</th><th>Email</th><th>Posto</th><th>CTer</th><th>Papel</th><th>Estado</th><th>Nível de Acesso</th><th title="Recebe notificação sempre que é aberto um incidente">Notif.</th><th>Ações</th></tr></thead>
         <tbody>${(users||[]).map(u=>`<tr>
           <td style="font-weight:${u.id===currentUser.id?'600':'400'}">${u.nome}${u.id===currentUser.id?' <span style="font-size:11px;color:var(--gray400)">(eu)</span>':''}</td>
           <td style="font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--gray600)">${u.email}</td>
@@ -4071,6 +4075,11 @@ async function renderAdmin(){
               :u.approved
                 ?`<span class="badge ${(u.nivel_acesso||'formacao')==='operacional'?'badge-green':'badge-gold'}">${(u.nivel_acesso||'formacao')==='operacional'?'🛡 Operacional':'📚 Só Formação'}</span>`
                 :'<span class="badge badge-gray">—</span>'}
+          </td>
+          <td style="text-align:center">
+            ${u.approved
+              ?`<input type="checkbox" ${u.notif_incidentes?'checked':''} onchange="updateUserNotif('${u.id}',this.checked)" title="Notificar este utilizador em cada incidente aberto" style="width:18px;height:18px;accent-color:var(--gl);cursor:pointer">`
+              :'<span class="badge badge-gray">—</span>'}
           </td>
           <td><div style="display:flex;gap:5px;flex-wrap:wrap">
             ${!u.approved&&u.id!==currentUser.id?`
@@ -4096,6 +4105,20 @@ async function renderAdmin(){
     </div>`;
 }
 
+async function notificarListaIncidente(tipo, local, kind){
+  try{
+    const{data:dest}=await sb.from('profiles').select('id').eq('notif_incidentes',true).eq('approved',true);
+    if(!dest||!dest.length) return;
+    const label = kind==='itp' ? 'ITP' : 'Incidente';
+    const msg = 'Novo '+label+' aberto: '+(tipo||'(sem tipo)')+(local?(' — '+local):'')+'. Registado por '+(currentProfile?.nome||'—')+'.';
+    const rows = dest.filter(d=>d.id!==currentUser?.id).map(d=>({tipo:'sistema', mensagem:msg, destinatario_id:d.id}));
+    if(rows.length) await sb.from('notificacoes').insert(rows);
+  }catch(e){ console.warn('notificarListaIncidente falhou', e); }
+}
+async function updateUserNotif(uid, on){
+  await sb.from('profiles').update({ notif_incidentes: !!on }).eq('id', uid);
+  if(uid===currentUser?.id) currentProfile.notif_incidentes = !!on;
+}
 async function updateUserCter(uid, cter) {
   await sb.from('profiles').update({ cter }).eq('id', uid);
   // Update currentProfile if it's the logged in user
@@ -7933,6 +7956,7 @@ async function mobSaveInc(){
   };
   const{error}=await sb.from('incidentes').insert(payload);
   if(error){mobShowAlert('mob-inc-alert','error','Erro: '+error.message);return;}
+  await notificarListaIncidente(payload.tipo, payload.local, 'inc');
   mobShowAlert('mob-inc-alert','success','Incidente criado!');
   await loadData();
   setTimeout(()=>{mobShowTab('lista');},1200);
