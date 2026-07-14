@@ -2017,18 +2017,16 @@ function calcIRIS(){
   const sv=document.getElementById('iris-score-val');if(sv)sv.textContent=score;
   const ri=document.getElementById('iris-risk');if(!ri)return;
   ri.style.display='block';
-  if(plan){ri.className='risk-indicator risk-extreme';ri.textContent='RISCO EXTREMO — PLANO SUICIDA IDENTIFICADO';}
-  else if(score>=10){ri.className='risk-indicator risk-high';ri.textContent='RISCO ELEVADO (score: '+score+')';}
+  if(score>=10){ri.className='risk-indicator risk-high';ri.textContent='RISCO ELEVADO (score: '+score+')';}
   else if(score>=5){ri.className='risk-indicator risk-medium';ri.textContent='RISCO INTERMÉDIO (score: '+score+')';}
-  else if(score>0){ri.className='risk-indicator risk-low';ri.textContent='RISCO REDUZIDO (score: '+score+')';}
-  else{ri.className='risk-indicator risk-low';ri.textContent='NÃO AVALIADO';}
+  else{ri.className='risk-indicator risk-low';ri.textContent='RISCO REDUZIDO (score: '+score+')';}
 }
 
 async function saveIRIS(){
   const{type,record:r}=currentDetail;
   const plan=document.getElementById('iris-suplan').checked;
   let score=parseInt(document.getElementById('iris-score-val').textContent)||0;
-  let riskLevel=plan?'Extremo':score>=10?'Elevado':score>=5?'Intermédio':score>0?'Reduzido':'Não avaliado';
+  let riskLevel=score>=10?'Elevado':score>=5?'Intermédio':'Reduzido';
   const payload={
     parent_type:type==='inc'?'incidente':'itp',parent_id:r.id,
     patient_name:document.getElementById('iris-name').value,
@@ -2176,7 +2174,7 @@ function exportIRISPDF(){
     ]},
     {title:'ESFERA SUICIDA',items:[
       'Comportamentos prévios: '+(document.getElementById('iris-suhist')?.checked?'Sim':'Não'),
-      'Plano suicida: '+(document.getElementById('iris-suplan')?.checked?'SIM — RISCO EXTREMO':'Não'),
+      'Plano suicida: '+(document.getElementById('iris-suplan')?.checked?'SIM (score = 20)':'Não'),
     ]},
   ];
   sections.forEach(s=>{
@@ -7200,12 +7198,10 @@ async function mobAbrirForm(form) {
           ${chk('Abuso de substâncias','mob-iris-subs',d.substance_abuse)}
           ${chk('Doença psiquiátrica grave','mob-iris-psych',d.psychiatric_illness)}
           ${chk('Historial internamento psiq.','mob-iris-pshist',d.psychiatric_history)}
-          ${chk('Conflito familiar grave','mob-iris-fam',d.family_conflict)}
-          ${secHdr('Esfera Suicida — 3 pts/item','var(--red)')}
-          ${chk('Comportamentos suicidas prévios','mob-iris-prev',d.previous_attempts)}
-          ${chk('Plano suicida estruturado','mob-iris-plan',d.suicide_plan)}
-          ${chk('Acesso a meios letais','mob-iris-means',d.means_access)}
-          ${chk('Ideação suicida atual','mob-iris-idea',d.suicidal_ideation)}
+          ${chk('História familiar de suicídio','mob-iris-fam',d.family_suicide)}
+          ${secHdr('Esfera Suicida','var(--red)')}
+          ${chk('2+ comportamentos suicidários prévios ou 1 grave (3 pts)','mob-iris-prev',d.suicide_history)}
+          ${chk('Plano suicida organizado, consistente, letal e exequível (Score = 20)','mob-iris-plan',d.suicide_plan)}
           <div id="mob-iris-result" style="margin:14px 0;padding:14px;border-radius:var(--rl);text-align:center;background:var(--gray100)">
             <div style="font-size:11px;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Nível de Risco</div>
             <div id="mob-iris-level" style="font-size:26px;font-weight:700;color:var(--gray600)">—</div>
@@ -7465,16 +7461,18 @@ function mobSelectSit(sit) {
 
 function mobCalcIRIS() {
   let score = 0;
-  const g=document.getElementById('mob-iris-gender')?.value; if(g==='male')score+=1;
-  const a=document.getElementById('mob-iris-age')?.value; if(a==='over45')score+=1;
-  const rel=document.getElementById('mob-iris-rel')?.value; if(rel==='no')score+=1;
-  ['mob-iris-iso','mob-iris-loss','mob-iris-phys','mob-iris-subs','mob-iris-psych','mob-iris-pshist','mob-iris-fam'].forEach(id=>{if(document.getElementById(id)?.checked)score+=2;});
-  ['mob-iris-prev','mob-iris-plan','mob-iris-means','mob-iris-idea'].forEach(id=>{if(document.getElementById(id)?.checked)score+=3;});
+  const plan=document.getElementById('mob-iris-plan')?.checked;
+  if(plan){ score = 20; } else {
+    const g=document.getElementById('mob-iris-gender')?.value; if(g==='male')score+=1;
+    const a=document.getElementById('mob-iris-age')?.value; if(a==='over45')score+=1;
+    const rel=document.getElementById('mob-iris-rel')?.value; if(rel==='no')score+=1;
+    ['mob-iris-iso','mob-iris-loss','mob-iris-phys','mob-iris-subs','mob-iris-psych','mob-iris-pshist','mob-iris-fam'].forEach(id=>{if(document.getElementById(id)?.checked)score+=2;});
+    if(document.getElementById('mob-iris-prev')?.checked)score+=3;
+  }
   let riskLabel,riskColor,bgColor;
-  if(score<=5){riskLabel='RISCO BAIXO';riskColor='var(--gm)';bgColor='var(--gp)';}
-  else if(score<=10){riskLabel='RISCO MÉDIO';riskColor='var(--amber)';bgColor='var(--amberl)';}
-  else if(score<=15){riskLabel='RISCO ELEVADO';riskColor='#d2691e';bgColor='#fff3e0';}
-  else{riskLabel='RISCO CRÍTICO';riskColor='var(--red)';bgColor='var(--redl)';}
+  if(score>=10){riskLabel='RISCO ELEVADO';riskColor='var(--red)';bgColor='var(--redl)';}
+  else if(score>=5){riskLabel='RISCO INTERMÉDIO';riskColor='var(--amber)';bgColor='var(--amberl)';}
+  else{riskLabel='RISCO REDUZIDO';riskColor='var(--gm)';bgColor='var(--gp)';}
   const badge=document.getElementById('mob-iris-badge');
   const result=document.getElementById('mob-iris-result');
   const level=document.getElementById('mob-iris-level');
@@ -7508,14 +7506,25 @@ async function mobSaveIRIS() {
   const{type,record:r}=mobDetail;
   const g=v=>document.getElementById(v)?.value||'';
   const c=v=>document.getElementById(v)?.checked||false;
+  const _plan=c('mob-iris-plan');
+  let _mScore=0;
+  if(_plan){_mScore=20;}else{
+    if(g('mob-iris-gender')==='male')_mScore+=1;
+    if(g('mob-iris-age')==='over45')_mScore+=1;
+    if(g('mob-iris-rel')==='no')_mScore+=1;
+    ['mob-iris-iso','mob-iris-loss','mob-iris-phys','mob-iris-subs','mob-iris-psych','mob-iris-pshist','mob-iris-fam'].forEach(id=>{if(document.getElementById(id)?.checked)_mScore+=2;});
+    if(c('mob-iris-prev'))_mScore+=3;
+  }
+  const _mRisk=_mScore>=10?'Elevado':_mScore>=5?'Intermédio':'Reduzido';
   const payload={
     parent_type:type==='inc'?'incidente':'itp', parent_id:r.id,
     patient_name:g('mob-iris-name'), patient_id:g('mob-iris-pid'), assessment_date:g('mob-iris-date')||null,
     gender:g('mob-iris-gender'), age_group:g('mob-iris-age'), religiosity:g('mob-iris-rel'),
     isolation:c('mob-iris-iso'), recent_loss:c('mob-iris-loss'), physical_illness:c('mob-iris-phys'),
     substance_abuse:c('mob-iris-subs'), psychiatric_illness:c('mob-iris-psych'), psychiatric_history:c('mob-iris-pshist'),
-    family_conflict:c('mob-iris-fam'), previous_attempts:c('mob-iris-prev'), suicide_plan:c('mob-iris-plan'),
-    means_access:c('mob-iris-means'), suicidal_ideation:c('mob-iris-idea')
+    family_suicide:c('mob-iris-fam'), suicide_history:c('mob-iris-prev'), suicide_plan:c('mob-iris-plan'),
+    score:_mScore, risk_level:_mRisk,
+    autor_id:currentUser.id, autor_nome:currentProfile.nome
   };
   const{data:ex}=await sb.from('iris').select('id').eq('parent_type',payload.parent_type).eq('parent_id',r.id).maybeSingle();
   const{error}=ex ? await sb.from('iris').update(payload).eq('id',ex.id) : await sb.from('iris').insert(payload);
