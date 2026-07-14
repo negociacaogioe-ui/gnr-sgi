@@ -13,6 +13,13 @@
 <meta name="apple-mobile-web-app-title" content="SGI GNR">
 <meta name="theme-color" content="#1a3a1f">
 <title>SGI — Guarda Nacional Republicana</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a3a1f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SGI">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -458,6 +465,10 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
             <option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option>
             <option>CTer Açores</option><option>CTer Madeira</option><option>UCCF</option><option>UI/GIOE</option>
           </select>
+        </div>
+        <div style="border-top:1px solid var(--border);margin:.25rem 0 .75rem;padding-top:.75rem">
+          <label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Notificações no dispositivo</label>
+          <div id="push-btn-wrap"></div>
         </div>
         <div id="perfil-alert" class="hidden" style="margin-bottom:.75rem"></div>
         <button class="btn btn-primary btn-full" onclick="guardarPerfil()"><i class="fas fa-save"></i> Guardar</button>
@@ -1279,6 +1290,7 @@ async function enterApp(){
   const isInvestigacao = currentProfile.role === 'investigacao_criminal';
   const isOperacional = currentProfile.nivel_acesso === 'operacional' || isAdmin;
 
+  try{ sgiRegisterSW(); }catch(e){}
   if(isAdmin){
     document.getElementById('nav-admin').classList.remove('hidden');
     document.getElementById('nav-admin-badge').classList.remove('hidden');
@@ -1872,7 +1884,7 @@ async function saveIncidente(){
   closeModal('modal-inc');
   ['inc-tipo','inc-local','inc-cter','inc-grav','inc-desc','inc-contacto-vitima','inc-contacto-agressor'].forEach(id=>document.getElementById(id).value='');
   await sb.from('historico').insert({tabela:'incidentes',registo_id:(await sb.from('incidentes').select('id').order('created_at',{ascending:false}).limit(1)).data?.[0]?.id,acao:'criado',autor_id:currentUser.id,autor_nome:currentProfile.nome}).catch(()=>{});
-  await notificarListaIncidente(tipo, local, 'inc');
+  await notificarListaIncidente(tipo, local, 'inc', cter);
   await loadData();showSection('dashboard');
 }
 
@@ -4105,15 +4117,114 @@ async function renderAdmin(){
     </div>`;
 }
 
-async function notificarListaIncidente(tipo, local, kind){
+const SGI_VAPID_PUBLIC = 'BBybnJFxdde1cy4cFNM8zv2rHgTwuC7AZvqgZJC4h4DrFH1IXczhgdzlyMT0WtM4Ygo3x7mfhnpkICzkJAikiq4';
+function _u8(base64){
+  const pad='='.repeat((4-base64.length%4)%4);
+  const b64=(base64+pad).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(b64); const out=new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++) out[i]=raw.charCodeAt(i);
+  return out;
+}
+async function sgiRegisterSW(){
+  if(!('serviceWorker' in navigator)) return null;
+  try{ return await navigator.serviceWorker.register('sw.js', {scope:'./'}); }
+  catch(e){ console.warn('SW falhou', e); return null; }
+}
+function sgiPushSuportado(){
+  return ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
+}
+async function sgiEstadoPush(){
+  if(!sgiPushSuportado()) return 'indisponivel';
+  if(Notification.permission==='denied') return 'bloqueado';
   try{
-    const{data:dest}=await sb.from('profiles').select('id').eq('notif_incidentes',true).eq('approved',true);
-    if(!dest||!dest.length) return;
+    const reg=await navigator.serviceWorker.getRegistration();
+    const sub=reg && await reg.pushManager.getSubscription();
+    return sub ? 'ativo' : 'inativo';
+  }catch(e){ return 'inativo'; }
+}
+async function sgiAtivarPush(){
+  if(!sgiPushSuportado()){ alert('Este dispositivo/browser não suporta notificações push. No iPhone, instale a app no ecrã principal (Partilhar → Adicionar ao ecrã principal).'); return; }
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){ alert('Permissão de notificações não concedida.'); await sgiRenderPushBtn(); return; }
+    let reg=await navigator.serviceWorker.getRegistration();
+    if(!reg) reg=await sgiRegisterSW();
+    await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub){
+      sub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:_u8(SGI_VAPID_PUBLIC)});
+    }
+    const j=sub.toJSON();
+    await sb.from('push_subscriptions').upsert({
+      user_id: currentUser.id,
+      endpoint: j.endpoint,
+      p256dh: j.keys.p256dh,
+      auth: j.keys.auth,
+      user_agent: navigator.userAgent.slice(0,255)
+    }, {onConflict:'endpoint'});
+    alert('Notificações ativadas neste dispositivo.');
+  }catch(e){ console.warn(e); alert('Não foi possível ativar as notificações: '+e.message); }
+  await sgiRenderPushBtn();
+}
+async function sgiDesativarPush(){
+  try{
+    const reg=await navigator.serviceWorker.getRegistration();
+    const sub=reg && await reg.pushManager.getSubscription();
+    if(sub){
+      const ep=sub.endpoint;
+      await sub.unsubscribe();
+      await sb.from('push_subscriptions').delete().eq('endpoint',ep);
+    }
+    alert('Notificações desativadas neste dispositivo.');
+  }catch(e){ console.warn(e); }
+  await sgiRenderPushBtn();
+}
+async function sgiRenderPushBtn(){
+  const el=document.getElementById('push-btn-wrap');
+  if(!el) return;
+  const st=await sgiEstadoPush();
+  if(st==='indisponivel'){
+    el.innerHTML='<div style="font-size:11.5px;color:var(--gray400);line-height:1.5"><i class="fas fa-circle-info"></i> Notificações push indisponíveis neste browser. No iPhone: instale a app no ecrã principal.</div>';
+  } else if(st==='bloqueado'){
+    el.innerHTML='<div style="font-size:11.5px;color:var(--red);line-height:1.5"><i class="fas fa-bell-slash"></i> Notificações bloqueadas nas definições do browser. Reative-as aí para receber alertas.</div>';
+  } else if(st==='ativo'){
+    el.innerHTML='<button class="btn btn-sm" onclick="sgiDesativarPush()" style="width:100%;background:var(--gray100);color:var(--gray900)"><i class="fas fa-bell-slash"></i> Desativar notificações neste dispositivo</button><div style="font-size:11px;color:var(--gm);margin-top:5px"><i class="fas fa-check-circle"></i> Ativas neste dispositivo</div>';
+  } else {
+    el.innerHTML='<button class="btn btn-primary btn-sm" onclick="sgiAtivarPush()" style="width:100%"><i class="fas fa-bell"></i> Ativar notificações neste dispositivo</button><div style="font-size:11px;color:var(--gray400);margin-top:5px">Recebe alerta mesmo com a app fechada.</div>';
+  }
+}
+async function notificarPush(tipo, local, kind, cter){
+  try{
+    const{data:sess}=await sb.auth.getSession();
+    const token=sess?.session?.access_token;
+    if(!token) return;
+    await fetch(SURL+'/functions/v1/notificar-incidente',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'apikey':SKEY},
+      body: JSON.stringify({tipo, local, cter, kind, autor: currentProfile?.nome||'—'})
+    });
+  }catch(e){ console.warn('push falhou', e); }
+}
+async function notificarListaIncidente(tipo, local, kind, cter){
+  try{
+    // Regra 1: lista fixa definida pelo admin — recebe sempre, qualquer CTer
+    const qLista = sb.from('profiles').select('id').eq('notif_incidentes',true).eq('approved',true);
+    // Regra 2: todos os negociadores operacionais do CTer onde o caso foi aberto
+    const qCter = cter
+      ? sb.from('profiles').select('id').eq('approved',true).eq('cter',cter).eq('role','negotiator').eq('nivel_acesso','operacional')
+      : Promise.resolve({data:[]});
+    const [rLista, rCter] = await Promise.all([qLista, qCter]);
+    const ids = new Set();
+    (rLista.data||[]).forEach(d=>ids.add(d.id));
+    (rCter.data||[]).forEach(d=>ids.add(d.id));
+    ids.delete(currentUser?.id);
+    if(!ids.size) return;
     const label = kind==='itp' ? 'ITP' : 'Incidente';
-    const msg = 'Novo '+label+' aberto: '+(tipo||'(sem tipo)')+(local?(' — '+local):'')+'. Registado por '+(currentProfile?.nome||'—')+'.';
-    const rows = dest.filter(d=>d.id!==currentUser?.id).map(d=>({tipo:'sistema', mensagem:msg, destinatario_id:d.id}));
-    if(rows.length) await sb.from('notificacoes').insert(rows);
+    const msg = 'Novo '+label+' aberto'+(cter?(' — '+cter):'')+': '+(tipo||'(sem tipo)')+(local?(' em '+local):'')+'. Registado por '+(currentProfile?.nome||'—')+'.';
+    const rows = Array.from(ids).map(id=>({tipo:'sistema', mensagem:msg, destinatario_id:id}));
+    await sb.from('notificacoes').insert(rows);
   }catch(e){ console.warn('notificarListaIncidente falhou', e); }
+  notificarPush(tipo, local, kind, cter);
 }
 async function updateUserNotif(uid, on){
   await sb.from('profiles').update({ notif_incidentes: !!on }).eq('id', uid);
@@ -6328,6 +6439,7 @@ async function deleteSinal() {
 let perfilOpen = false;
 
 function togglePerfilPanel() {
+  try{ sgiRenderPushBtn(); }catch(e){}
   perfilOpen = !perfilOpen;
   const panel = document.getElementById('perfil-panel');
   if (!panel) return;
@@ -7956,7 +8068,7 @@ async function mobSaveInc(){
   };
   const{error}=await sb.from('incidentes').insert(payload);
   if(error){mobShowAlert('mob-inc-alert','error','Erro: '+error.message);return;}
-  await notificarListaIncidente(payload.tipo, payload.local, 'inc');
+  await notificarListaIncidente(payload.tipo, payload.local, 'inc', payload.cter);
   mobShowAlert('mob-inc-alert','success','Incidente criado!');
   await loadData();
   setTimeout(()=>{mobShowTab('lista');},1200);
