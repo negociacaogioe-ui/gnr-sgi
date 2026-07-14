@@ -1,0 +1,18 @@
+{
+  "name": "SGI — Sistema de Gestão de Incidentes",
+  "short_name": "SGI",
+  "description": "Sistema de Gestão de Incidentes — GNR / GIOE Núcleo de Negociação",
+  "id": "/gnr-sgi/",
+  "start_url": "/gnr-sgi/",
+  "scope": "/gnr-sgi/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a3a1f",
+  "theme_color": "#1a3a1f",
+  "lang": "pt-PT",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
