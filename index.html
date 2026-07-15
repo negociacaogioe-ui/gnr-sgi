@@ -698,6 +698,8 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
         <button class="tab-btn" onclick="showTab('tab-info')"><i class="fas fa-info-circle"></i> Informações</button>
         <button class="tab-btn" onclick="showTab('tab-iris')"><i class="fas fa-heartbeat"></i> IRIS</button>
         <button class="tab-btn" id="tab-visado-btn" onclick="showTab('tab-visado')"><i class="fas fa-user-tag"></i> Descrição do Visado</button>
+        <button class="tab-btn" id="tab-posto-btn" onclick="showTab('tab-posto')"><i class="fas fa-user-shield"></i> Posto</button>
+        <button class="tab-btn" id="tab-pd-btn" onclick="showTab('tab-pd')"><i class="fas fa-comments"></i> Plano de Diálogo</button>
         <button class="tab-btn" onclick="showTab('tab-sari')"><i class="fas fa-shield-alt"></i> SARI</button>
         <button class="tab-btn" onclick="showTab('tab-plano')"><i class="fas fa-clipboard-list"></i> Plano</button>
         <button class="tab-btn" onclick="showTab('tab-rnrv')"><i class="fas fa-phone-alt"></i> Contactos</button>
@@ -721,6 +723,8 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
           <div id="rnrv-content"></div>
         </div>
         <!-- TAB SARI -->
+        <div id="tab-posto" class="tab-panel"><div id="posto-content"></div></div>
+        <div id="tab-pd" class="tab-panel"><div id="pd-content"></div></div>
         <div id="tab-visado" class="tab-panel">
           <div class="form-section">
             <h3><i class="fas fa-user-tag" style="color:var(--gl)"></i> Descrição do Visado</h3>
@@ -1415,6 +1419,19 @@ function setupRealtimeSync() {
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notificacoes', filter: 'destinatario_id=eq.' + currentUser.id }, async () => {
       try{ await loadNotifications(); }catch(e){}
     })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'treino_incidentes' }, (payload) => {
+      try{
+        const nov = payload.new;
+        if(!nov) return;
+        if(currentDetail && currentDetail.isTreino && currentDetail.record && currentDetail.record.id === nov.id){
+          currentDetail.record = Object.assign({}, currentDetail.record, nov);
+          const pv = document.getElementById('tab-posto');
+          if(pv && !pv.classList.contains('hidden')) renderPosto();
+        }
+        const idx = (treinoTodos||[]).findIndex(x => x.id === nov.id);
+        if(idx > -1) treinoTodos[idx] = Object.assign({}, treinoTodos[idx], nov);
+      }catch(e){}
+    })
     .subscribe();
 }
 
@@ -1515,12 +1532,16 @@ function showTab(tabId){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById(tabId).classList.add('active');
   var _vb=document.getElementById('tab-visado-btn'); if(_vb) _vb.style.display=(currentDetail&&currentDetail.isTreino)?'none':'';
-  const idx=['tab-resumo','tab-info','tab-iris','tab-visado','tab-sari','tab-plano','tab-rnrv','tab-hist'].indexOf(tabId);
+  const _tr=!!(currentDetail&&currentDetail.isTreino);
+  ['tab-posto-btn','tab-pd-btn'].forEach(function(b){var e=document.getElementById(b); if(e) e.style.display=_tr?'':'none';});
+  const idx=['tab-resumo','tab-info','tab-iris','tab-visado','tab-posto','tab-pd','tab-sari','tab-plano','tab-rnrv','tab-hist'].indexOf(tabId);
   document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
   if(tabId==='tab-resumo')renderResumo();
   if(tabId==='tab-info')renderInfo();
   if(tabId==='tab-iris')renderIRIS();
   if(tabId==='tab-visado')renderVisado();
+  if(tabId==='tab-posto')renderPosto();
+  if(tabId==='tab-pd')renderPD();
   if(tabId==='tab-rnrv'){renderRNRV();setTimeout(checkActiveLiveSession,500);}
   if(tabId==='tab-sari')renderSARI();
   if(tabId==='tab-plano')renderPlano();
@@ -1684,6 +1705,174 @@ async function guardarEquipa(){
   if(currentDetail.isTreino){ await renderTreino(); } else { await loadData(); }
   renderResumo();
   alert('Equipa de Negociação guardada.');
+}
+
+// ===== POSTOS / QUADROS / PLANO DE DIÁLOGO (5.19-5.24, 4.88) =====
+const QUADROS_CAB = [
+  {k:'exigencias', t:'Exigências / Ameaças'},
+  {k:'agressores', t:'Agressores'},
+  {k:'vitimas',    t:'Vítimas / Reféns'},
+  {k:'ancoras',    t:'Âncoras'},
+  {k:'familiares', t:'Familiares / Amigos'},
+  {k:'posicao',    t:'Posição / Interesses (Suspeito)'},
+  {k:'acoes',      t:'Ações positivas da GNR'},
+  {k:'evitar',     t:'Evitar'}
+];
+function enAcumulacaoKeys(eq){
+  const has=k=>eq&&eq[k]&&eq[k].id;
+  if(has('n4')&&!has('nc')) return {n4:['nc']};
+  if(has('n3')&&!has('n4')&&!has('nc')) return {n3:['n4','nc']};
+  if(has('n2')&&!has('n3')&&!has('n4')&&!has('nc')) return {n2:['n3','n4','nc']};
+  return {};
+}
+function enFuncoesDe(eq, userId){
+  eq=eq||{}; const f=[];
+  EN_POSICOES.forEach(p=>{ if(eq[p.k]&&eq[p.k].id===userId) f.push(p.k); });
+  const acu=enAcumulacaoKeys(eq);
+  Object.keys(acu).forEach(k=>{ if(f.indexOf(k)>-1) acu[k].forEach(x=>{ if(f.indexOf(x)<0) f.push(x); }); });
+  return f;
+}
+function enNomePos(k){ const p=EN_POSICOES.find(x=>x.k===k); return p?p.nome:k; }
+function _postoTbl(){ return currentDetail?.isTreino ? 'treino_incidentes' : 'incidentes'; }
+async function _postoUpdate(patchObj){
+  const r=currentDetail.record;
+  const{error}=await sb.from(_postoTbl()).update(patchObj).eq('id',r.id);
+  if(error){ alert('Erro: '+error.message); return false; }
+  Object.assign(currentDetail.record, patchObj);
+  return true;
+}
+// ---- Quadros (Nº3) ----
+async function quadroAdd(k){
+  const inp=document.getElementById('q-in-'+k);
+  if(!inp||!inp.value.trim()) return;
+  const r=currentDetail.record;
+  const q=JSON.parse(JSON.stringify(r.quadros||{}));
+  if(!Array.isArray(q[k])) q[k]=[];
+  q[k].push({ t: inp.value.trim().toUpperCase(), a: currentProfile.nome, ts: new Date().toISOString() });
+  inp.value='';
+  if(await _postoUpdate({quadros:q})) renderPosto();
+}
+async function quadroDel(k, i){
+  const r=currentDetail.record;
+  const q=JSON.parse(JSON.stringify(r.quadros||{}));
+  if(!Array.isArray(q[k])) return;
+  q[k].splice(i,1);
+  if(await _postoUpdate({quadros:q})) renderPosto();
+}
+// ---- Notas do Nº2 para o Nº1 ----
+async function notaEnviar(){
+  const inp=document.getElementById('nota-in');
+  if(!inp||!inp.value.trim()) return;
+  const r=currentDetail.record;
+  const ns=JSON.parse(JSON.stringify(r.notas_n1||[]));
+  ns.push({ t: inp.value.trim(), a: currentProfile.nome, ts: new Date().toISOString(), urgente: document.getElementById('nota-urgente')?.checked||false });
+  inp.value='';
+  const u=document.getElementById('nota-urgente'); if(u) u.checked=false;
+  if(await _postoUpdate({notas_n1:ns})) renderPosto();
+}
+async function notasLimpar(){
+  if(!confirm('Limpar todas as notas passadas ao n.º 1?')) return;
+  if(await _postoUpdate({notas_n1:[]})) renderPosto();
+}
+// ---- Render dos quadros ----
+function _quadrosHTML(editavel){
+  const r=currentDetail.record; const q=r.quadros||{};
+  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+QUADROS_CAB.map(h=>{
+    const itens=Array.isArray(q[h.k])?q[h.k]:[];
+    const cor = h.k==='evitar' ? 'var(--red)' : h.k==='acoes' ? 'var(--gl)' : 'var(--gn)';
+    return '<div style="background:#fff;border:1px solid var(--border);border-top:3px solid '+cor+';border-radius:var(--r);padding:10px">'
+      + '<div style="font-size:11px;font-weight:700;color:'+cor+';text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">'+h.t+'</div>'
+      + (itens.length ? itens.map((it,i)=>'<div style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start;font-size:12.5px;line-height:1.45;padding:5px 0;border-bottom:1px dashed var(--border)"><span style="font-family:\'IBM Plex Mono\',monospace;flex:1">'+it.t+'</span>'+(editavel?'<button onclick="quadroDel(\''+h.k+'\','+i+')" style="border:none;background:none;color:var(--gray400);cursor:pointer;padding:0 2px" title="Remover"><i class="fas fa-xmark"></i></button>':'')+'</div>').join('')
+                     : '<div style="font-size:12px;color:var(--gray400);font-style:italic">—</div>')
+      + (editavel ? '<div style="display:flex;gap:5px;margin-top:8px"><input id="q-in-'+h.k+'" placeholder="Acrescentar..." onkeydown="if(event.key===\'Enter\')quadroAdd(\''+h.k+'\')" style="font-size:12px;padding:5px 7px"><button class="btn btn-primary btn-sm" onclick="quadroAdd(\''+h.k+'\')" style="padding:5px 9px"><i class="fas fa-plus"></i></button></div>' : '')
+      + '</div>';
+  }).join('')+'</div>';
+}
+function _notasHTML(podeEnviar){
+  const r=currentDetail.record; const ns=Array.isArray(r.notas_n1)?r.notas_n1:[];
+  let h='<div style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:11px">'
+    +'<div style="font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px"><i class="fas fa-comment-dots" style="margin-right:5px"></i>Notas ao n.º 1</div>';
+  h += ns.length ? ns.slice().reverse().map(n=>'<div style="background:#fff;border:1px solid '+(n.urgente?'var(--red)':'var(--border)')+';border-left:3px solid '+(n.urgente?'var(--red)':'var(--gl)')+';border-radius:6px;padding:8px 10px;margin-bottom:6px"><div style="font-size:13.5px;line-height:1.5;color:var(--gray900)">'+(n.urgente?'<i class="fas fa-triangle-exclamation" style="color:var(--red);margin-right:5px"></i>':'')+n.t+'</div><div style="font-size:10.5px;color:var(--gray400);margin-top:3px;font-family:\'IBM Plex Mono\',monospace">'+(n.a||'—')+' · '+fmtDateTime(n.ts)+'</div></div>').join('')
+                : '<div style="font-size:12px;color:var(--gray400);font-style:italic">Sem notas.</div>';
+  if(podeEnviar){
+    h+='<div style="display:flex;gap:5px;margin-top:8px"><input id="nota-in" placeholder="Nota a passar ao n.º 1..." onkeydown="if(event.key===\'Enter\')notaEnviar()" style="font-size:13px"><button class="btn btn-primary btn-sm" onclick="notaEnviar()"><i class="fas fa-paper-plane"></i></button></div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><label style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--gray600);cursor:pointer"><input type="checkbox" id="nota-urgente" style="width:auto"> Urgente</label><button class="btn btn-ghost btn-sm" onclick="notasLimpar()" style="font-size:11px">Limpar</button></div>';
+  }
+  return h+'</div>';
+}
+function renderPosto(){
+  const el=document.getElementById('posto-content');
+  if(!el||!currentDetail) return;
+  const r=currentDetail.record;
+  const eq=r.equipa||{};
+  const f=enFuncoesDe(eq, currentUser.id);
+  if(!f.length){
+    el.innerHTML='<div class="form-section"><div style="padding:1.5rem;text-align:center;color:var(--gray400);font-size:13px"><i class="fas fa-user-slash" style="font-size:26px;opacity:.3;display:block;margin-bottom:8px"></i>Não está escalado na EN deste caso.<br>A escalação faz-se no separador <strong>Resumo</strong>.</div></div>';
+    return;
+  }
+  const eN1=f.indexOf('n1')>-1, eN2=f.indexOf('n2')>-1, eN3=f.indexOf('n3')>-1, eN4=f.indexOf('n4')>-1, eNC=f.indexOf('nc')>-1;
+  let h='<div class="form-section"><h3><i class="fas fa-user-shield" style="color:var(--gl)"></i> O seu posto: '+f.map(enNomePos).join(' + ')+'</h3>';
+  if(f.length>1) h+='<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Acumulação de funções (5.29) — tem acesso aos formulários de todas as posições que ocupa.</p>';
+  h+='</div>';
+  if(eN1){
+    h+='<div class="form-section"><h3><i class="fas fa-headset" style="color:var(--red)"></i> Posto n.º 1 — contacto</h3>'
+      +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Informação que lhe é prestada. Não preenche formulários durante o contacto.</p>'
+      + _notasHTML(false)
+      +'<div style="margin-top:12px">'+_quadrosHTML(false)+'</div></div>';
+  }
+  if(eN2){
+    h+='<div class="form-section"><h3><i class="fas fa-user-group" style="color:var(--gl)"></i> Posto n.º 2 — apoio e blindagem</h3>'
+      +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Organiza o fluxo de informação a passar ao n.º 1 (5.19).</p>'
+      + _notasHTML(true)+'</div>';
+  }
+  if(eN3){
+    h+='<div class="form-section"><h3><i class="fas fa-table-columns" style="color:var(--gl)"></i> Posto n.º 3 — quadros</h3>'
+      +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Receção e organização da informação. Clara, precisa, concisa e em maiúsculas (5.22).</p>'
+      + _quadrosHTML(true)+'</div>';
+  }
+  if((eN4||eNC) && !eN3){
+    h+='<div class="form-section"><h3><i class="fas fa-table-columns" style="color:var(--gray600)"></i> Quadros</h3>'+_quadrosHTML(false)+'</div>';
+  }
+  if(eN4){
+    h+='<div class="form-section"><h3><i class="fas fa-filter" style="color:var(--gl)"></i> Posto n.º 4 — gestão da informação e doutrina</h3>'
+      +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Gere a informação a introduzir na CN e garante o cumprimento da doutrina, do PN e do PD (5.25-5.27).</p>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="showTab(\'tab-info\')"><i class="fas fa-inbox"></i> Registos de informação</button><button class="btn btn-outline btn-sm" onclick="showTab(\'tab-pd\')"><i class="fas fa-comments"></i> Plano de Diálogo</button></div></div>';
+  }
+  if(eNC){
+    h+='<div class="form-section"><h3><i class="fas fa-star" style="color:var(--gold)"></i> Posto Coordenador</h3>'
+      +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Apresenta o PN ao Cmdt GI, detalhando a modalidade de ação proposta (4.85).</p>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="showTab(\'tab-plano\')"><i class="fas fa-clipboard-list"></i> Plano de Negociação</button><button class="btn btn-outline btn-sm" onclick="showTab(\'tab-pd\')"><i class="fas fa-comments"></i> Plano de Diálogo</button></div></div>';
+  }
+  el.innerHTML=h;
+}
+// ---- Plano de Diálogo (4.88) ----
+const PD_CAMPOS=[
+  {k:'quadro_ref', t:'Quadro de referência da contraparte', p:'Como vê o mundo, o que valoriza, linguagem a usar...'},
+  {k:'problema',   t:'Identificação do problema', p:'Qual é, na perspetiva da contraparte, o problema a resolver?'},
+  {k:'local',      t:'O local', p:'Condicionantes do local no discurso e no contacto...'},
+  {k:'pos_int',    t:'Posição e interesses', p:'O que diz que quer (posição) vs. o que precisa (interesses)...'},
+  {k:'solucoes',   t:'Soluções para os possíveis problemas encontrados', p:'Respostas preparadas, temas a introduzir, o que evitar...'}
+];
+function renderPD(){
+  const el=document.getElementById('pd-content');
+  if(!el||!currentDetail) return;
+  const r=currentDetail.record; const pd=r.plano_dialogo||{};
+  el.innerHTML='<div class="form-section"><h3><i class="fas fa-comments" style="color:var(--gl)"></i> Plano de Diálogo (PD)</h3>'
+    +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 12px;line-height:1.5">Com base no PN, planeia a modalidade de ação em termos técnicos e articula o discurso, respondendo às cinco questões base: quem, o quê, onde, porquê e como (4.88). O PD não obriga a modelo fixo (4.89).</p>'
+    +'<div id="pd-alert" class="hidden" style="margin-bottom:.75rem"></div>'
+    +PD_CAMPOS.map(cp=>'<div class="field form-full"><label>'+cp.t+'</label><textarea id="pd-'+cp.k+'" rows="3" placeholder="'+cp.p+'">'+(pd[cp.k]||'')+'</textarea></div>').join('')
+    +'<button class="btn btn-primary" id="pd-save-btn" onclick="guardarPD()" style="margin-top:10px"><i class="fas fa-save"></i> Guardar Plano de Diálogo</button></div>';
+}
+async function guardarPD(){
+  if(!currentDetail) return;
+  const pd={};
+  PD_CAMPOS.forEach(cp=>{ const e=document.getElementById('pd-'+cp.k); if(e&&e.value.trim()) pd[cp.k]=e.value.trim(); });
+  const btn=document.getElementById('pd-save-btn'); if(btn) btn.disabled=true;
+  const ok=await _postoUpdate({plano_dialogo:pd});
+  if(btn) btn.disabled=false;
+  if(!ok) return;
+  await sb.from('historico').insert({tabela:_postoTbl(),registo_id:currentDetail.record.id,acao:'Plano de Diálogo atualizado',autor_id:currentUser.id,autor_nome:currentProfile.nome}).catch(()=>{});
+  showAlert('pd-alert','success','Plano de Diálogo guardado.');
 }
 
 // ===== ANÁLISE DE PERFIS =====
