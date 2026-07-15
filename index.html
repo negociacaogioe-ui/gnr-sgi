@@ -528,6 +528,49 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
         </div>
       </div>
     </div>
+
+    <!-- ANÁLISE DE PERFIS -->
+    <div class="table-card" style="margin-bottom:1.5rem">
+      <div class="table-card-header" style="cursor:pointer" onclick="togglePerfis()">
+        <span style="font-size:14px;font-weight:600;color:var(--gn)"><i class="fas fa-users-viewfinder" style="color:var(--gl);margin-right:6px"></i>Análise de Perfis</span>
+        <span style="display:flex;align-items:center;gap:10px">
+          <span id="perfis-resumo" style="font-size:12px;color:var(--gray400)"></span>
+          <i class="fas fa-chevron-down" id="perfis-chevron" style="color:var(--gray400);transition:transform .2s"></i>
+        </span>
+      </div>
+      <div id="perfis-body" class="hidden" style="padding:1rem">
+        <p style="font-size:12.5px;color:var(--gray600);line-height:1.6;margin:0 0 12px">
+          Um <strong>perfil</strong> resulta da junção de várias <strong>Descrições do Visado</strong> com características semelhantes. Só entram situações <strong>reais</strong> com descrição preenchida. Seleciona itens para filtrar a amostra.
+        </p>
+        <div style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:1rem">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
+            <div class="field" style="margin:0"><label>Classificação</label><select id="pf-class" onchange="renderPerfis()"><option value="">Todas</option><option value="inc">Incidente de Segurança</option><option value="itp">ITP</option></select></div>
+            <div class="field" style="margin:0"><label>Faixa etária</label><select id="pf-faixa" onchange="renderPerfis()"><option value="">Todas</option><option>&lt;18</option><option>18-24</option><option>25-29</option><option>30-34</option><option>35-39</option><option>40-44</option><option>45-49</option><option>50-54</option><option>55-59</option><option>60-64</option><option>65+</option></select></div>
+            <div class="field" style="margin:0"><label>Género</label><select id="pf-genero" onchange="renderPerfis()"><option value="">Todos</option><option>Masculino</option><option>Feminino</option><option>Outro / Não especificado</option></select></div>
+            <div class="field" style="margin:0"><label>Distrito</label><select id="pf-distrito" onchange="pfDistritoChange()"><option value="">Todos</option></select></div>
+            <div class="field" style="margin:0"><label>Concelho</label><select id="pf-concelho" onchange="renderPerfis()"><option value="">Todos</option></select></div>
+            <div class="field" style="margin:0"><label>Tipo de crime</label><select id="pf-crime" onchange="renderPerfis()"><option value="">Todos</option><option>Violência doméstica</option><option>Tentativa de suicídio</option><option>Sequestro / Reféns</option><option>Ameaça / Coação</option><option>Homicídio / Tentativa</option><option>Roubo</option><option>Distúrbio / Perturbação da ordem</option><option>Indivíduo barricado</option><option>Outro</option></select></div>
+            <div class="field" style="margin:0"><label>Dependência</label><select id="pf-dep" onchange="renderPerfis()"><option value="">Todas</option><option>Álcool</option><option>Estupefacientes</option><option>Medicação / Psicofármacos</option><option>Jogo</option><option>Nenhuma</option><option>Desconhecida</option></select></div>
+            <div class="field" style="margin:0"><label>Presença de arma</label><select id="pf-arma" onchange="renderPerfis()"><option value="">Todas</option><option>Nenhuma</option><option>Arma branca</option><option>Arma de fogo</option><option>Objeto contundente</option><option>Desconhecida</option></select></div>
+            <div class="field" style="margin:0"><label>Relação com a vítima</label><select id="pf-relacao" onchange="renderPerfis()"><option value="">Todas</option><option>Cônjuge / companheiro(a)</option><option>Ex-cônjuge / ex-companheiro(a)</option><option>Familiar</option><option>Conhecido</option><option>Desconhecido</option><option>Não aplicável</option></select></div>
+            <div class="field" style="margin:0"><label>Gravidade</label><select id="pf-grav" onchange="renderPerfis()"><option value="">Todas</option><option>Baixa</option><option>Média</option><option>Alta</option><option>Crítica</option></select></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+            <div id="pf-amostra" style="font-size:13px;font-weight:600;color:var(--gm)"></div>
+            <button class="btn btn-outline btn-sm" onclick="limparPerfis()"><i class="fas fa-times"></i> Limpar filtros</button>
+          </div>
+        </div>
+        <div id="pf-vazio" class="hidden" style="padding:2rem;text-align:center;color:var(--gray400);font-size:13px"></div>
+        <div id="pf-charts" class="charts-grid">
+          <div class="chart-card"><div class="chart-title">Faixa etária</div><canvas id="pf-c-faixa" height="190"></canvas></div>
+          <div class="chart-card"><div class="chart-title">Tipo de crime</div><canvas id="pf-c-crime" height="190"></canvas></div>
+          <div class="chart-card"><div class="chart-title">Dependências</div><canvas id="pf-c-dep" height="190"></canvas></div>
+          <div class="chart-card"><div class="chart-title">Distrito</div><canvas id="pf-c-distrito" height="190"></canvas></div>
+          <div class="chart-card"><div class="chart-title">Género</div><canvas id="pf-c-genero" height="190"></canvas></div>
+          <div class="chart-card"><div class="chart-title">Presença de arma</div><canvas id="pf-c-arma" height="190"></canvas></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="section-dashboard" class="page">
@@ -1386,7 +1429,7 @@ function showSection(s){
   if(s==='admin')renderAdmin();
   if(s==='formacao')renderFormacao();
   if(s==='sinalizacoes')renderSinalizacoes();
-  if(s==='stats'){renderCharts();renderCterMap();}
+  if(s==='stats'){renderCharts();renderCterMap();initPerfisFiltros();renderPerfis();}
   if(s==='treino')renderTreino();
 }
 
@@ -1515,6 +1558,130 @@ function gravBadge(g){const m={'Baixa':'badge-green','Média':'badge-gold','Alta
 function fmtDate(d){return new Date(d).toLocaleDateString('pt-PT');}
 function fmtDateTime(d){return new Date(d).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
 
+
+
+// ===== ANÁLISE DE PERFIS =====
+let _pfCharts = {};
+function togglePerfis(){
+  const b=document.getElementById('perfis-body');
+  const ch=document.getElementById('perfis-chevron');
+  if(!b) return;
+  const aberto = !b.classList.contains('hidden');
+  b.classList.toggle('hidden', aberto);
+  if(ch) ch.style.transform = aberto ? '' : 'rotate(180deg)';
+  if(!aberto) renderPerfis();
+}
+function pfDistritoChange(){
+  const d=document.getElementById('pf-distrito'), cs=document.getElementById('pf-concelho');
+  if(!d||!cs) return;
+  const arr = DISTRITOS_CONCELHOS[d.value] || [];
+  cs.innerHTML='<option value="">Todos</option>';
+  arr.forEach(x=>{ const o=document.createElement('option'); o.value=x; o.textContent=x; cs.appendChild(o); });
+  renderPerfis();
+}
+function limparPerfis(){
+  ['pf-class','pf-faixa','pf-genero','pf-distrito','pf-concelho','pf-crime','pf-dep','pf-arma','pf-relacao','pf-grav'].forEach(id=>{
+    const e=document.getElementById(id); if(e) e.value='';
+  });
+  pfDistritoChange();
+}
+function _pfTemDescricao(r){
+  const d=r.descricao_visado;
+  if(!d || typeof d!=='object') return false;
+  return Object.keys(d).some(k=>{
+    const v=d[k];
+    return Array.isArray(v) ? v.length>0 : (v!==''&&v!=null);
+  });
+}
+function _pfConta(arr, fn){
+  const m={};
+  arr.forEach(r=>{
+    const vals=fn(r);
+    (Array.isArray(vals)?vals:[vals]).forEach(v=>{
+      if(v===''||v==null) return;
+      m[v]=(m[v]||0)+1;
+    });
+  });
+  return m;
+}
+function _pfBar(canvasId, mapa, cor, ordemFixa){
+  const el=document.getElementById(canvasId);
+  if(!el) return;
+  if(_pfCharts[canvasId]) _pfCharts[canvasId].destroy();
+  let labels=Object.keys(mapa);
+  if(ordemFixa) labels = ordemFixa.filter(l=>mapa[l]!==undefined);
+  else labels.sort((a,b)=>mapa[b]-mapa[a]);
+  if(!labels.length){
+    const ctx=el.getContext('2d'); ctx.clearRect(0,0,el.width,el.height);
+    return;
+  }
+  _pfCharts[canvasId]=new Chart(el,{
+    type:'bar',
+    data:{labels,datasets:[{label:'Situações',data:labels.map(l=>mapa[l]),backgroundColor:cor,borderRadius:3}]},
+    options:{indexAxis: labels.length>5?'y':'x', plugins:{legend:{display:false}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{ticks:{stepSize:1,font:{size:10}},grid:{color:'rgba(0,0,0,.05)'}}}}
+  });
+}
+function _pfDoughnut(canvasId, mapa){
+  const el=document.getElementById(canvasId);
+  if(!el) return;
+  if(_pfCharts[canvasId]) _pfCharts[canvasId].destroy();
+  const labels=Object.keys(mapa);
+  if(!labels.length){ const ctx=el.getContext('2d'); ctx.clearRect(0,0,el.width,el.height); return; }
+  _pfCharts[canvasId]=new Chart(el,{
+    type:'doughnut',
+    data:{labels,datasets:[{data:labels.map(l=>mapa[l]),backgroundColor:['#1e5c28','#8b1a1a','#c8a84b','#2a7a36','#7a4a00','#3d7a4a'],borderWidth:2,borderColor:'#fff'}]},
+    options:{plugins:{legend:{position:'bottom',labels:{font:{size:10,family:"'IBM Plex Sans'"},padding:8}}},cutout:'55%',radius:'75%'}
+  });
+}
+function renderPerfis(){
+  const base=(typeof allCasos!=='undefined'&&allCasos.length)?allCasos:allIncidentes.concat(allITPs);
+  const comDesc=base.filter(_pfTemDescricao);
+  const g=id=>document.getElementById(id)?.value||'';
+  const fClass=g('pf-class'), fFaixa=g('pf-faixa'), fGen=g('pf-genero'), fDist=g('pf-distrito'),
+        fConc=g('pf-concelho'), fCrime=g('pf-crime'), fDep=g('pf-dep'), fArma=g('pf-arma'),
+        fRel=g('pf-relacao'), fGrav=g('pf-grav');
+  const data=comDesc.filter(r=>{
+    const d=r.descricao_visado||{};
+    if(fClass==='itp' && !r.is_itp) return false;
+    if(fClass==='inc' && r.is_itp) return false;
+    if(fGrav && r.gravidade!==fGrav) return false;
+    if(fFaixa && d.faixa_etaria!==fFaixa) return false;
+    if(fGen && d.genero!==fGen) return false;
+    if(fDist && d.distrito!==fDist) return false;
+    if(fConc && d.concelho!==fConc) return false;
+    if(fCrime && d.tipo_crime!==fCrime) return false;
+    if(fArma && d.arma!==fArma) return false;
+    if(fRel && d.relacao_vitima!==fRel) return false;
+    if(fDep && !(Array.isArray(d.dependencias)&&d.dependencias.indexOf(fDep)>-1)) return false;
+    return true;
+  });
+  const resumo=document.getElementById('perfis-resumo');
+  if(resumo) resumo.textContent = comDesc.length ? (comDesc.length+' descrição(ões) registada(s)') : 'sem descrições ainda';
+  const amostra=document.getElementById('pf-amostra');
+  if(amostra) amostra.textContent = 'Amostra: '+data.length+' de '+comDesc.length+' descrição(ões)';
+  const vazio=document.getElementById('pf-vazio'), charts=document.getElementById('pf-charts');
+  if(!comDesc.length){
+    if(vazio){ vazio.classList.remove('hidden'); vazio.innerHTML='<i class="fas fa-users-viewfinder" style="font-size:28px;opacity:.3;display:block;margin-bottom:8px"></i>Ainda não há Descrições do Visado preenchidas.<br>Abre um caso real e preenche o separador <strong>Descrição do Visado</strong>. Os perfis constroem-se a partir dessas descrições.'; }
+    if(charts) charts.classList.add('hidden');
+    return;
+  }
+  if(vazio) vazio.classList.add('hidden');
+  if(charts) charts.classList.remove('hidden');
+  const ordemFaixa=['<18','18-24','25-29','30-34','35-39','40-44','45-49','50-54','55-59','60-64','65+'];
+  _pfBar('pf-c-faixa', _pfConta(data,r=>(r.descricao_visado||{}).faixa_etaria), '#1e5c28', ordemFaixa);
+  _pfBar('pf-c-crime', _pfConta(data,r=>(r.descricao_visado||{}).tipo_crime), '#8b1a1a');
+  _pfBar('pf-c-dep',   _pfConta(data,r=>(r.descricao_visado||{}).dependencias||[]), '#7a4a00');
+  _pfBar('pf-c-distrito', _pfConta(data,r=>(r.descricao_visado||{}).distrito), '#2a7a36');
+  _pfDoughnut('pf-c-genero', _pfConta(data,r=>(r.descricao_visado||{}).genero));
+  _pfBar('pf-c-arma', _pfConta(data,r=>(r.descricao_visado||{}).arma), '#c8a84b');
+}
+function initPerfisFiltros(){
+  const d=document.getElementById('pf-distrito');
+  if(d && d.options.length<=1 && typeof DISTRITOS_CONCELHOS!=='undefined'){
+    Object.keys(DISTRITOS_CONCELHOS).forEach(k=>{ const o=document.createElement('option'); o.value=k; o.textContent=k; d.appendChild(o); });
+  }
+}
 
 // ===== CTER MAP =====
 const CTER_LATLNG = {
