@@ -1028,6 +1028,7 @@ const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI
 const {createClient}=supabase;
 let allCasos=[];
 let allNegociadores=[];
+let adminFiltroCter='';
 const sb=createClient(SURL,SKEY);
 const GRAV_CRITERIOS = {
   'Baixa': [
@@ -1625,52 +1626,73 @@ function enConformidade(eq, isItp){
 function enNomeUtil(u){ return ((u.posto?u.posto+' ':'')+(u.nome||'')).trim(); }
 // Elegíveis: negociadores do CTer da ocorrência. A UI/GIOE só entra quando o caso é ITP
 // (a UI é o apoio especialista requerido pelo critério de capacidade que define o ITP).
-function enElegiveis(){
-  const r = currentDetail?.record || {};
-  const cter = r.cter || '';
-  const isItp = !!r.is_itp;
-  return (allNegociadores||[]).filter(u=>{
-    if(cter && u.cter === cter) return true;
-    if(isItp && u.cter === 'UI/GIOE') return true;
-    return false;
+const CTER_LISTA = ['CTer Aveiro','CTer Beja','CTer Braga','CTer Bragança','CTer Castelo Branco','CTer Coimbra','CTer Évora','CTer Faro','CTer Guarda','CTer Leiria','CTer Lisboa','CTer Portalegre','CTer Porto','CTer Santarém','CTer Setúbal','CTer Viana do Castelo','CTer Vila Real','CTer Viseu','CTer Açores','CTer Madeira','UCCF'];
+let _enWork = {};        // estado de trabalho da escalação (não perde ao trocar de CTer)
+let _enCterFiltro = '';  // CTer atualmente a ser consultado
+function enPodeUI(){ return !!(currentDetail && currentDetail.record && currentDetail.record.is_itp); }
+function enCtersDisponiveis(){
+  const l = CTER_LISTA.slice();
+  if(enPodeUI()) l.push('UI/GIOE');
+  return l;
+}
+function enNegociadoresDe(cter){
+  if(!cter) return [];
+  return (allNegociadores||[]).filter(u => u.cter === cter);
+}
+function enCterDe(id){
+  const u=(allNegociadores||[]).find(x=>x.id===id);
+  return u ? (u.cter||'') : '';
+}
+function enSetCterFiltro(v){ _enCterFiltro = v; _enPintaSelects(); enAvaliar(); }
+function enSetPos(k, id){
+  if(!id){ delete _enWork[k]; }
+  else {
+    const u=(allNegociadores||[]).find(x=>x.id===id);
+    _enWork[k] = { id, nome: u?u.nome:'', posto: u?u.posto:'', cter: u?(u.cter||''):'' };
+  }
+  _enPintaSelects();
+  enAvaliar();
+}
+function _enPintaSelects(){
+  EN_POSICOES.forEach(p=>{
+    const sel=document.getElementById('en-'+p.k);
+    if(!sel) return;
+    const atual=_enWork[p.k];
+    const doFiltro=enNegociadoresDe(_enCterFiltro);
+    let html='<option value="">— não atribuído —</option>';
+    // o já-atribuído aparece sempre, mesmo que seja de outro CTer
+    if(atual && atual.id && !doFiltro.some(u=>u.id===atual.id)){
+      html+='<option value="'+atual.id+'" selected>'+(((atual.posto?atual.posto+' ':'')+atual.nome).trim())+(atual.cter?(' · '+atual.cter):'')+'</option>';
+    }
+    doFiltro.forEach(u=>{
+      const usadoNoutra = EN_POSICOES.some(q=>q.k!==p.k && _enWork[q.k] && _enWork[q.k].id===u.id);
+      const sel2 = atual && atual.id===u.id;
+      html+='<option value="'+u.id+'"'+(sel2?' selected':'')+(usadoNoutra&&!sel2?' disabled':'')+'>'+enNomeUtil(u)+(usadoNoutra&&!sel2?' (já escalado)':'')+'</option>';
+    });
+    sel.innerHTML=html;
   });
 }
 function renderEquipaSelects(){
   const r = currentDetail?.record || {};
-  const eq = r.equipa || {};
-  EN_POSICOES.forEach(p=>{
-    const sel=document.getElementById('en-'+p.k);
-    if(!sel) return;
-    sel.innerHTML='<option value="">— não atribuído —</option>';
-    const elig = enElegiveis();
-    elig.forEach(u=>{
-      const o=document.createElement('option');
-      o.value=u.id; o.textContent=enNomeUtil(u)+(u.cter==='UI/GIOE'?' · UI/GIOE':'');
-      if(eq[p.k] && eq[p.k].id===u.id) o.selected=true;
-      sel.appendChild(o);
-    });
-    if(eq[p.k] && eq[p.k].id && !elig.some(u=>u.id===eq[p.k].id)){
-      const ant=(allNegociadores||[]).find(u=>u.id===eq[p.k].id);
-      const o=document.createElement('option');
-      o.value=eq[p.k].id;
-      o.textContent=(ant?enNomeUtil(ant):(eq[p.k].nome||'(utilizador removido)'))+' · fora do âmbito';
-      o.selected=true;
-      sel.appendChild(o);
-    }
-  });
+  _enWork = JSON.parse(JSON.stringify(r.equipa || {}));
+  delete _enWork.justificacao;
+  _enCterFiltro = r.cter || '';
+  const fs=document.getElementById('en-cter-filtro');
+  if(fs){
+    const ctrs=enCtersDisponiveis();
+    fs.innerHTML='<option value="">— escolher CTer —</option>'+ctrs.map(cc=>{
+      const n=enNegociadoresDe(cc).length;
+      return '<option value="'+cc+'"'+(_enCterFiltro===cc?' selected':'')+'>'+cc+' ('+n+')</option>';
+    }).join('');
+    if(_enCterFiltro && !ctrs.includes(_enCterFiltro)) fs.value='';
+  }
+  _enPintaSelects();
   const j=document.getElementById('en-justificacao');
   if(j) j.value = (r.equipa && r.equipa.justificacao) || '';
   enAvaliar();
 }
 function _enLerForm(){
-  const eq={};
-  EN_POSICOES.forEach(p=>{
-    const sel=document.getElementById('en-'+p.k);
-    if(sel && sel.value){
-      const u=(allNegociadores||[]).find(x=>x.id===sel.value);
-      eq[p.k]={ id:sel.value, nome:u?u.nome:(sel.options[sel.selectedIndex]?.textContent||''), posto:u?u.posto:'' };
-    }
-  });
+  const eq=JSON.parse(JSON.stringify(_enWork||{}));
   const j=document.getElementById('en-justificacao');
   if(j && j.value.trim()) eq.justificacao=j.value.trim();
   return eq;
@@ -1687,15 +1709,16 @@ function enAvaliar(){
     const [bg,bd,fg,ic]=cores[conf.estado];
     box.innerHTML='<div style="background:'+bg+';border:1px solid '+bd+';border-radius:var(--r);padding:9px 11px;font-size:12.5px;color:'+fg+';line-height:1.5"><i class="fas '+ic+'" style="margin-right:5px"></i><strong>'+conf.n+' negociador(es)</strong> — '+conf.msg+'</div>';
   }
-  const jw=document.getElementById('en-justificacao-wrap');
-  if(jw) jw.style.display = conf.estado==='excecao' ? '' : 'none';
   const amb=document.getElementById('en-ambito');
   if(amb){
-    const cter=r.cter||'';
-    const nElig=enElegiveis().length;
-    amb.innerHTML='<i class="fas fa-filter" style="margin-right:5px;color:var(--gl)"></i>Elegíveis: '+nElig+' — negociadores de <strong>'+(cter||'(CTer por definir)')+'</strong>'
-      + (r.is_itp ? ' e da <strong>UI/GIOE</strong> (caso classificado como ITP).' : '. A UI/GIOE só fica disponível após declaração de ITP.');
+    const ctrs=[...new Set(EN_POSICOES.filter(p=>_enWork[p.k]).map(p=>_enWork[p.k].cter||'?'))];
+    amb.innerHTML='<i class="fas fa-filter" style="margin-right:5px;color:var(--gl)"></i>'
+      + (_enCterFiltro ? ('A mostrar negociadores de <strong>'+_enCterFiltro+'</strong>. Troca de CTer para escalar de outra unidade — as escolhas mantêm-se.') : 'Escolhe um CTer para ver os negociadores.')
+      + (enPodeUI() ? ' <span style="color:var(--gm)">UI/GIOE disponível (ITP declarado).</span>' : ' <span style="color:var(--gray400)">UI/GIOE só após declaração de ITP.</span>')
+      + (ctrs.length>1 ? '<br><i class="fas fa-users" style="margin-right:5px;color:var(--amber)"></i>EN mista: '+ctrs.join(', ') : '');
   }
+  const jw=document.getElementById('en-justificacao-wrap');
+  if(jw) jw.style.display = conf.estado==='excecao' ? '' : 'none';
   const ac=document.getElementById('en-acumulacao');
   if(ac){
     const acu=enAcumulacao(eq);
@@ -2416,7 +2439,7 @@ async function saveITP(){
   showAlert('itp-alert','','');
   btn.innerHTML='<span class="spinner"></span>';btn.disabled=true;
   const cter=document.getElementById('itp-cter').value;
-  const{error}=await sb.from('incidentes').insert({is_itp:true,itp_declarado_por:currentUser.id,itp_declarado_por_nome:currentProfile.nome,itp_declarado_em:new Date().toISOString(),tipo,local,cter,data_hora:new Date(data).toISOString(),negociador:neg,num_suspeitos:sus,num_refens:ref,gravidade:(document.getElementById('itp-grav')?.value||''),gravidade_criterios:collectGravCriterios('itp-grav-criterios'),estado,descricao:desc,contacto_vitima:contactoVitima,contacto_agressor:contactoAgressor,autor_id:currentUser.id,autor_nome:currentProfile.nome});
+  const{error}=await sb.from('incidentes').insert({is_itp:true,tipo,local,cter,data_hora:new Date(data).toISOString(),negociador:neg,num_suspeitos:sus,num_refens:ref,gravidade:(document.getElementById('itp-grav')?.value||''),gravidade_criterios:collectGravCriterios('itp-grav-criterios'),estado,descricao:desc,contacto_vitima:contactoVitima,contacto_agressor:contactoAgressor,autor_id:currentUser.id,autor_nome:currentProfile.nome});
   btn.innerHTML='Guardar';btn.disabled=false;
   if(error){showAlert('itp-alert','error','Erro: '+error.message);return;}
   closeModal('modal-itp');
@@ -2463,11 +2486,7 @@ function renderResumo(){
       ${r.is_itp?`
         <div style="background:var(--redl);border:1px solid var(--red);border-radius:var(--r);padding:12px">
           <div style="font-weight:700;color:var(--red);font-size:14px;margin-bottom:6px">Incidente Tático-Policial (ITP)</div>
-          <div style="font-size:12.5px;color:var(--gray600);line-height:1.6">
-            Declarado por <strong>${r.itp_declarado_por_nome||'—'}</strong>${r.itp_declarado_em?(' em '+fmtDateTime(r.itp_declarado_em)):''}.<br>
-            ${r.itp_justificacao?('<em>"'+r.itp_justificacao+'"</em>'):'<span style="color:var(--gray400)">Sem justificação registada.</span>'}
-          </div>
-          <div style="display:flex;gap:16px;margin-top:10px;font-size:13px">
+          <div style="display:flex;gap:16px;font-size:13px">
             <span><strong>Negociador:</strong> ${r.negociador||'—'}</span>
             <span><strong>Suspeitos:</strong> ${r.num_suspeitos??0}</span>
             <span><strong>Reféns:</strong> ${r.num_refens??0}</span>
@@ -2487,9 +2506,10 @@ function renderResumo(){
       <h3><i class="fas fa-users-gear" style="color:var(--gl)"></i> Equipa de Negociação (EN)</h3>
       <p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px;line-height:1.5">Manual PDGNR 1-04-18 (5.28): ITP — preferencialmente 5, mínimo 4. Incidente — 3, excecionalmente 2. As funções acumulam-se em sentido decrescente; o n.º 1 nunca acumula.</p>
       <div id="en-estado" style="margin-bottom:10px"></div>
-      <div id="en-ambito" style="font-size:11.5px;color:var(--gray600);margin-bottom:10px"></div>
+      <div class="field form-full" style="margin-bottom:8px"><label>CTer / Unidade a consultar</label><select id="en-cter-filtro" onchange="enSetCterFiltro(this.value)"></select></div>
+      <div id="en-ambito" style="font-size:11.5px;color:var(--gray600);margin-bottom:10px;line-height:1.6"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        ${EN_POSICOES.map(p=>`<div class="field" style="margin:0"><label>${p.nome}</label><select id="en-${p.k}" onchange="enAvaliar()"></select><div style="font-size:11px;color:var(--gray400);margin-top:3px">${p.desc}</div></div>`).join('')}
+        ${EN_POSICOES.map(p=>`<div class="field" style="margin:0"><label>${p.nome}</label><select id="en-${p.k}" onchange="enSetPos('${p.k}',this.value)"></select><div style="font-size:11px;color:var(--gray400);margin-top:3px">${p.desc}</div></div>`).join('')}
       </div>
       <div id="en-acumulacao"></div>
       <div id="en-justificacao-wrap" style="display:none;margin-top:10px">
@@ -4607,10 +4627,17 @@ async function saveFormacaoArea(area) {
 }
 
 // ===== ADMIN =====
+function setAdminFiltroCter(v){ adminFiltroCter = v; renderAdmin(); }
 async function renderAdmin(){
-  const{data:users}=await sb.from('profiles').select('*').order('created_at');
-  const pendingAprov=(users||[]).filter(x=>!x.approved).length;
-  const pendingOper=(users||[]).filter(x=>x.approved&&x.nivel_acesso==='formacao'&&x.role!=='admin').length;
+  const{data:allUsers}=await sb.from('profiles').select('*').order('created_at');
+  const totalUsers=(allUsers||[]).length;
+  const users=(allUsers||[]).filter(u=>{
+    if(!adminFiltroCter) return true;
+    if(adminFiltroCter==='__sem__') return !u.cter;
+    return u.cter===adminFiltroCter;
+  });
+  const pendingAprov=(allUsers||[]).filter(x=>!x.approved).length;
+  const pendingOper=(allUsers||[]).filter(x=>x.approved&&x.nivel_acesso==='formacao'&&x.role!=='admin').length;
   const el=document.getElementById('admin-wrap');
   el.innerHTML=`
     ${pendingAprov>0?`<div class="pending-banner"><i class="fas fa-exclamation-circle"></i> ${pendingAprov} conta(s) aguardam aprovação de acesso à Formação</div>`:''}
@@ -4618,11 +4645,22 @@ async function renderAdmin(){
     <div class="table-card">
       <div class="table-card-header">
         <span style="font-size:14px;font-weight:600;color:var(--gn)">Utilizadores</span>
-        <span class="badge badge-green">${(users||[]).length} total</span>
+        <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+          <label style="font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em">Filtrar por CTer</label>
+          <select onchange="setAdminFiltroCter(this.value)" style="font-size:12px;padding:4px 8px;border-radius:4px;border:1px solid var(--border);width:auto">
+            <option value="">Todos os CTer</option>
+            ${['CTer Aveiro','CTer Beja','CTer Braga','CTer Bragança','CTer Castelo Branco','CTer Coimbra','CTer Évora','CTer Faro','CTer Guarda','CTer Leiria','CTer Lisboa','CTer Portalegre','CTer Porto','CTer Santarém','CTer Setúbal','CTer Viana do Castelo','CTer Vila Real','CTer Viseu','CTer Açores','CTer Madeira','UCCF','UI/GIOE'].map(cc=>{
+              const n=(allUsers||[]).filter(x=>x.cter===cc).length;
+              return `<option value="${cc}" ${adminFiltroCter===cc?'selected':''}>${cc} (${n})</option>`;
+            }).join('')}
+            <option value="__sem__" ${adminFiltroCter==='__sem__'?'selected':''}>— Sem CTer — (${(allUsers||[]).filter(x=>!x.cter).length})</option>
+          </select>
+          <span class="badge badge-green">${adminFiltroCter?`${users.length} de ${totalUsers}`:`${totalUsers} total`}</span>
+        </div>
       </div>
       <div class="table-wrap"><table>
         <thead><tr><th>Nome</th><th>Email</th><th>Posto</th><th>CTer</th><th>Papel</th><th>Estado</th><th>Nível de Acesso</th><th title="Recebe notificação sempre que é aberto um incidente">Notif.</th><th>Ações</th></tr></thead>
-        <tbody>${(users||[]).map(u=>`<tr>
+        <tbody>${!users.length?`<tr><td colspan="9" style="text-align:center;padding:1.5rem;color:var(--gray400);font-size:13px">Sem utilizadores neste CTer.</td></tr>`:''}${(users||[]).map(u=>`<tr>
           <td style="font-weight:${u.id===currentUser.id?'600':'400'}">${u.nome}${u.id===currentUser.id?' <span style="font-size:11px;color:var(--gray400)">(eu)</span>':''}</td>
           <td style="font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--gray600)">${u.email}</td>
           <td style="color:var(--gray600)">${u.posto}</td>
@@ -4762,30 +4800,21 @@ async function declararITP(){
   if(!currentDetail) return;
   const _tbl = currentDetail.isTreino ? 'treino_incidentes' : 'incidentes';
   const r=currentDetail.record;
-  const just=prompt('Declarar ITP — justificação de capacidade:\n\nPorque é que os meios locais são insuficientes e se requer apoio especializado UI/GIOE?');
-  if(just===null) return;
-  if(!just.trim()){ alert('A justificação é obrigatória. A declaração de ITP é uma decisão de comando e tem de ter fundamento registado.'); return; }
-  const patchObj={ is_itp:true, itp_declarado_por:currentUser.id, itp_declarado_por_nome:currentProfile.nome, itp_declarado_em:new Date().toISOString(), itp_justificacao:just.trim() };
+  const patchObj={ is_itp:true };
   const{error}=await sb.from(_tbl).update(patchObj).eq('id',r.id);
   if(error){ alert('Erro ao declarar ITP: '+error.message); return; }
-  await sb.from('historico').insert({tabela:_tbl,registo_id:r.id,acao:'ITP declarado: '+just.trim(),autor_id:currentUser.id,autor_nome:currentProfile.nome}).catch(()=>{});
   Object.assign(currentDetail.record, patchObj);
   if(currentDetail.isTreino){ await renderTreino(); } else { await loadData(); }
   renderDetailHeader(); renderResumo();
-  alert('ITP declarado.');
 }
 async function reverterITP(){
   if(!currentDetail) return;
   if(currentProfile?.role !== 'admin'){ alert('Apenas um administrador pode reverter a classificação de ITP.'); return; }
   const _tbl = currentDetail.isTreino ? 'treino_incidentes' : 'incidentes';
   const r=currentDetail.record;
-  const motivo=prompt('Reverter classificação de ITP — motivo:');
-  if(motivo===null) return;
-  if(!motivo.trim()){ alert('O motivo é obrigatório.'); return; }
-  const patchObj={ is_itp:false, itp_declarado_por:null, itp_declarado_por_nome:null, itp_declarado_em:null, itp_justificacao:null };
+  const patchObj={ is_itp:false };
   const{error}=await sb.from(_tbl).update(patchObj).eq('id',r.id);
   if(error){ alert('Erro: '+error.message); return; }
-  await sb.from('historico').insert({tabela:_tbl,registo_id:r.id,acao:'Classificação ITP revertida: '+motivo.trim(),autor_id:currentUser.id,autor_nome:currentProfile.nome}).catch(()=>{});
   Object.assign(currentDetail.record, patchObj);
   if(currentDetail.isTreino){ await renderTreino(); } else { await loadData(); }
   renderDetailHeader(); renderResumo();
@@ -5654,7 +5683,7 @@ async function saveTreinoITP() {
   const payload = { tipo, local, cter, data_hora:new Date(data).toISOString(), negociador:neg, num_suspeitos:sus, num_refens:ref, gravidade:(document.getElementById('treino-itp-grav')?.value||''), gravidade_criterios:collectGravCriterios('treino-itp-grav-criterios'), estado, descricao:desc, contacto_vitima:contactoVitima, contacto_agressor:contactoAgressor, autor_id:currentUser.id, autor_nome:currentProfile.nome };
   const { error } = id
     ? await sb.from('treino_incidentes').update(payload).eq('id', id)
-    : await sb.from('treino_incidentes').insert(Object.assign({}, payload, {is_itp:true, itp_declarado_por:currentUser.id, itp_declarado_por_nome:currentProfile.nome, itp_declarado_em:new Date().toISOString()}));
+    : await sb.from('treino_incidentes').insert(Object.assign({}, payload, {is_itp:true}));
   btn.innerHTML='Guardar'; btn.disabled=false;
   if (error) { showAlert('treino-itp-alert','error','Erro: '+error.message); return; }
   closeModal('modal-treino-itp');
@@ -8753,7 +8782,7 @@ async function mobSaveITP(){
     contacto_agressor:document.getElementById('mob-itp-ca')?.value.trim()||'',
     autor_id:currentUser.id,autor_nome:currentProfile.nome
   };
-  payload.is_itp=true; payload.itp_declarado_por=currentUser.id; payload.itp_declarado_por_nome=currentProfile.nome; payload.itp_declarado_em=new Date().toISOString();
+  payload.is_itp=true;
   const{error}=await sb.from('incidentes').insert(payload);
   if(error){mobShowAlert('mob-itp-alert','error','Erro: '+error.message);return;}
   mobShowAlert('mob-itp-alert','success','ITP criado!');
