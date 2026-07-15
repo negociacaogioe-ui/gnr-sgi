@@ -1023,6 +1023,7 @@ const SURL='https://crbyrnjbxuemdzqelhbs.supabase.co';
 const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNyYnlybmpieHVlbWR6cWVsaGJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MzgzNzEsImV4cCI6MjA5MjAxNDM3MX0.o-r98TbzkHWPX7gpHVzVXqKsIQgJOQgECMNVCLSjFCE';
 const {createClient}=supabase;
 let allCasos=[];
+let allNegociadores=[];
 const sb=createClient(SURL,SKEY);
 const GRAV_CRITERIOS = {
   'Baixa': [
@@ -1331,6 +1332,7 @@ async function enterApp(){
   const isOperacional = currentProfile.nivel_acesso === 'operacional' || isAdmin;
 
   try{ sgiRegisterSW(); }catch(e){}
+  loadNegociadores();
   if(isAdmin){
     document.getElementById('nav-admin').classList.remove('hidden');
     document.getElementById('nav-admin-badge').classList.remove('hidden');
@@ -1373,6 +1375,12 @@ async function enterApp(){
   setupRealtimeSync();
 }
 
+async function loadNegociadores(){
+  try{
+    const{data}=await sb.from('profiles').select('id,nome,posto,role,nivel_acesso,approved').eq('approved',true).order('nome');
+    allNegociadores=data||[];
+  }catch(e){ allNegociadores=[]; }
+}
 async function loadData(){
   const incRes = await sb.from('incidentes').select('*').order('created_at',{ascending:false});
   const _todos = incRes.data||[];
@@ -1559,6 +1567,124 @@ function fmtDate(d){return new Date(d).toLocaleDateString('pt-PT');}
 function fmtDateTime(d){return new Date(d).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
 
 
+
+// ===== EQUIPA DE NEGOCIAÇÃO (EN) — PDGNR 1-04-18, cap. 5 =====
+const EN_POSICOES = [
+  {k:'n1', nome:'Negociador n.º 1', desc:'Comunica com a contraparte'},
+  {k:'n2', nome:'Negociador n.º 2', desc:'Apoio ao n.º 1 e blindagem da informação'},
+  {k:'n3', nome:'Negociador n.º 3', desc:'Receção e organização da informação (quadros)'},
+  {k:'n4', nome:'Negociador n.º 4', desc:'Gere a informação a introduzir na CN e a doutrina'},
+  {k:'nc', nome:'Negociador Coordenador', desc:'Coordena a CN e liga ao Cmdt GI'}
+];
+function enPreenchidos(eq){
+  eq = eq || {};
+  return EN_POSICOES.map(p=>p.k).filter(k => eq[k] && eq[k].id);
+}
+// 5.29/5.30 — acumulação em sentido decrescente; o n.º 1 nunca acumula
+function enAcumulacao(eq){
+  const has = k => eq && eq[k] && eq[k].id;
+  const out = {};
+  if(has('n4') && !has('nc')) out.n4 = ['Coordenador'];
+  if(has('n3') && !has('n4') && !has('nc')) out.n3 = ['n.º 4','Coordenador'];
+  if(has('n2') && !has('n3') && !has('n4') && !has('nc')) out.n2 = ['n.º 3','n.º 4','Coordenador'];
+  return out;
+}
+// 5.28 — ITP: preferencialmente 5, mínimo 4. Não-ITP: 3, excecionalmente 2.
+function enConformidade(eq, isItp){
+  const n = enPreenchidos(eq).length;
+  if(isItp){
+    if(n>=5) return {estado:'conforme', n, msg:'EN completa (5 negociadores).'};
+    if(n===4) return {estado:'excecao', n, msg:'Mínimo doutrinário para ITP (4). O manual prevê preferencialmente 5 — exige justificação.'};
+    return {estado:'nao-conforme', n, msg:'Um ITP exige no mínimo 4 negociadores (preferencialmente 5). Faltam '+(4-n)+'.'};
+  }
+  if(n>=3) return {estado:'conforme', n, msg:'EN constituída (3 ou mais negociadores).'};
+  if(n===2) return {estado:'excecao', n, msg:'Constituição a 2 só é admissível em caso excecional de escassez de meios humanos e impossibilidade de reforço — exige justificação.'};
+  return {estado:'nao-conforme', n, msg:'Um incidente exige no mínimo 2 negociadores (padrão: 3). Faltam '+(2-n)+'.'};
+}
+function enNomeUtil(u){ return ((u.posto?u.posto+' ':'')+(u.nome||'')).trim(); }
+function renderEquipaSelects(){
+  const r = currentDetail?.record || {};
+  const eq = r.equipa || {};
+  EN_POSICOES.forEach(p=>{
+    const sel=document.getElementById('en-'+p.k);
+    if(!sel) return;
+    sel.innerHTML='<option value="">— não atribuído —</option>';
+    (allNegociadores||[]).forEach(u=>{
+      const o=document.createElement('option');
+      o.value=u.id; o.textContent=enNomeUtil(u);
+      if(eq[p.k] && eq[p.k].id===u.id) o.selected=true;
+      sel.appendChild(o);
+    });
+    if(eq[p.k] && eq[p.k].id && !(allNegociadores||[]).some(u=>u.id===eq[p.k].id)){
+      const o=document.createElement('option');
+      o.value=eq[p.k].id; o.textContent=(eq[p.k].nome||'(utilizador removido)'); o.selected=true;
+      sel.appendChild(o);
+    }
+  });
+  const j=document.getElementById('en-justificacao');
+  if(j) j.value = (r.equipa && r.equipa.justificacao) || '';
+  enAvaliar();
+}
+function _enLerForm(){
+  const eq={};
+  EN_POSICOES.forEach(p=>{
+    const sel=document.getElementById('en-'+p.k);
+    if(sel && sel.value){
+      const u=(allNegociadores||[]).find(x=>x.id===sel.value);
+      eq[p.k]={ id:sel.value, nome:u?u.nome:(sel.options[sel.selectedIndex]?.textContent||''), posto:u?u.posto:'' };
+    }
+  });
+  const j=document.getElementById('en-justificacao');
+  if(j && j.value.trim()) eq.justificacao=j.value.trim();
+  return eq;
+}
+function enAvaliar(){
+  const r=currentDetail?.record||{};
+  const eq=_enLerForm();
+  const conf=enConformidade(eq, !!r.is_itp);
+  const box=document.getElementById('en-estado');
+  if(box){
+    const cores={conforme:['var(--gp)','var(--gl)','var(--gm)','fa-circle-check'],
+                 excecao:['var(--amberl)','var(--amber)','#7a4a00','fa-triangle-exclamation'],
+                 'nao-conforme':['var(--redl)','var(--red)','var(--red)','fa-circle-xmark']};
+    const [bg,bd,fg,ic]=cores[conf.estado];
+    box.innerHTML='<div style="background:'+bg+';border:1px solid '+bd+';border-radius:var(--r);padding:9px 11px;font-size:12.5px;color:'+fg+';line-height:1.5"><i class="fas '+ic+'" style="margin-right:5px"></i><strong>'+conf.n+' negociador(es)</strong> — '+conf.msg+'</div>';
+  }
+  const jw=document.getElementById('en-justificacao-wrap');
+  if(jw) jw.style.display = conf.estado==='excecao' ? '' : 'none';
+  const ac=document.getElementById('en-acumulacao');
+  if(ac){
+    const acu=enAcumulacao(eq);
+    const ks=Object.keys(acu);
+    if(!ks.length){ ac.innerHTML=''; ac.style.display='none'; }
+    else {
+      ac.style.display='';
+      ac.innerHTML='<div style="font-size:11.5px;color:var(--gray600);margin-top:8px;line-height:1.6"><i class="fas fa-layer-group" style="margin-right:5px;color:var(--gl)"></i><strong>Acumulação de funções</strong> (5.29): '+
+        ks.map(k=>{ const p=EN_POSICOES.find(x=>x.k===k); return (p?p.nome:k)+' acumula '+acu[k].join(' e '); }).join('; ')+'.</div>';
+    }
+  }
+}
+async function guardarEquipa(){
+  if(!currentDetail) return;
+  const r=currentDetail.record;
+  const _tbl = currentDetail.isTreino ? 'treino_incidentes' : 'incidentes';
+  const eq=_enLerForm();
+  const conf=enConformidade(eq, !!r.is_itp);
+  if(conf.estado==='nao-conforme'){ alert('Não conforme com o manual:\n\n'+conf.msg); return; }
+  if(conf.estado==='excecao' && !eq.justificacao){ alert('Constituição excecional — a justificação é obrigatória.'); return; }
+  const ids=enPreenchidos(eq).map(k=>eq[k].id);
+  if(new Set(ids).size!==ids.length){ alert('O mesmo negociador não pode ocupar duas posições. A acumulação de funções é automática (5.29), não se atribui a mesma pessoa a dois postos.'); return; }
+  const btn=document.getElementById('en-save-btn'); if(btn) btn.disabled=true;
+  const{error}=await sb.from(_tbl).update({equipa:eq}).eq('id',r.id);
+  if(btn) btn.disabled=false;
+  if(error){ alert('Erro ao guardar a EN: '+error.message); return; }
+  const resumo=EN_POSICOES.filter(p=>eq[p.k]).map(p=>p.nome+': '+enNomeUtil(eq[p.k])).join('; ');
+  await sb.from('historico').insert({tabela:_tbl,registo_id:r.id,acao:'EN escalada — '+resumo,autor_id:currentUser.id,autor_nome:currentProfile.nome}).catch(()=>{});
+  currentDetail.record.equipa=eq;
+  if(currentDetail.isTreino){ await renderTreino(); } else { await loadData(); }
+  renderResumo();
+  alert('Equipa de Negociação guardada.');
+}
 
 // ===== ANÁLISE DE PERFIS =====
 let _pfCharts = {};
@@ -2145,12 +2271,26 @@ function renderResumo(){
           <button class="btn btn-primary btn-sm" onclick="declararITP()"><i class="fas fa-shield-halved"></i> Declarar ITP</button>
         </div>`}
     </div>`}
+    ${`<div class="form-section">
+      <h3><i class="fas fa-users-gear" style="color:var(--gl)"></i> Equipa de Negociação (EN)</h3>
+      <p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px;line-height:1.5">Manual PDGNR 1-04-18 (5.28): ITP — preferencialmente 5, mínimo 4. Incidente — 3, excecionalmente 2. As funções acumulam-se em sentido decrescente; o n.º 1 nunca acumula.</p>
+      <div id="en-estado" style="margin-bottom:10px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        ${EN_POSICOES.map(p=>`<div class="field" style="margin:0"><label>${p.nome}</label><select id="en-${p.k}" onchange="enAvaliar()"></select><div style="font-size:11px;color:var(--gray400);margin-top:3px">${p.desc}</div></div>`).join('')}
+      </div>
+      <div id="en-acumulacao"></div>
+      <div id="en-justificacao-wrap" style="display:none;margin-top:10px">
+        <div class="field" style="margin:0"><label>Justificação da constituição excecional *</label><textarea id="en-justificacao" rows="2" placeholder="Escassez de meios humanos, impossibilidade de reforço..."></textarea></div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="en-save-btn" onclick="guardarEquipa()" style="margin-top:12px"><i class="fas fa-save"></i> Guardar EN</button>
+    </div>`}
     ${(r.gravidade&&Array.isArray(r.gravidade_criterios)&&r.gravidade_criterios.length)?`<div class="form-section"><h3>Gravidade — critérios assinalados (${r.gravidade})</h3><ul style="font-size:13px;line-height:1.7;margin:0;padding-left:18px">${r.gravidade_criterios.map(function(x){return '<li>'+x+'</li>';}).join('')}</ul></div>`:''}
     ${r.descricao?`<div class="form-section"><h3>Descrição</h3><p style="font-size:14px;line-height:1.7">${r.descricao}</p></div>`:''}
     <div style="margin-top:1rem;padding:12px;background:var(--gp);border-radius:var(--r);font-size:13px;color:var(--gm)">
       <i class="fas fa-info-circle"></i> Clique nos separadores acima para aceder aos formulários operacionais: IRIS, Monitorização de Contactos, SARI e Plano de Negociação.
     </div>
   `;
+  try{ renderEquipaSelects(); }catch(e){ console.warn('renderEquipaSelects', e); }
 }
 
 // ===== TAB: IRIS =====
