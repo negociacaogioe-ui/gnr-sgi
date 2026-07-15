@@ -1637,6 +1637,10 @@ function enCtersDisponiveis(){
 }
 function enNegociadoresDe(cter){
   if(!cter) return [];
+  if(cter === '__itp__'){
+    const cc = currentDetail?.record?.cter || '';
+    return (allNegociadores||[]).filter(u => (cc && u.cter === cc) || u.cter === 'UI/GIOE');
+  }
   return (allNegociadores||[]).filter(u => u.cter === cter);
 }
 function enCterDe(id){
@@ -1667,7 +1671,8 @@ function _enPintaSelects(){
     doFiltro.forEach(u=>{
       const usadoNoutra = EN_POSICOES.some(q=>q.k!==p.k && _enWork[q.k] && _enWork[q.k].id===u.id);
       const sel2 = atual && atual.id===u.id;
-      html+='<option value="'+u.id+'"'+(sel2?' selected':'')+(usadoNoutra&&!sel2?' disabled':'')+'>'+enNomeUtil(u)+(usadoNoutra&&!sel2?' (já escalado)':'')+'</option>';
+      const suf = (_enCterFiltro==='__itp__' && u.cter) ? ' · '+u.cter : '';
+      html+='<option value="'+u.id+'"'+(sel2?' selected':'')+(usadoNoutra&&!sel2?' disabled':'')+'>'+enNomeUtil(u)+suf+(usadoNoutra&&!sel2?' (já escalado)':'')+'</option>';
     });
     sel.innerHTML=html;
   });
@@ -1676,15 +1681,21 @@ function renderEquipaSelects(){
   const r = currentDetail?.record || {};
   _enWork = JSON.parse(JSON.stringify(r.equipa || {}));
   delete _enWork.justificacao;
-  _enCterFiltro = r.cter || '';
+  const _itpAmb = enPodeUI() && r.cter;
+  _enCterFiltro = _itpAmb ? '__itp__' : (r.cter || '');
   const fs=document.getElementById('en-cter-filtro');
   if(fs){
     const ctrs=enCtersDisponiveis();
-    fs.innerHTML='<option value="">— escolher CTer —</option>'+ctrs.map(cc=>{
+    let html='<option value="">— escolher CTer —</option>';
+    if(_itpAmb){
+      html+='<option value="__itp__" selected>Âmbito do ITP: '+r.cter+' + UI/GIOE ('+enNegociadoresDe('__itp__').length+')</option>';
+    }
+    html+=ctrs.map(cc=>{
       const n=enNegociadoresDe(cc).length;
       return '<option value="'+cc+'"'+(_enCterFiltro===cc?' selected':'')+'>'+cc+' ('+n+')</option>';
     }).join('');
-    if(_enCterFiltro && !ctrs.includes(_enCterFiltro)) fs.value='';
+    fs.innerHTML=html;
+    if(_enCterFiltro && _enCterFiltro!=='__itp__' && !ctrs.includes(_enCterFiltro)) fs.value='';
   }
   _enPintaSelects();
   const j=document.getElementById('en-justificacao');
@@ -1713,7 +1724,9 @@ function enAvaliar(){
   if(amb){
     const ctrs=[...new Set(EN_POSICOES.filter(p=>_enWork[p.k]).map(p=>_enWork[p.k].cter||'?'))];
     amb.innerHTML='<i class="fas fa-filter" style="margin-right:5px;color:var(--gl)"></i>'
-      + (_enCterFiltro ? ('A mostrar negociadores de <strong>'+_enCterFiltro+'</strong>. Troca de CTer para escalar de outra unidade — as escolhas mantêm-se.') : 'Escolhe um CTer para ver os negociadores.')
+      + (_enCterFiltro==='__itp__'
+          ? ('A mostrar negociadores de <strong>'+(r.cter||'—')+'</strong> e da <strong>UI/GIOE</strong> (âmbito do ITP). Troca de CTer para escalar de outra unidade — as escolhas mantêm-se.')
+          : (_enCterFiltro ? ('A mostrar negociadores de <strong>'+_enCterFiltro+'</strong>. Troca de CTer para escalar de outra unidade — as escolhas mantêm-se.') : 'Escolhe um CTer para ver os negociadores.'))
       + (enPodeUI() ? ' <span style="color:var(--gm)">UI/GIOE disponível (ITP declarado).</span>' : ' <span style="color:var(--gray400)">UI/GIOE só após declaração de ITP.</span>')
       + (ctrs.length>1 ? '<br><i class="fas fa-users" style="margin-right:5px;color:var(--amber)"></i>EN mista: '+ctrs.join(', ') : '');
   }
