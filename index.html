@@ -725,8 +725,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
         <div class="page-sub" style="color:var(--amber)"><i class="fas fa-exclamation-triangle"></i> Ambiente de treino — os registos aqui criados NÃO aparecem no dashboard real</div>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-primary" onclick="openTreinoModal('inc')">+ Novo Incidente Treino</button>
-        <button class="btn btn-itp" onclick="openTreinoModal('itp')">+ Novo ITP Treino</button>
+        <button class="btn btn-primary" onclick="openTreinoModal('inc')"><i class="fas fa-plus"></i> Abrir Novo Incidente Treino</button>
       </div>
     </div>
     <!-- Stats treino -->
@@ -738,7 +737,8 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
     </div>
     <!-- Tabs inc/itp -->
     <div style="display:flex;gap:8px;margin-bottom:1rem">
-      <button class="btn btn-primary btn-sm" id="treino-tab-inc" onclick="switchTreinoTab('inc')">Incidentes</button>
+      <button class="btn btn-primary btn-sm" id="treino-tab-todos" onclick="switchTreinoTab('todos')">Todos</button>
+      <button class="btn btn-outline btn-sm" id="treino-tab-inc" onclick="switchTreinoTab('inc')">Incidente de Segurança</button>
       <button class="btn btn-outline btn-sm" id="treino-tab-itp" onclick="switchTreinoTab('itp')">ITP</button>
       <button class="btn btn-danger btn-sm" style="margin-left:auto" onclick="limparTreino()" title="Apagar todos os registos de treino"><i class="fas fa-trash"></i> Limpar Treino</button>
     </div>
@@ -1923,7 +1923,7 @@ async function saveITP(){
 // ===== DETAIL HEADER =====
 function renderDetailHeader(){
   const{type,record:r}=currentDetail;
-  const isItp = currentDetail.isTreino ? (type==='itp') : !!r.is_itp;
+  const isItp = !!r.is_itp;
   document.getElementById('detail-title').textContent=r.tipo;
   document.getElementById('detail-meta').innerHTML=`
     <span><i class="fas fa-map-marker-alt" style="color:var(--gl)"></i> ${r.local}</span>
@@ -1953,7 +1953,7 @@ function renderResumo(){
         <div class="stat-card"><div class="s-label">Estado</div><div class="s-num" style="font-size:18px">${r.estado}</div></div>
       `}
     </div>
-    ${currentDetail.isTreino?'':`<div class="form-section">
+    ${`<div class="form-section">
       <h3><i class="fas fa-shield-halved" style="color:${r.is_itp?'var(--red)':'var(--gl)'}"></i> Classificação</h3>
       ${r.is_itp?`
         <div style="background:var(--redl);border:1px solid var(--red);border-radius:var(--r);padding:12px">
@@ -4239,44 +4239,50 @@ async function notificarPush(tipo, local, kind, cter){
   }catch(e){ console.warn('push falhou', e); }
 }
 async function declararITP(){
-  if(!currentDetail||currentDetail.isTreino) return;
+  if(!currentDetail) return;
+  const _tbl = currentDetail.isTreino ? 'treino_incidentes' : 'incidentes';
   const r=currentDetail.record;
   const just=prompt('Declarar ITP — justificação de capacidade:\n\nPorque é que os meios locais são insuficientes e se requer apoio especializado UI/GIOE?');
   if(just===null) return;
   if(!just.trim()){ alert('A justificação é obrigatória. A declaração de ITP é uma decisão de comando e tem de ter fundamento registado.'); return; }
   const patchObj={ is_itp:true, itp_declarado_por:currentUser.id, itp_declarado_por_nome:currentProfile.nome, itp_declarado_em:new Date().toISOString(), itp_justificacao:just.trim() };
-  const{error}=await sb.from('incidentes').update(patchObj).eq('id',r.id);
+  const{error}=await sb.from(_tbl).update(patchObj).eq('id',r.id);
   if(error){ alert('Erro ao declarar ITP: '+error.message); return; }
-  await sb.from('historico').insert({tabela:'incidentes',registo_id:r.id,acao:'ITP declarado: '+just.trim(),autor_id:currentUser.id,autor_nome:currentProfile.nome}).catch(()=>{});
+  await sb.from('historico').insert({tabela:_tbl,registo_id:r.id,acao:'ITP declarado: '+just.trim(),autor_id:currentUser.id,autor_nome:currentProfile.nome}).catch(()=>{});
   Object.assign(currentDetail.record, patchObj);
-  await loadData(); renderDetailHeader(); renderResumo();
+  if(currentDetail.isTreino){ await renderTreino(); } else { await loadData(); }
+  renderDetailHeader(); renderResumo();
   alert('ITP declarado.');
 }
 async function reverterITP(){
-  if(!currentDetail||currentDetail.isTreino) return;
+  if(!currentDetail) return;
   if(currentProfile?.role !== 'admin'){ alert('Apenas um administrador pode reverter a classificação de ITP.'); return; }
+  const _tbl = currentDetail.isTreino ? 'treino_incidentes' : 'incidentes';
   const r=currentDetail.record;
   const motivo=prompt('Reverter classificação de ITP — motivo:');
   if(motivo===null) return;
   if(!motivo.trim()){ alert('O motivo é obrigatório.'); return; }
   const patchObj={ is_itp:false, itp_declarado_por:null, itp_declarado_por_nome:null, itp_declarado_em:null, itp_justificacao:null };
-  const{error}=await sb.from('incidentes').update(patchObj).eq('id',r.id);
+  const{error}=await sb.from(_tbl).update(patchObj).eq('id',r.id);
   if(error){ alert('Erro: '+error.message); return; }
-  await sb.from('historico').insert({tabela:'incidentes',registo_id:r.id,acao:'Classificação ITP revertida: '+motivo.trim(),autor_id:currentUser.id,autor_nome:currentProfile.nome}).catch(()=>{});
+  await sb.from('historico').insert({tabela:_tbl,registo_id:r.id,acao:'Classificação ITP revertida: '+motivo.trim(),autor_id:currentUser.id,autor_nome:currentProfile.nome}).catch(()=>{});
   Object.assign(currentDetail.record, patchObj);
-  await loadData(); renderDetailHeader(); renderResumo();
+  if(currentDetail.isTreino){ await renderTreino(); } else { await loadData(); }
+  renderDetailHeader(); renderResumo();
 }
 async function editarDadosITP(){
   if(!currentDetail) return;
+  const _tbl = currentDetail.isTreino ? 'treino_incidentes' : 'incidentes';
   const r=currentDetail.record;
   const neg=prompt('Negociador:', r.negociador||''); if(neg===null) return;
   const sus=prompt('Nº de suspeitos:', r.num_suspeitos??0); if(sus===null) return;
   const ref=prompt('Nº de reféns:', r.num_refens??0); if(ref===null) return;
   const patchObj={ negociador:neg.trim(), num_suspeitos:parseInt(sus)||0, num_refens:parseInt(ref)||0 };
-  const{error}=await sb.from('incidentes').update(patchObj).eq('id',r.id);
+  const{error}=await sb.from(_tbl).update(patchObj).eq('id',r.id);
   if(error){ alert('Erro: '+error.message); return; }
   Object.assign(currentDetail.record, patchObj);
-  await loadData(); renderDetailHeader(); renderResumo();
+  if(currentDetail.isTreino){ await renderTreino(); } else { await loadData(); }
+  renderDetailHeader(); renderResumo();
 }
 async function notificarListaIncidente(tipo, local, kind, cter){
   try{
@@ -4970,15 +4976,14 @@ async function renderHistorico() {
 
 // ===== TREINO OPERACIONAL =====
 let treinoIncidentes = [], treinoITPs = [];
-let treinoTab = 'inc';
+let treinoTab = 'todos';
+let treinoTodos = [];
 
 async function loadTreino() {
-  const [incRes, itpRes] = await Promise.all([
-    sb.from('treino_incidentes').select('*').order('created_at', { ascending: false }),
-    sb.from('treino_itps').select('*').order('created_at', { ascending: false })
-  ]);
-  treinoIncidentes = incRes.data || [];
-  treinoITPs = itpRes.data || [];
+  const incRes = await sb.from('treino_incidentes').select('*').order('created_at', { ascending: false });
+  treinoTodos = incRes.data || [];
+  treinoIncidentes = treinoTodos.filter(r => !r.is_itp);
+  treinoITPs = treinoTodos.filter(r => !!r.is_itp);
 }
 
 async function renderTreino() {
@@ -4993,63 +4998,45 @@ async function renderTreino() {
 
 function switchTreinoTab(tab) {
   treinoTab = tab;
+  const b1=document.getElementById('treino-tab-todos'); if(b1) b1.className = tab === 'todos' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
   document.getElementById('treino-tab-inc').className = tab === 'inc' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
   document.getElementById('treino-tab-itp').className = tab === 'itp' ? 'btn btn-itp btn-sm' : 'btn btn-outline btn-sm';
-  document.getElementById('treino-inc-wrap').classList.toggle('hidden', tab !== 'inc');
-  document.getElementById('treino-itp-wrap').classList.toggle('hidden', tab !== 'itp');
+  document.getElementById('treino-inc-wrap').classList.remove('hidden');
+  document.getElementById('treino-itp-wrap').classList.add('hidden');
   renderTreinoTable();
 }
 
 function renderTreinoTable() {
-  if (treinoTab === 'inc') {
-    const el = document.getElementById('treino-inc-wrap');
-    if (!treinoIncidentes.length) { el.innerHTML = '<div class="empty-state"><p>Sem incidentes de treino. Cria o primeiro!</p></div>'; return; }
-    el.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Tipo</th><th>CTer</th><th>Localização</th><th>Data/Hora</th><th>Gravidade</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
-    ${treinoIncidentes.map(r => `<tr>
-      <td style="font-weight:500;cursor:pointer" onclick="openTreinoRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.tipo}</td>
-      <td style="font-size:12px;color:var(--gray600)">${r.cter||'—'}</td>
-      <td style="color:var(--gray600);cursor:pointer" onclick="openTreinoRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.local}</td>
-      <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gray600)">${fmtDateTime(r.data_hora)}</td>
-      <td>${gravBadge(r.gravidade)}</td>
-      <td>
-        <select style="font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);cursor:pointer" onchange="quickTreinoStatus('inc','${r.id}',this.value)">
-          <option value="Em curso" ${r.estado==='Em curso'?'selected':''}>Em curso</option>
-          <option value="Resolvido" ${r.estado==='Resolvido'?'selected':''}>Resolvido</option>
-          <option value="Arquivado" ${r.estado==='Arquivado'?'selected':''}>Arquivado</option>
-        </select>
-      </td>
-      <td><div style="display:flex;gap:4px">
-        <button class="btn btn-primary btn-sm" onclick="openTreinoRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})" title="Abrir formulários"><i class="fas fa-folder-open"></i></button>
-        <button class="btn btn-outline btn-sm" onclick="editTreinoIncidente('${r.id}')"><i class="fas fa-edit"></i></button>
-        <button class="btn btn-danger btn-sm" onclick="deleteTreino('inc','${r.id}')"><i class="fas fa-trash"></i></button>
-      </div></td>
-    </tr>`).join('')}</tbody></table></div>`;
-  } else {
-    const el = document.getElementById('treino-itp-wrap');
-    if (!treinoITPs.length) { el.innerHTML = '<div class="empty-state"><p>Sem ITP de treino. Cria o primeiro!</p></div>'; return; }
-    el.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Tipo</th><th>CTer</th><th>Localização</th><th>Data/Hora</th><th>Neg.</th><th>Sus.</th><th>Ref.</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
-    ${treinoITPs.map(r => `<tr>
-      <td style="font-weight:500;cursor:pointer" onclick="openTreinoRecord('itp',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.tipo}</td>
-      <td style="font-size:12px;color:var(--gray600)">${r.cter||'—'}</td>
-      <td style="color:var(--gray600);cursor:pointer" onclick="openTreinoRecord('itp',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.local}</td>
-      <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gray600)">${fmtDateTime(r.data_hora)}</td>
-      <td style="font-size:12px">${r.negociador||'—'}</td>
-      <td style="text-align:center;font-family:'IBM Plex Mono',monospace">${r.num_suspeitos}</td>
-      <td style="text-align:center;font-family:'IBM Plex Mono',monospace">${r.num_refens}</td>
-      <td>
-        <select style="font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);cursor:pointer" onchange="quickTreinoStatus('itp','${r.id}',this.value)">
-          <option value="Em curso" ${r.estado==='Em curso'?'selected':''}>Em curso</option>
-          <option value="Resolvido" ${r.estado==='Resolvido'?'selected':''}>Resolvido</option>
-          <option value="Arquivado" ${r.estado==='Arquivado'?'selected':''}>Arquivado</option>
-        </select>
-      </td>
-      <td><div style="display:flex;gap:4px">
-        <button class="btn btn-primary btn-sm" onclick="openTreinoRecord('itp',${JSON.stringify(r).replace(/"/g,'&quot;')})" title="Abrir formulários"><i class="fas fa-folder-open"></i></button>
-        <button class="btn btn-outline btn-sm" onclick="editTreinoITP('${r.id}')"><i class="fas fa-edit"></i></button>
-        <button class="btn btn-danger btn-sm" onclick="deleteTreino('itp','${r.id}')"><i class="fas fa-trash"></i></button>
-      </div></td>
-    </tr>`).join('')}</tbody></table></div>`;
-  }
+  const base = (typeof treinoTodos !== 'undefined' && treinoTodos.length) ? treinoTodos : treinoIncidentes.concat(treinoITPs);
+  const data = base.filter(r => {
+    if (treinoTab === 'itp' && !r.is_itp) return false;
+    if (treinoTab === 'inc' && r.is_itp) return false;
+    return true;
+  });
+  const el = document.getElementById('treino-inc-wrap');
+  if (!data.length) { el.innerHTML = '<div class="empty-state"><p>Sem registos de treino para este filtro. Cria o primeiro!</p></div>'; return; }
+  el.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Classificação</th><th>Tipo</th><th>CTer</th><th>Localização</th><th>Data/Hora</th><th>Gravidade</th><th>Neg.</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
+  ${data.map(r => `<tr>
+    <td>${classBadge(r)}</td>
+    <td style="font-weight:500;cursor:pointer" onclick="openTreinoRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.tipo}</td>
+    <td style="font-size:12px;color:var(--gray600)">${r.cter||'—'}</td>
+    <td style="color:var(--gray600);cursor:pointer" onclick="openTreinoRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.local}</td>
+    <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gray600)">${fmtDateTime(r.data_hora)}</td>
+    <td>${gravBadge(r.gravidade)}</td>
+    <td style="font-size:12px;color:var(--gray600)">${r.is_itp ? (r.negociador||'—') : '—'}</td>
+    <td>
+      <select style="font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);cursor:pointer" onchange="quickTreinoStatus('inc','${r.id}',this.value)">
+        <option value="Em curso" ${r.estado==='Em curso'?'selected':''}>Em curso</option>
+        <option value="Resolvido" ${r.estado==='Resolvido'?'selected':''}>Resolvido</option>
+        <option value="Arquivado" ${r.estado==='Arquivado'?'selected':''}>Arquivado</option>
+      </select>
+    </td>
+    <td><div style="display:flex;gap:4px">
+      <button class="btn btn-primary btn-sm" onclick="openTreinoRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})" title="Abrir formulários"><i class="fas fa-folder-open"></i></button>
+      <button class="btn btn-outline btn-sm" onclick="editTreinoIncidente('${r.id}')"><i class="fas fa-edit"></i></button>
+      <button class="btn btn-danger btn-sm" onclick="deleteTreino('inc','${r.id}')"><i class="fas fa-trash"></i></button>
+    </div></td>
+  </tr>`).join('')}</tbody></table></div>`;
 }
 
 
@@ -5146,8 +5133,8 @@ async function saveTreinoITP() {
   btn.innerHTML='<span class="spinner"></span>'; btn.disabled=true;
   const payload = { tipo, local, cter, data_hora:new Date(data).toISOString(), negociador:neg, num_suspeitos:sus, num_refens:ref, gravidade:(document.getElementById('treino-itp-grav')?.value||''), gravidade_criterios:collectGravCriterios('treino-itp-grav-criterios'), estado, descricao:desc, contacto_vitima:contactoVitima, contacto_agressor:contactoAgressor, autor_id:currentUser.id, autor_nome:currentProfile.nome };
   const { error } = id
-    ? await sb.from('treino_itps').update(payload).eq('id', id)
-    : await sb.from('treino_itps').insert(payload);
+    ? await sb.from('treino_incidentes').update(payload).eq('id', id)
+    : await sb.from('treino_incidentes').insert(Object.assign({}, payload, {is_itp:true, itp_declarado_por:currentUser.id, itp_declarado_por_nome:currentProfile.nome, itp_declarado_em:new Date().toISOString()}));
   btn.innerHTML='Guardar'; btn.disabled=false;
   if (error) { showAlert('treino-itp-alert','error','Erro: '+error.message); return; }
   closeModal('modal-treino-itp');
