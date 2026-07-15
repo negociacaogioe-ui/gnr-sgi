@@ -1616,12 +1616,14 @@ function enConformidade(eq, isItp){
   const n = enPreenchidos(eq).length;
   if(isItp){
     if(n>=5) return {estado:'conforme', n, msg:'EN completa (5 negociadores).'};
-    if(n===4) return {estado:'excecao', n, msg:'Mínimo doutrinário para ITP (4). O manual prevê preferencialmente 5 — exige justificação.'};
-    return {estado:'nao-conforme', n, msg:'Um ITP exige no mínimo 4 negociadores (preferencialmente 5). Faltam '+(4-n)+'.'};
+    if(n===4) return {estado:'excecao', n, msg:'Mínimo doutrinário para ITP (4). O manual prevê preferencialmente 5 (5.28) — exceção prevista, exige justificação.'};
+    if(n===0) return {estado:'vazio', n, msg:'EN por escalar.'};
+    return {estado:'nao-conforme', n, msg:'NÃO CONFORME com o manual (5.28): um ITP exige no mínimo 4 negociadores. Está a registar uma EN a '+n+'. O registo é permitido — a não conformidade fica assinalada no caso.'};
   }
   if(n>=3) return {estado:'conforme', n, msg:'EN constituída (3 ou mais negociadores).'};
-  if(n===2) return {estado:'excecao', n, msg:'Constituição a 2 só é admissível em caso excecional de escassez de meios humanos e impossibilidade de reforço — exige justificação.'};
-  return {estado:'nao-conforme', n, msg:'Um incidente exige no mínimo 2 negociadores (padrão: 3). Faltam '+(2-n)+'.'};
+  if(n===2) return {estado:'excecao', n, msg:'Constituição a 2 — exceção prevista no manual (5.28) para escassez de meios humanos e impossibilidade de reforço. Exige justificação.'};
+  if(n===0) return {estado:'vazio', n, msg:'EN por escalar.'};
+  return {estado:'nao-conforme', n, msg:'NÃO CONFORME com o manual (5.28): a EN não funciona com menos de 2 negociadores. O registo é permitido — a não conformidade fica assinalada no caso.'};
 }
 function enNomeUtil(u){ return ((u.posto?u.posto+' ':'')+(u.nome||'')).trim(); }
 // Elegíveis: negociadores do CTer da ocorrência. A UI/GIOE só entra quando o caso é ITP
@@ -1716,6 +1718,7 @@ function enAvaliar(){
   if(box){
     const cores={conforme:['var(--gp)','var(--gl)','var(--gm)','fa-circle-check'],
                  excecao:['var(--amberl)','var(--amber)','#7a4a00','fa-triangle-exclamation'],
+                 vazio:['var(--gray100)','var(--border)','var(--gray600)','fa-circle-info'],
                  'nao-conforme':['var(--redl)','var(--red)','var(--red)','fa-circle-xmark']};
     const [bg,bd,fg,ic]=cores[conf.estado];
     box.innerHTML='<div style="background:'+bg+';border:1px solid '+bd+';border-radius:var(--r);padding:9px 11px;font-size:12.5px;color:'+fg+';line-height:1.5"><i class="fas '+ic+'" style="margin-right:5px"></i><strong>'+conf.n+' negociador(es)</strong> — '+conf.msg+'</div>';
@@ -1731,7 +1734,9 @@ function enAvaliar(){
       + (ctrs.length>1 ? '<br><i class="fas fa-users" style="margin-right:5px;color:var(--amber)"></i>EN mista: '+ctrs.join(', ') : '');
   }
   const jw=document.getElementById('en-justificacao-wrap');
-  if(jw) jw.style.display = conf.estado==='excecao' ? '' : 'none';
+  if(jw) jw.style.display = (conf.estado==='excecao'||conf.estado==='nao-conforme') ? '' : 'none';
+  const jl=document.getElementById('en-justificacao-label');
+  if(jl) jl.textContent = conf.estado==='nao-conforme' ? 'Motivo da constituição não conforme *' : 'Justificação da constituição excecional *';
   const ac=document.getElementById('en-acumulacao');
   if(ac){
     const acu=enAcumulacao(eq);
@@ -1750,8 +1755,14 @@ async function guardarEquipa(){
   const _tbl = currentDetail.isTreino ? 'treino_incidentes' : 'incidentes';
   const eq=_enLerForm();
   const conf=enConformidade(eq, !!r.is_itp);
-  if(conf.estado==='nao-conforme'){ alert('Não conforme com o manual:\n\n'+conf.msg); return; }
-  if(conf.estado==='excecao' && !eq.justificacao){ alert('Constituição excecional — a justificação é obrigatória.'); return; }
+  if((conf.estado==='excecao'||conf.estado==='nao-conforme') && !eq.justificacao){
+    alert(conf.estado==='nao-conforme' ? 'Constituição não conforme com o manual — indique o motivo para ficar registado.' : 'Constituição excecional — a justificação é obrigatória.');
+    return;
+  }
+  if(conf.estado==='nao-conforme'){
+    if(!confirm('ATENÇÃO — constituição NÃO CONFORME com o manual (5.28).\n\n'+conf.msg+'\n\nO registo vai ser guardado com esta não conformidade assinalada no caso. Confirma?')) return;
+  }
+  eq.conformidade = conf.estado;
   const ids=enPreenchidos(eq).map(k=>eq[k].id);
   if(new Set(ids).size!==ids.length){ alert('O mesmo negociador não pode ocupar duas posições. A acumulação de funções é automática (5.29), não se atribui a mesma pessoa a dois postos.'); return; }
   const btn=document.getElementById('en-save-btn'); if(btn) btn.disabled=true;
@@ -1919,6 +1930,7 @@ function renderPD(){
   el.innerHTML='<div class="form-section"><h3><i class="fas fa-comments" style="color:var(--gl)"></i> Plano de Diálogo (PD)</h3>'
     +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 12px;line-height:1.5">Com base no PN, planeia a modalidade de ação em termos técnicos e articula o discurso, respondendo às cinco questões base: quem, o quê, onde, porquê e como (4.88). O PD não obriga a modelo fixo (4.89).</p>'
     +'<div id="pd-alert" class="hidden" style="margin-bottom:.75rem"></div>'
+    +'<div style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:12px;color:var(--gray600);line-height:1.5">Puxa o que já está registado (visado, IRIS, âncoras, familiares, quadros). As soluções e a identificação do problema ficam para a equipa.</span><button class="btn btn-outline btn-sm" onclick="puxarDadosPD()" style="flex-shrink:0"><i class="fas fa-download"></i> Puxar dados do caso</button></div>'
     +PD_CAMPOS.map(cp=>'<div class="field form-full"><label>'+cp.t+'</label><textarea id="pd-'+cp.k+'" rows="3" placeholder="'+cp.p+'">'+(pd[cp.k]||'')+'</textarea></div>').join('')
     +'<button class="btn btn-primary" id="pd-save-btn" onclick="guardarPD()" style="margin-top:10px"><i class="fas fa-save"></i> Guardar Plano de Diálogo</button></div>';
 }
@@ -1932,6 +1944,81 @@ async function guardarPD(){
   if(!ok) return;
   await sb.from('historico').insert({tabela:_postoTbl(),registo_id:currentDetail.record.id,acao:'Plano de Diálogo atualizado',autor_id:currentUser.id,autor_nome:currentProfile.nome}).catch(()=>{});
   showAlert('pd-alert','success','Plano de Diálogo guardado.');
+}
+
+// ===== PUXAR DADOS DO CASO (factual; não preenche campos de juízo) =====
+function _pxQuadro(k){
+  const q=(currentDetail?.record?.quadros)||{};
+  const it=Array.isArray(q[k])?q[k]:[];
+  return it.map(x=>'• '+x.t).join('\n');
+}
+async function _pxIris(){
+  const r=currentDetail?.record;
+  if(!r) return '';
+  try{
+    const pt = currentDetail.type==='itp' ? 'itp' : 'incidente';
+    const{data}=await sb.from('iris').select('score,risk_level').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle();
+    if(data && data.score!==null && data.score!==undefined) return 'IRIS — score '+data.score+' ('+(data.risk_level||'—')+')';
+  }catch(e){}
+  return '';
+}
+function _pxVisado(){
+  const d=(currentDetail?.record?.descricao_visado)||{};
+  const p=[];
+  if(d.faixa_etaria) p.push('Faixa etária: '+d.faixa_etaria);
+  if(d.genero) p.push('Género: '+d.genero);
+  if(d.concelho||d.distrito) p.push('Origem: '+[d.concelho,d.distrito].filter(Boolean).join(', '));
+  if(d.tipo_crime) p.push('Tipo: '+d.tipo_crime);
+  if(d.relacao_vitima) p.push('Relação com a vítima: '+d.relacao_vitima);
+  if(Array.isArray(d.dependencias)&&d.dependencias.length) p.push('Dependências: '+d.dependencias.join(', '));
+  if(d.motivacao) p.push('Motivação aparente: '+d.motivacao);
+  return p.join('\n');
+}
+function _pxPreencher(mapa){
+  const porPreencher=[], sobrepor=[];
+  Object.keys(mapa).forEach(id=>{
+    const el=document.getElementById(id); const v=mapa[id];
+    if(!el||!v) return;
+    if(el.value.trim()) sobrepor.push(id); else porPreencher.push(id);
+  });
+  if(!porPreencher.length && !sobrepor.length){ alert('Não há dados no caso para puxar.\n\nPreenche primeiro a descrição do incidente, os quadros (n.º 3) ou a Descrição do Visado.'); return; }
+  let subst=false;
+  if(sobrepor.length){
+    subst=confirm(sobrepor.length+' campo(s) já têm texto escrito.\n\nOK = substituir por os dados do caso.\nCancelar = preencher apenas os campos vazios.');
+  }
+  Object.keys(mapa).forEach(id=>{
+    const el=document.getElementById(id); const v=mapa[id];
+    if(!el||!v) return;
+    if(!el.value.trim() || subst) el.value=v;
+  });
+  alert('Dados factuais puxados do caso.\n\nOs campos de análise (identificação do problema, objetivos, meios, soluções) ficam por preencher — são o raciocínio da equipa.');
+}
+async function puxarDadosPN(){
+  if(!currentDetail) return;
+  const r=currentDetail.record;
+  const partes=[];
+  if(r.descricao) partes.push(r.descricao);
+  const iris=await _pxIris(); if(iris) partes.push(iris);
+  QUADROS_CAB.forEach(h=>{ const t=_pxQuadro(h.k); if(t) partes.push(h.t.toUpperCase()+':\n'+t); });
+  const vis=_pxVisado(); if(vis) partes.push('VISADO:\n'+vis);
+  _pxPreencher({
+    'plano-desc': partes.join('\n\n'),
+    'plano-sit': [r.tipo, r.local, r.cter, r.gravidade?('Gravidade: '+r.gravidade):''].filter(Boolean).join(' · '),
+    'plano-pos': _pxQuadro('posicao')
+  });
+}
+async function puxarDadosPD(){
+  if(!currentDetail) return;
+  const r=currentDetail.record;
+  const qr=[]; const vis=_pxVisado(); if(vis) qr.push(vis);
+  const iris=await _pxIris(); if(iris) qr.push(iris);
+  const anc=_pxQuadro('ancoras'); if(anc) qr.push('Âncoras:\n'+anc);
+  const fam=_pxQuadro('familiares'); if(fam) qr.push('Familiares / amigos:\n'+fam);
+  _pxPreencher({
+    'pd-quadro_ref': qr.join('\n\n'),
+    'pd-local': [r.local, r.cter].filter(Boolean).join(' · '),
+    'pd-pos_int': _pxQuadro('posicao')
+  });
 }
 
 // ===== ANÁLISE DE PERFIS =====
@@ -2526,7 +2613,7 @@ function renderResumo(){
       </div>
       <div id="en-acumulacao"></div>
       <div id="en-justificacao-wrap" style="display:none;margin-top:10px">
-        <div class="field" style="margin:0"><label>Justificação da constituição excecional *</label><textarea id="en-justificacao" rows="2" placeholder="Escassez de meios humanos, impossibilidade de reforço..."></textarea></div>
+        <div class="field" style="margin:0"><label id="en-justificacao-label">Justificação da constituição excecional *</label><textarea id="en-justificacao" rows="2" placeholder="Escassez de meios humanos, impossibilidade de reforço..."></textarea></div>
       </div>
       <button class="btn btn-primary btn-sm" id="en-save-btn" onclick="guardarEquipa()" style="margin-top:12px"><i class="fas fa-save"></i> Guardar EN</button>
     </div>`}
@@ -3658,6 +3745,10 @@ async function renderPlano(){
     </div>
     <div class="form-section"><h3>Meios a Utilizar</h3>
       <div class="field"><textarea id="plano-meios" rows="3">${v.meios||''}</textarea></div>
+    </div>
+    <div style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--gray600);line-height:1.5">Puxa a informação já registada no caso (descrição, quadros, IRIS, visado). Os objetivos e a identificação do problema não são preenchidos — são o raciocínio da EN.</span>
+      <button class="btn btn-outline btn-sm" onclick="puxarDadosPN()" style="flex-shrink:0"><i class="fas fa-download"></i> Puxar dados do caso</button>
     </div>
     <button class="btn btn-primary btn-full" onclick="savePlano()"><i class="fas fa-save"></i> Guardar Plano de Negociação</button>
   </div>${contactosSidebar}</div>
