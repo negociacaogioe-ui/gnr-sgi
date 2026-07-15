@@ -6969,7 +6969,40 @@ setImages();
 <div id="mob-app" style="display:none">
 
   <!-- SCREEN: Lista -->
-  <div id="mob-screen-lista" class="mob-screen" style="padding:.875rem;padding-bottom:calc(var(--mob-tab-h) + 1rem)">
+  <div id="mob-screen-dashboard" class="mob-screen" style="padding:.875rem;padding-bottom:calc(var(--mob-tab-h) + 1rem)">
+    <div style="margin-bottom:14px">
+      <div id="mob-dash-greeting" style="font-size:18px;font-weight:600;color:var(--gn)">Dashboard</div>
+      <div id="mob-dash-date" style="font-size:12.5px;color:var(--gray600);margin-top:2px"></div>
+    </div>
+    <button class="btn btn-primary" onclick="mobShowTab('novo-inc');mobBuildForms();" style="width:100%;padding:14px;font-size:15px;font-weight:600;margin-bottom:16px;box-shadow:var(--shs)">
+      <i class="fas fa-plus"></i> Abrir Novo Incidente
+    </button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="background:#fff;border:1px solid var(--border);border-left:3px solid var(--gl);border-radius:var(--r);padding:12px">
+        <div style="font-size:10.5px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em">Incidentes</div>
+        <div style="font-size:24px;font-weight:700;color:var(--gm);font-family:'IBM Plex Mono',monospace" id="mob-s-inc">0</div>
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-left:3px solid var(--red);border-radius:var(--r);padding:12px">
+        <div style="font-size:10.5px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em">ITP</div>
+        <div style="font-size:24px;font-weight:700;color:var(--red);font-family:'IBM Plex Mono',monospace" id="mob-s-itp">0</div>
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:var(--r);padding:12px">
+        <div style="font-size:10.5px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em">Em curso</div>
+        <div style="font-size:24px;font-weight:700;color:var(--amber);font-family:'IBM Plex Mono',monospace" id="mob-s-curso">0</div>
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-left:3px solid var(--gray400);border-radius:var(--r);padding:12px">
+        <div style="font-size:10.5px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em">Este mês</div>
+        <div style="font-size:24px;font-weight:700;color:var(--gray900);font-family:'IBM Plex Mono',monospace" id="mob-s-mes">0</div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:13px;font-weight:600;color:var(--gn)">Registos recentes</span>
+      <button class="btn btn-ghost btn-sm" onclick="mobShowTab('lista');mobRenderLista();" style="font-size:12px">Ver todos →</button>
+    </div>
+    <div id="mob-dash-recent"></div>
+  </div>
+
+  <div id="mob-screen-lista" class="mob-screen hidden" style="padding:.875rem;padding-bottom:calc(var(--mob-tab-h) + 1rem)">
     <!-- Filtro rápido -->
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <button class="mob-filter-btn active" id="mobf-todos" onclick="mobSetFilter('todos')">Todos</button>
@@ -7019,7 +7052,10 @@ setImages();
 
 <!-- ===== MOBILE BOTTOM TAB BAR ===== -->
 <div id="mob-tabbar">
-  <button class="mob-tab active" id="mobtab-lista" onclick="mobShowTab('lista')">
+  <button class="mob-tab active" id="mobtab-dashboard" onclick="mobShowTab('dashboard');mobRenderDashboard();">
+    <i class="fas fa-house"></i><span>Início</span>
+  </button>
+  <button class="mob-tab" id="mobtab-lista" onclick="mobShowTab('lista')">
     <i class="fas fa-list"></i><span>Registos</span>
   </button>
   <button class="mob-tab" id="mobtab-detalhe" onclick="mobShowTab('detalhe')">
@@ -7037,7 +7073,7 @@ setImages();
 // ===== MOBILE SYSTEM =====
 const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 768;
 let mobDetail = null; // { type, record }
-let mobCurrentTab = 'lista';
+let mobCurrentTab = 'dashboard';
 let mobNavStack = []; // pilha de navegação
 let mobFilter = 'todos';
 let mobCallState = {
@@ -7067,8 +7103,9 @@ function mobEnterApp() {
   // Enable all tabs
   document.querySelectorAll('.mob-tab').forEach(t => { t.disabled = false; t.style.opacity = '1'; });
   mobNavStack = [];
-  mobShowTab('lista');
+  mobShowTab('dashboard');
   mobRenderLista();
+  mobRenderDashboard();
   mobBuildForms();
 }
 
@@ -7161,6 +7198,7 @@ function mobShowTab(tab, resetStack) {
   if (activeTab) activeTab.classList.add('active');
   // Update header
   const headers = {
+    dashboard:  ['SGI — GNR', 'Início'],
     lista:      ['SGI — GNR', 'Incidentes e ITP'],
     detalhe:    [mobDetail ? mobDetail.record.tipo : 'Detalhe', mobDetail ? mobDetail.record.local : ''],
     chamada:    ['Chamada / Gravação', mobDetail ? mobDetail.record.tipo : 'Seleciona um incidente'],
@@ -7205,6 +7243,49 @@ function mobSetFilter(f) {
 }
 
 // ===== LISTA =====
+function mobRenderDashboard() {
+  const base = (typeof allCasos!=='undefined' && allCasos.length) ? allCasos : (allIncidentes||[]).concat(allITPs||[]);
+  const gEl=document.getElementById('mob-dash-greeting');
+  if(gEl && typeof currentProfile!=='undefined' && currentProfile){
+    const h=new Date().getHours();
+    const en=(typeof SGI_LANG!=='undefined'&&SGI_LANG==='en');
+    const gr=en?(h<12?'Good morning':h<19?'Good afternoon':'Good evening'):(h<12?'Bom dia':h<19?'Boa tarde':'Boa noite');
+    const _pt=currentProfile.posto||'';
+    const posto=_pt?((en&&typeof SGI_I18N!=='undefined'&&SGI_I18N[_pt])?SGI_I18N[_pt]:_pt)+' ':'';
+    const primeiro=currentProfile.nome?currentProfile.nome.split(' ')[0]:'Negociador';
+    gEl.textContent=gr+', '+posto+primeiro;
+    const dEl=document.getElementById('mob-dash-date');
+    if(dEl) dEl.textContent=new Date().toLocaleDateString(en?'en-GB':'pt-PT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  }
+  const set=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
+  set('mob-s-inc', base.filter(r=>!r.is_itp).length);
+  set('mob-s-itp', base.filter(r=>!!r.is_itp).length);
+  set('mob-s-curso', base.filter(r=>r.estado==='Em curso').length);
+  const agora=new Date();
+  set('mob-s-mes', base.filter(r=>{
+    const d=new Date(r.data_hora||r.created_at);
+    return d.getMonth()===agora.getMonth() && d.getFullYear()===agora.getFullYear();
+  }).length);
+  const el=document.getElementById('mob-dash-recent');
+  if(!el) return;
+  const recentes=base.slice().sort((a,b)=>new Date(b.data_hora||b.created_at)-new Date(a.data_hora||a.created_at)).slice(0,5);
+  if(!recentes.length){ el.innerHTML='<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:1.5rem;text-align:center;font-size:13px;color:var(--gray400)">Sem registos ainda.</div>'; return; }
+  el.innerHTML=recentes.map(r=>`
+    <div onclick="mobOpenDetail('inc','${r.id}')" style="background:#fff;border:1px solid var(--border);border-left:3px solid ${r.is_itp?'var(--red)':'var(--gl)'};border-radius:var(--r);padding:11px 12px;margin-bottom:8px;cursor:pointer">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:600;color:var(--gray900)">${r.tipo||'—'}</div>
+          <div style="font-size:12px;color:var(--gray600);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="fas fa-map-marker-alt" style="color:var(--gl);margin-right:4px"></i>${r.local||'—'}</div>
+          <div style="font-size:11px;color:var(--gray400);margin-top:3px;font-family:'IBM Plex Mono',monospace">${fmtDateTime(r.data_hora)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+          ${r.is_itp?'<span class="badge" style="background:var(--redl);color:var(--red);font-size:10px;font-weight:600">ITP</span>':''}
+          <span class="badge" style="font-size:10px;background:${r.estado==='Em curso'?'var(--amberl)':r.estado==='Resolvido'?'var(--gp)':'var(--gray100)'};color:${r.estado==='Em curso'?'var(--amber)':r.estado==='Resolvido'?'var(--gm)':'var(--gray600)'}">${r.estado||'—'}</span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
 function mobRenderLista() {
   const el = document.getElementById('mob-lista-content');
   if (!el) return;
@@ -7263,8 +7344,8 @@ function mobCardItem(type, r) {
 
 // ===== OPEN DETAIL =====
 function mobOpenDetail(type, id) {
-  const arr = type === 'inc' ? allIncidentes : allITPs;
-  const record = arr.find(r => r.id === id);
+  const base = (typeof allCasos!=='undefined' && allCasos.length) ? allCasos : (allIncidentes||[]).concat(allITPs||[]);
+  const record = base.find(r => r.id === id) || (type === 'inc' ? allIncidentes : allITPs).find(r => r.id === id);
   if (!record) return;
   mobDetail = { type, record };
   currentDetail = { type, record };
@@ -8296,7 +8377,7 @@ async function mobSaveInc(){
   await notificarListaIncidente(payload.tipo, payload.local, 'inc', payload.cter);
   mobShowAlert('mob-inc-alert','success','Incidente criado!');
   await loadData();
-  setTimeout(()=>{mobShowTab('lista');},1200);
+  setTimeout(()=>{mobShowTab('lista');mobRenderLista();mobRenderDashboard();},1200);
 }
 
 async function mobSaveITP(){
@@ -8324,7 +8405,7 @@ async function mobSaveITP(){
   if(error){mobShowAlert('mob-itp-alert','error','Erro: '+error.message);return;}
   mobShowAlert('mob-itp-alert','success','ITP criado!');
   await loadData();
-  setTimeout(()=>{mobShowTab('lista');},1200);
+  setTimeout(()=>{mobShowTab('lista');mobRenderLista();mobRenderDashboard();},1200);
 }
 
 function mobOpenNew(){
