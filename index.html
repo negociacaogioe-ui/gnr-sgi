@@ -1381,7 +1381,7 @@ async function enterApp(){
 
 async function loadNegociadores(){
   try{
-    const{data}=await sb.from('profiles').select('id,nome,posto,role,nivel_acesso,approved').eq('approved',true).order('nome');
+    const{data}=await sb.from('profiles').select('id,nome,posto,cter,role,nivel_acesso,approved').eq('approved',true).order('nome');
     allNegociadores=data||[];
   }catch(e){ allNegociadores=[]; }
 }
@@ -1623,6 +1623,18 @@ function enConformidade(eq, isItp){
   return {estado:'nao-conforme', n, msg:'Um incidente exige no mínimo 2 negociadores (padrão: 3). Faltam '+(2-n)+'.'};
 }
 function enNomeUtil(u){ return ((u.posto?u.posto+' ':'')+(u.nome||'')).trim(); }
+// Elegíveis: negociadores do CTer da ocorrência. A UI/GIOE só entra quando o caso é ITP
+// (a UI é o apoio especialista requerido pelo critério de capacidade que define o ITP).
+function enElegiveis(){
+  const r = currentDetail?.record || {};
+  const cter = r.cter || '';
+  const isItp = !!r.is_itp;
+  return (allNegociadores||[]).filter(u=>{
+    if(cter && u.cter === cter) return true;
+    if(isItp && u.cter === 'UI/GIOE') return true;
+    return false;
+  });
+}
 function renderEquipaSelects(){
   const r = currentDetail?.record || {};
   const eq = r.equipa || {};
@@ -1630,15 +1642,19 @@ function renderEquipaSelects(){
     const sel=document.getElementById('en-'+p.k);
     if(!sel) return;
     sel.innerHTML='<option value="">— não atribuído —</option>';
-    (allNegociadores||[]).forEach(u=>{
+    const elig = enElegiveis();
+    elig.forEach(u=>{
       const o=document.createElement('option');
-      o.value=u.id; o.textContent=enNomeUtil(u);
+      o.value=u.id; o.textContent=enNomeUtil(u)+(u.cter==='UI/GIOE'?' · UI/GIOE':'');
       if(eq[p.k] && eq[p.k].id===u.id) o.selected=true;
       sel.appendChild(o);
     });
-    if(eq[p.k] && eq[p.k].id && !(allNegociadores||[]).some(u=>u.id===eq[p.k].id)){
+    if(eq[p.k] && eq[p.k].id && !elig.some(u=>u.id===eq[p.k].id)){
+      const ant=(allNegociadores||[]).find(u=>u.id===eq[p.k].id);
       const o=document.createElement('option');
-      o.value=eq[p.k].id; o.textContent=(eq[p.k].nome||'(utilizador removido)'); o.selected=true;
+      o.value=eq[p.k].id;
+      o.textContent=(ant?enNomeUtil(ant):(eq[p.k].nome||'(utilizador removido)'))+' · fora do âmbito';
+      o.selected=true;
       sel.appendChild(o);
     }
   });
@@ -1673,6 +1689,13 @@ function enAvaliar(){
   }
   const jw=document.getElementById('en-justificacao-wrap');
   if(jw) jw.style.display = conf.estado==='excecao' ? '' : 'none';
+  const amb=document.getElementById('en-ambito');
+  if(amb){
+    const cter=r.cter||'';
+    const nElig=enElegiveis().length;
+    amb.innerHTML='<i class="fas fa-filter" style="margin-right:5px;color:var(--gl)"></i>Elegíveis: '+nElig+' — negociadores de <strong>'+(cter||'(CTer por definir)')+'</strong>'
+      + (r.is_itp ? ' e da <strong>UI/GIOE</strong> (caso classificado como ITP).' : '. A UI/GIOE só fica disponível após declaração de ITP.');
+  }
   const ac=document.getElementById('en-acumulacao');
   if(ac){
     const acu=enAcumulacao(eq);
@@ -2464,6 +2487,7 @@ function renderResumo(){
       <h3><i class="fas fa-users-gear" style="color:var(--gl)"></i> Equipa de Negociação (EN)</h3>
       <p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px;line-height:1.5">Manual PDGNR 1-04-18 (5.28): ITP — preferencialmente 5, mínimo 4. Incidente — 3, excecionalmente 2. As funções acumulam-se em sentido decrescente; o n.º 1 nunca acumula.</p>
       <div id="en-estado" style="margin-bottom:10px"></div>
+      <div id="en-ambito" style="font-size:11.5px;color:var(--gray600);margin-bottom:10px"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         ${EN_POSICOES.map(p=>`<div class="field" style="margin:0"><label>${p.nome}</label><select id="en-${p.k}" onchange="enAvaliar()"></select><div style="font-size:11px;color:var(--gray400);margin-top:3px">${p.desc}</div></div>`).join('')}
       </div>
