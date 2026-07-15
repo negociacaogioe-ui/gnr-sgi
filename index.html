@@ -421,7 +421,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
       <button class="nav-link active" id="nav-dashboard" onclick="showSection('dashboard')">Dashboard</button>
       <button class="nav-link" id="nav-incidentes" onclick="showSection('incidentes')">Incidentes</button>
       <button class="nav-link hidden" id="nav-sinalizacoes" onclick="showSection('sinalizacoes')"><i class="fas fa-exclamation-triangle" style="font-size:10px;color:var(--amber)"></i> Sinalizar VD</button>
-      <button class="nav-link" id="nav-itp" onclick="showSection('itp')">ITP</button>
+      <button class="nav-link hidden" id="nav-itp" onclick="showSection('itp')">ITP</button>
       <button class="nav-link hidden" id="nav-stats" class="nav-link hidden" onclick="showSection('stats')"><i class="fas fa-chart-bar" style="font-size:11px"></i> Estatísticas</button>
       <button class="nav-link" id="nav-formacao" onclick="showSection('formacao')"><i class="fas fa-graduation-cap" style="font-size:11px"></i> Formação</button>
       <button class="nav-link" id="nav-treino" onclick="showSection('treino')" style="position:relative"><i class="fas fa-shield-alt" style="font-size:11px"></i> Treino <span style="display:inline-block;width:6px;height:6px;background:var(--amber);border-radius:50%;vertical-align:middle;margin-left:2px"></span></button>
@@ -546,7 +546,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
         <div class="action-icon green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2a7a36" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
         <h3>Novo Incidente</h3><p>Registar Incidente Tático-Policial</p>
       </div>
-      <div class="action-card itp" onclick="openModal('modal-itp')">
+      <div class="action-card itp hidden" onclick="openModal('modal-itp')">
         <div class="action-icon red"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8b1a1a" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
         <h3>Novo ITP</h3><p>Incidente tático-policial</p>
       </div>
@@ -561,10 +561,11 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
   <div id="section-incidentes" class="page hidden">
     <div class="page-header">
       <div><div class="page-title">Incidentes</div><div class="page-sub" id="inc-count-label"></div></div>
-      <button class="btn btn-primary" onclick="openModal('modal-inc')">+ Novo Incidente</button>
+      <button class="btn btn-primary" onclick="openModal('modal-inc')"><i class="fas fa-plus"></i> Abrir Novo Incidente</button>
     </div>
     <div class="filter-bar">
       <input type="text" id="filter-inc-search" placeholder="🔍 Pesquisar..." style="max-width:220px" oninput="renderTableIncidentes()">
+      <select id="filter-inc-class" onchange="renderTableIncidentes()"><option value="">Todas as classificações</option><option value="inc">Incidente de Segurança</option><option value="itp">ITP</option></select>
       <select id="filter-inc-estado" onchange="renderTableIncidentes()"><option value="">Todos os estados</option><option>Em curso</option><option>Resolvido</option><option>Arquivado</option></select>
       <select id="filter-inc-grav" onchange="renderTableIncidentes()"><option value="">Todas as gravidades</option><option>Baixa</option><option>Média</option><option>Alta</option><option>Crítica</option></select>
       <select id="filter-inc-cter" onchange="renderTableIncidentes()"><option value="">Todos os CTer</option><option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option><option>CTer Castelo Branco</option><option>CTer Coimbra</option><option>CTer Évora</option><option>CTer Faro</option><option>CTer Guarda</option><option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option><option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option><option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option></select>
@@ -983,6 +984,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
 const SURL='https://crbyrnjbxuemdzqelhbs.supabase.co';
 const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNyYnlybmpieHVlbWR6cWVsaGJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MzgzNzEsImV4cCI6MjA5MjAxNDM3MX0.o-r98TbzkHWPX7gpHVzVXqKsIQgJOQgECMNVCLSjFCE';
 const {createClient}=supabase;
+let allCasos=[];
 const sb=createClient(SURL,SKEY);
 const GRAV_CRITERIOS = {
   'Baixa': [
@@ -1334,11 +1336,11 @@ async function enterApp(){
 }
 
 async function loadData(){
-  const[incRes,itpRes]=await Promise.all([
-    sb.from('incidentes').select('*').order('created_at',{ascending:false}),
-    sb.from('itps').select('*').order('created_at',{ascending:false})
-  ]);
-  allIncidentes=incRes.data||[];allITPs=itpRes.data||[];
+  const incRes = await sb.from('incidentes').select('*').order('created_at',{ascending:false});
+  const _todos = incRes.data||[];
+  allCasos = _todos;
+  allIncidentes=_todos.filter(r=>!r.is_itp);
+  allITPs=_todos.filter(r=>!!r.is_itp);
   const total=allIncidentes.length+allITPs.length;
   document.getElementById('side-total').textContent=String(total).padStart(3,'0');
   document.getElementById('side-inc').textContent=String(allIncidentes.length).padStart(3,'0');
@@ -1791,23 +1793,33 @@ function renderCharts(){
 }
 
 // ===== TABLES =====
+function classBadge(r){
+  return r.is_itp
+    ? '<span class="badge" style="background:var(--redl);color:var(--red);font-weight:600">ITP</span>'
+    : '<span class="badge" style="background:var(--gp);color:var(--gm)">Inc. Segurança</span>';
+}
 function renderTableIncidentes(){
   const search=(document.getElementById('filter-inc-search')?.value||'').toLowerCase();
   const estado=document.getElementById('filter-inc-estado')?.value||'';
   const grav=document.getElementById('filter-inc-grav')?.value||'';
   const cter=document.getElementById('filter-inc-cter')?.value||'';
-  let data=allIncidentes.filter(r=>{
+  const clas=document.getElementById('filter-inc-class')?.value||'';
+  const base=(typeof allCasos!=='undefined'&&allCasos.length)?allCasos:allIncidentes.concat(allITPs);
+  let data=base.filter(r=>{
+    if(clas==='itp' && !r.is_itp) return false;
+    if(clas==='inc' && r.is_itp) return false;
     if(estado && r.estado!==estado) return false;
     if(grav && r.gravidade!==grav) return false;
     if(cter && r.cter!==cter) return false;
-    if(search && !( r.tipo.toLowerCase().includes(search)||r.local.toLowerCase().includes(search)||(r.descricao||'').toLowerCase().includes(search))) return false;
+    if(search && !( (r.tipo||'').toLowerCase().includes(search)||(r.local||'').toLowerCase().includes(search)||(r.descricao||'').toLowerCase().includes(search))) return false;
     return true;
   });
-  document.getElementById('inc-count-label').textContent=data.length+' de '+allIncidentes.length+' registo(s)';
+  document.getElementById('inc-count-label').textContent=data.length+' de '+base.length+' registo(s)';
   const el=document.getElementById('table-inc-wrap');
   if(!data.length){el.innerHTML='<div class="empty-state"><p>Sem resultados para os filtros selecionados.</p></div>';return;}
-  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Tipo</th><th>CTer</th><th>Localização</th><th>Data/Hora</th><th>Gravidade</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
+  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Classificação</th><th>Tipo</th><th>CTer</th><th>Localização</th><th>Data/Hora</th><th>Gravidade</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
   ${data.map(r=>`<tr>
+    <td>${classBadge(r)}</td>
     <td style="font-weight:500;cursor:pointer" onclick="openRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.tipo}</td>
     <td style="color:var(--gray600);font-size:12px">${r.cter||'—'}</td>
     <td style="color:var(--gray600);cursor:pointer" onclick="openRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.local}</td>
@@ -1827,7 +1839,7 @@ function renderTableIncidentes(){
 }
 
 function clearFilters(type){
-  ['search','estado','grav','cter'].forEach(f=>{const el=document.getElementById('filter-'+type+'-'+f);if(el)el.value='';});
+  ['search','estado','grav','cter','class'].forEach(f=>{const el=document.getElementById('filter-'+type+'-'+f);if(el)el.value='';});
   type==='inc'?renderTableIncidentes():renderTableITP();
 }
 
@@ -1904,7 +1916,7 @@ async function saveITP(){
   showAlert('itp-alert','','');
   btn.innerHTML='<span class="spinner"></span>';btn.disabled=true;
   const cter=document.getElementById('itp-cter').value;
-  const{error}=await sb.from('itps').insert({tipo,local,cter,data_hora:new Date(data).toISOString(),negociador:neg,num_suspeitos:sus,num_refens:ref,gravidade:(document.getElementById('itp-grav')?.value||''),gravidade_criterios:collectGravCriterios('itp-grav-criterios'),estado,descricao:desc,contacto_vitima:contactoVitima,contacto_agressor:contactoAgressor,autor_id:currentUser.id,autor_nome:currentProfile.nome});
+  const{error}=await sb.from('incidentes').insert({is_itp:true,itp_declarado_por:currentUser.id,itp_declarado_por_nome:currentProfile.nome,itp_declarado_em:new Date().toISOString(),tipo,local,cter,data_hora:new Date(data).toISOString(),negociador:neg,num_suspeitos:sus,num_refens:ref,gravidade:(document.getElementById('itp-grav')?.value||''),gravidade_criterios:collectGravCriterios('itp-grav-criterios'),estado,descricao:desc,contacto_vitima:contactoVitima,contacto_agressor:contactoAgressor,autor_id:currentUser.id,autor_nome:currentProfile.nome});
   btn.innerHTML='Guardar';btn.disabled=false;
   if(error){showAlert('itp-alert','error','Erro: '+error.message);return;}
   closeModal('modal-itp');
@@ -1916,7 +1928,7 @@ async function saveITP(){
 // ===== DETAIL HEADER =====
 function renderDetailHeader(){
   const{type,record:r}=currentDetail;
-  const isItp=type==='itp';
+  const isItp = currentDetail.isTreino ? (type==='itp') : !!r.is_itp;
   document.getElementById('detail-title').textContent=r.tipo;
   document.getElementById('detail-meta').innerHTML=`
     <span><i class="fas fa-map-marker-alt" style="color:var(--gl)"></i> ${r.local}</span>
@@ -1933,6 +1945,7 @@ function renderDetailHeader(){
 
 // ===== TAB: RESUMO =====
 function renderResumo(){
+  const isAdmin = currentProfile?.role === 'admin';
   const{type,record:r}=currentDetail;
   const isItp=type==='itp';
   document.getElementById('resumo-content').innerHTML=`
@@ -1945,6 +1958,31 @@ function renderResumo(){
         <div class="stat-card"><div class="s-label">Estado</div><div class="s-num" style="font-size:18px">${r.estado}</div></div>
       `}
     </div>
+    ${currentDetail.isTreino?'':`<div class="form-section">
+      <h3><i class="fas fa-shield-halved" style="color:${r.is_itp?'var(--red)':'var(--gl)'}"></i> Classificação</h3>
+      ${r.is_itp?`
+        <div style="background:var(--redl);border:1px solid var(--red);border-radius:var(--r);padding:12px">
+          <div style="font-weight:700;color:var(--red);font-size:14px;margin-bottom:6px">Incidente Tático-Policial (ITP)</div>
+          <div style="font-size:12.5px;color:var(--gray600);line-height:1.6">
+            Declarado por <strong>${r.itp_declarado_por_nome||'—'}</strong>${r.itp_declarado_em?(' em '+fmtDateTime(r.itp_declarado_em)):''}.<br>
+            ${r.itp_justificacao?('<em>"'+r.itp_justificacao+'"</em>'):'<span style="color:var(--gray400)">Sem justificação registada.</span>'}
+          </div>
+          <div style="display:flex;gap:16px;margin-top:10px;font-size:13px">
+            <span><strong>Negociador:</strong> ${r.negociador||'—'}</span>
+            <span><strong>Suspeitos:</strong> ${r.num_suspeitos??0}</span>
+            <span><strong>Reféns:</strong> ${r.num_refens??0}</span>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="editarDadosITP()" style="margin-top:10px"><i class="fas fa-edit"></i> Editar dados do ITP</button>
+          ${isAdmin?`<button class="btn btn-outline btn-sm" onclick="reverterITP()" style="margin-top:10px;color:var(--gray600)"><i class="fas fa-rotate-left"></i> Reverter classificação</button>`:''}
+        </div>`
+      :`<div style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:12px">
+          <div style="font-weight:600;color:var(--gm);font-size:14px;margin-bottom:4px">Incidente de Segurança</div>
+          <div style="font-size:12.5px;color:var(--gray600);line-height:1.6;margin-bottom:10px">
+            Declara ITP quando o comando local reconhece que os meios disponíveis são insuficientes e é requerido apoio especializado UI/GIOE. É um critério de <strong>capacidade</strong> — independente da gravidade ou da existência de reféns.
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="declararITP()"><i class="fas fa-shield-halved"></i> Declarar ITP</button>
+        </div>`}
+    </div>`}
     ${(r.gravidade&&Array.isArray(r.gravidade_criterios)&&r.gravidade_criterios.length)?`<div class="form-section"><h3>Gravidade — critérios assinalados (${r.gravidade})</h3><ul style="font-size:13px;line-height:1.7;margin:0;padding-left:18px">${r.gravidade_criterios.map(function(x){return '<li>'+x+'</li>';}).join('')}</ul></div>`:''}
     ${r.descricao?`<div class="form-section"><h3>Descrição</h3><p style="font-size:14px;line-height:1.7">${r.descricao}</p></div>`:''}
     <div style="margin-top:1rem;padding:12px;background:var(--gp);border-radius:var(--r);font-size:13px;color:var(--gm)">
@@ -4205,6 +4243,46 @@ async function notificarPush(tipo, local, kind, cter){
     });
   }catch(e){ console.warn('push falhou', e); }
 }
+async function declararITP(){
+  if(!currentDetail||currentDetail.isTreino) return;
+  const r=currentDetail.record;
+  const just=prompt('Declarar ITP — justificação de capacidade:\n\nPorque é que os meios locais são insuficientes e se requer apoio especializado UI/GIOE?');
+  if(just===null) return;
+  if(!just.trim()){ alert('A justificação é obrigatória. A declaração de ITP é uma decisão de comando e tem de ter fundamento registado.'); return; }
+  const patchObj={ is_itp:true, itp_declarado_por:currentUser.id, itp_declarado_por_nome:currentProfile.nome, itp_declarado_em:new Date().toISOString(), itp_justificacao:just.trim() };
+  const{error}=await sb.from('incidentes').update(patchObj).eq('id',r.id);
+  if(error){ alert('Erro ao declarar ITP: '+error.message); return; }
+  await sb.from('historico').insert({tabela:'incidentes',registo_id:r.id,acao:'ITP declarado: '+just.trim(),autor_id:currentUser.id,autor_nome:currentProfile.nome}).catch(()=>{});
+  Object.assign(currentDetail.record, patchObj);
+  await loadData(); renderDetailHeader(); renderResumo();
+  alert('ITP declarado.');
+}
+async function reverterITP(){
+  if(!currentDetail||currentDetail.isTreino) return;
+  if(currentProfile?.role !== 'admin'){ alert('Apenas um administrador pode reverter a classificação de ITP.'); return; }
+  const r=currentDetail.record;
+  const motivo=prompt('Reverter classificação de ITP — motivo:');
+  if(motivo===null) return;
+  if(!motivo.trim()){ alert('O motivo é obrigatório.'); return; }
+  const patchObj={ is_itp:false, itp_declarado_por:null, itp_declarado_por_nome:null, itp_declarado_em:null, itp_justificacao:null };
+  const{error}=await sb.from('incidentes').update(patchObj).eq('id',r.id);
+  if(error){ alert('Erro: '+error.message); return; }
+  await sb.from('historico').insert({tabela:'incidentes',registo_id:r.id,acao:'Classificação ITP revertida: '+motivo.trim(),autor_id:currentUser.id,autor_nome:currentProfile.nome}).catch(()=>{});
+  Object.assign(currentDetail.record, patchObj);
+  await loadData(); renderDetailHeader(); renderResumo();
+}
+async function editarDadosITP(){
+  if(!currentDetail) return;
+  const r=currentDetail.record;
+  const neg=prompt('Negociador:', r.negociador||''); if(neg===null) return;
+  const sus=prompt('Nº de suspeitos:', r.num_suspeitos??0); if(sus===null) return;
+  const ref=prompt('Nº de reféns:', r.num_refens??0); if(ref===null) return;
+  const patchObj={ negociador:neg.trim(), num_suspeitos:parseInt(sus)||0, num_refens:parseInt(ref)||0 };
+  const{error}=await sb.from('incidentes').update(patchObj).eq('id',r.id);
+  if(error){ alert('Erro: '+error.message); return; }
+  Object.assign(currentDetail.record, patchObj);
+  await loadData(); renderDetailHeader(); renderResumo();
+}
 async function notificarListaIncidente(tipo, local, kind, cter){
   try{
     // Regra 1: lista fixa definida pelo admin — recebe sempre, qualquer CTer
@@ -4354,7 +4432,7 @@ async function updateITP() {
   showAlert('edit-itp-alert','','');
   btn.innerHTML='<span class="spinner"></span>'; btn.disabled=true;
   const old = allITPs.find(x => x.id === id);
-  const { error } = await sb.from('itps').update({ tipo, local, cter, data_hora: new Date(data).toISOString(), negociador:neg, num_suspeitos:sus, num_refens:ref, gravidade:(document.getElementById('edit-itp-grav')?.value||''), gravidade_criterios: collectGravCriterios('edit-itp-grav-criterios'), estado, descricao:desc }).eq('id', id);
+  const { error } = await sb.from('incidentes').update({ tipo, local, cter, data_hora: new Date(data).toISOString(), negociador:neg, num_suspeitos:sus, num_refens:ref, gravidade:(document.getElementById('edit-itp-grav')?.value||''), gravidade_criterios: collectGravCriterios('edit-itp-grav-criterios'), estado, descricao:desc }).eq('id', id);
   btn.innerHTML='Guardar Alterações'; btn.disabled=false;
   if (error) { showAlert('edit-itp-alert','error','Erro: '+error.message); return; }
   await sb.from('historico').insert({ tabela:'itps', registo_id:id, acao:'editado', campos_alterados: { antes:{tipo:old.tipo,estado:old.estado}, depois:{tipo,estado} }, autor_id:currentUser.id, autor_nome:currentProfile.nome });
@@ -4366,7 +4444,7 @@ async function deleteITP() {
   const id = document.getElementById('edit-itp-id').value;
   if (!confirm('Eliminar este ITP permanentemente?')) return;
   await sb.from('historico').insert({ tabela:'itps', registo_id:id, acao:'eliminado', autor_id:currentUser.id, autor_nome:currentProfile.nome });
-  await sb.from('itps').delete().eq('id', id);
+  await sb.from('incidentes').delete().eq('id', id);
   closeModal('modal-edit-itp');
   await loadData(); renderTableITP();
 }
@@ -4807,10 +4885,8 @@ async function renderInvestigacaoView() {
   el.innerHTML = '<div class="loading-state"><span class="spinner"></span></div>';
 
   // Load only active cases
-  const [incRes, itpRes] = await Promise.all([
-    sb.from('incidentes').select('*').eq('estado','Em curso').order('created_at',{ascending:false}),
-    sb.from('itps').select('*').eq('estado','Em curso').order('created_at',{ascending:false})
-  ]);
+  const incRes = await sb.from('incidentes').select('*').eq('estado','Em curso').order('created_at',{ascending:false});
+  const itpRes = {data:[]};
   const casos = [
     ...(incRes.data||[]).map(r=>({type:'inc',record:r})),
     ...(itpRes.data||[]).map(r=>({type:'itp',record:r}))
@@ -6699,7 +6775,7 @@ setImages();
 <div id="mob-menu" style="display:none;position:fixed;top:58px;right:12px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);box-shadow:var(--shm);z-index:400;min-width:200px;overflow:hidden">
   <div id="mob-menu-user" style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;color:var(--gn)"></div>
   <button onclick="mobToggleMenu();mobShowTab('novo-inc');mobBuildForms();" style="width:100%;text-align:left;padding:14px 16px;border:none;background:none;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--gray900)"><i class="fas fa-plus-circle" style="color:var(--gm);width:18px"></i> Novo Incidente</button>
-  <button onclick="mobToggleMenu();mobShowTab('novo-itp');mobBuildForms();" style="width:100%;text-align:left;padding:14px 16px;border:none;background:none;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--gray900)"><i class="fas fa-shield-alt" style="color:var(--red);width:18px"></i> Novo ITP</button>
+  <button class="hidden" onclick="mobToggleMenu();mobShowTab('novo-itp');mobBuildForms();" style="width:100%;text-align:left;padding:14px 16px;border:none;background:none;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--gray900)"><i class="fas fa-shield-alt" style="color:var(--red);width:18px"></i> Novo ITP</button>
   <button onclick="mobToggleMenu();mobAbrirPerfil();" style="width:100%;text-align:left;padding:14px 16px;border:none;background:none;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--gray900)"><i class="fas fa-user-edit" style="color:var(--gl);width:18px"></i> Editar Perfil</button>
   <div style="height:1px;background:var(--border)"></div>
   <button onclick="mobToggleMenu();doLogout();" style="width:100%;text-align:left;padding:14px 16px;border:none;background:none;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--red)"><i class="fas fa-sign-out-alt" style="width:18px"></i> Terminar Sessão</button>
@@ -8094,7 +8170,8 @@ async function mobSaveITP(){
     contacto_agressor:document.getElementById('mob-itp-ca')?.value.trim()||'',
     autor_id:currentUser.id,autor_nome:currentProfile.nome
   };
-  const{error}=await sb.from('itps').insert(payload);
+  payload.is_itp=true; payload.itp_declarado_por=currentUser.id; payload.itp_declarado_por_nome=currentProfile.nome; payload.itp_declarado_em=new Date().toISOString();
+  const{error}=await sb.from('incidentes').insert(payload);
   if(error){mobShowAlert('mob-itp-alert','error','Erro: '+error.message);return;}
   mobShowAlert('mob-itp-alert','success','ITP criado!');
   await loadData();
