@@ -1616,12 +1616,12 @@ function enConformidade(eq, isItp){
   const n = enPreenchidos(eq).length;
   if(isItp){
     if(n>=5) return {estado:'conforme', n, msg:'EN completa (5 negociadores).'};
-    if(n===4) return {estado:'excecao', n, msg:'Mínimo doutrinário para ITP (4). O manual prevê preferencialmente 5 (5.28) — exceção prevista, exige justificação.'};
+    if(n===4) return {estado:'excecao', n, msg:'Mínimo doutrinário para ITP (4). O manual prevê preferencialmente 5 (5.28) — exceção prevista.'};
     if(n===0) return {estado:'vazio', n, msg:'EN por escalar.'};
     return {estado:'nao-conforme', n, msg:'NÃO CONFORME com o manual (5.28): um ITP exige no mínimo 4 negociadores. Está a registar uma EN a '+n+'. O registo é permitido — a não conformidade fica assinalada no caso.'};
   }
   if(n>=3) return {estado:'conforme', n, msg:'EN constituída (3 ou mais negociadores).'};
-  if(n===2) return {estado:'excecao', n, msg:'Constituição a 2 — exceção prevista no manual (5.28) para escassez de meios humanos e impossibilidade de reforço. Exige justificação.'};
+  if(n===2) return {estado:'excecao', n, msg:'Constituição a 2 — exceção prevista no manual (5.28) para escassez de meios humanos e impossibilidade de reforço.'};
   if(n===0) return {estado:'vazio', n, msg:'EN por escalar.'};
   return {estado:'nao-conforme', n, msg:'NÃO CONFORME com o manual (5.28): a EN não funciona com menos de 2 negociadores. O registo é permitido — a não conformidade fica assinalada no caso.'};
 }
@@ -1700,15 +1700,10 @@ function renderEquipaSelects(){
     if(_enCterFiltro && _enCterFiltro!=='__itp__' && !ctrs.includes(_enCterFiltro)) fs.value='';
   }
   _enPintaSelects();
-  const j=document.getElementById('en-justificacao');
-  if(j) j.value = (r.equipa && r.equipa.justificacao) || '';
   enAvaliar();
 }
 function _enLerForm(){
-  const eq=JSON.parse(JSON.stringify(_enWork||{}));
-  const j=document.getElementById('en-justificacao');
-  if(j && j.value.trim()) eq.justificacao=j.value.trim();
-  return eq;
+  return JSON.parse(JSON.stringify(_enWork||{}));
 }
 function enAvaliar(){
   const r=currentDetail?.record||{};
@@ -1733,10 +1728,6 @@ function enAvaliar(){
       + (enPodeUI() ? ' <span style="color:var(--gm)">UI/GIOE disponível (ITP declarado).</span>' : ' <span style="color:var(--gray400)">UI/GIOE só após declaração de ITP.</span>')
       + (ctrs.length>1 ? '<br><i class="fas fa-users" style="margin-right:5px;color:var(--amber)"></i>EN mista: '+ctrs.join(', ') : '');
   }
-  const jw=document.getElementById('en-justificacao-wrap');
-  if(jw) jw.style.display = (conf.estado==='excecao'||conf.estado==='nao-conforme') ? '' : 'none';
-  const jl=document.getElementById('en-justificacao-label');
-  if(jl) jl.textContent = conf.estado==='nao-conforme' ? 'Motivo da constituição não conforme *' : 'Justificação da constituição excecional *';
   const ac=document.getElementById('en-acumulacao');
   if(ac){
     const acu=enAcumulacao(eq);
@@ -1755,10 +1746,6 @@ async function guardarEquipa(){
   const _tbl = currentDetail.isTreino ? 'treino_incidentes' : 'incidentes';
   const eq=_enLerForm();
   const conf=enConformidade(eq, !!r.is_itp);
-  if((conf.estado==='excecao'||conf.estado==='nao-conforme') && !eq.justificacao){
-    alert(conf.estado==='nao-conforme' ? 'Constituição não conforme com o manual — indique o motivo para ficar registado.' : 'Constituição excecional — a justificação é obrigatória.');
-    return;
-  }
   if(conf.estado==='nao-conforme'){
     if(!confirm('ATENÇÃO — constituição NÃO CONFORME com o manual (5.28).\n\n'+conf.msg+'\n\nO registo vai ser guardado com esta não conformidade assinalada no caso. Confirma?')) return;
   }
@@ -2612,9 +2599,6 @@ function renderResumo(){
         ${EN_POSICOES.map(p=>`<div class="field" style="margin:0"><label>${p.nome}</label><select id="en-${p.k}" onchange="enSetPos('${p.k}',this.value)"></select><div style="font-size:11px;color:var(--gray400);margin-top:3px">${p.desc}</div></div>`).join('')}
       </div>
       <div id="en-acumulacao"></div>
-      <div id="en-justificacao-wrap" style="display:none;margin-top:10px">
-        <div class="field" style="margin:0"><label id="en-justificacao-label">Justificação da constituição excecional *</label><textarea id="en-justificacao" rows="2" placeholder="Escassez de meios humanos, impossibilidade de reforço..."></textarea></div>
-      </div>
       <button class="btn btn-primary btn-sm" id="en-save-btn" onclick="guardarEquipa()" style="margin-top:12px"><i class="fas fa-save"></i> Guardar EN</button>
     </div>`}
     ${(r.gravidade&&Array.isArray(r.gravidade_criterios)&&r.gravidade_criterios.length)?`<div class="form-section"><h3>Gravidade — critérios assinalados (${r.gravidade})</h3><ul style="font-size:13px;line-height:1.7;margin:0;padding-left:18px">${r.gravidade_criterios.map(function(x){return '<li>'+x+'</li>';}).join('')}</ul></div>`:''}
