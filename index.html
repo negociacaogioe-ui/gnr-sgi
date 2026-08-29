@@ -4366,7 +4366,7 @@ async function renderFormacao() {
         <div class="formacao-card-img" style="background:${a.color}" onclick="openFormacaoArea('${a.area}')">
           <span style="font-size:60px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.15))">${a.icon}</span>
           ${done?`<span style="position:absolute;top:10px;left:10px;background:var(--gm);color:#fff;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600"><i class="fas fa-check"></i> Concluído</span>`:''}
-          ${links.length ? `<span style="position:absolute;top:10px;right:10px;background:${a.accent};color:#fff;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600">${links.length} link${links.length>1?'s':''}</span>` : ''}
+          ${(() => { const vl = isAdmin ? links : links.filter(l => l.publicado !== false); return vl.length ? `<span style="position:absolute;top:10px;right:10px;background:${a.accent};color:#fff;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600">${vl.length} link${vl.length>1?'s':''}</span>` : ''; })()}
         </div>
         <div class="formacao-card-body">
           <div style="display:flex;align-items:center;justify-content:space-between">
@@ -4471,7 +4471,7 @@ async function openFormacaoArea(area) {
       <div class="formacao-content-view">${d.conteudo || '<p style="color:var(--gray400);font-style:italic">Sem conteúdo ainda.</p>'}</div>
     </div>
 
-    ${links.length ? `
+    ${(isAdmin ? links.length : links.filter(l => l.publicado !== false).length) ? `
     <div class="formacao-editor">
       <h3><i class="fas fa-link" style="color:var(--gl);margin-right:6px"></i>Links e Recursos</h3>
       <div id="formacao-links-view">
@@ -4526,6 +4526,7 @@ async function editFormacaoArea(area) {
             <div class="link-item" id="link-item-${area}-${i}">
               <i class="fas fa-link" style="color:var(--gl);font-size:12px"></i>
               <span style="flex:1;font-size:13px"><strong>${l.label||'—'}</strong> — <a href="${l.url}" target="_blank" style="color:var(--gl)">${l.url}</a></span>
+              <button type="button" class="link-vis" id="link-vis-${area}-${i}" onclick="toggleFormacaoLinkVis('${area}',${i})" title="Alternar visibilidade para os formandos" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:${l.publicado===false?'var(--gray400)':'var(--gl)'}">${l.publicado===false?'🚫 Oculto':'👁️ Visível'}</button>
               <button class="link-del" onclick="removeFormacaoLink('${area}',${i})">×</button>
             </div>`).join('')}
         </div>
@@ -4551,6 +4552,9 @@ async function editFormacaoArea(area) {
 let _tempLinks = {};
 
 function renderLinksView(links) {
+  const _isAdmin = currentProfile?.role === 'admin';
+  // Libertação progressiva: o formando não recebe links ocultos
+  if (!_isAdmin) links = links.filter(l => l.publicado !== false);
   // Check if links have categories (legislação style)
   const hasCats = links.some(l => l.categoria);
 
@@ -4598,11 +4602,13 @@ function renderLinksView(links) {
   return links.map(l => {
     const isEmbed = l.embed || isEmbedUrl(l.url);
     const embedUrl = getEmbedUrl(l.url);
+    const _badgeOculto = (_isAdmin && l.publicado === false)
+      ? `<span style="font-size:10px;background:var(--amber,#b45309);color:#fff;padding:1px 7px;border-radius:10px;margin-left:6px">OCULTO</span>` : '';
     if (isEmbed && embedUrl) {
       return `<div style="margin-bottom:1rem">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
           <i class="fas fa-file-pdf" style="color:var(--red);font-size:14px"></i>
-          <span style="font-size:13px;font-weight:500;color:var(--gn)">${l.label || 'Documento'}</span>
+          <span style="font-size:13px;font-weight:500;color:var(--gn)">${l.label || 'Documento'}${_badgeOculto}</span>
           <span style="font-size:11px;color:var(--gray400);background:var(--gray100);padding:2px 8px;border-radius:20px">Visualização incorporada</span>
         </div>
         <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;background:#f5f5f5">
@@ -4612,7 +4618,7 @@ function renderLinksView(links) {
     }
     return `<div class="link-item">
       <i class="fas fa-external-link-alt" style="color:var(--gl);font-size:13px"></i>
-      <a href="${l.url}" target="_blank" rel="noopener">${l.label || l.url}</a>
+      <a href="${l.url}" target="_blank" rel="noopener">${l.label || l.url}</a>${_badgeOculto}
     </div>`;
   }).join('');
 }
@@ -4652,14 +4658,14 @@ function addFormacaoLink(area) {
     const d = formacaoData[area];
     _tempLinks[area] = d?.links ? (typeof d.links === 'string' ? JSON.parse(d.links) : [...d.links]) : [];
   }
-  _tempLinks[area].push({ label: label || url, url, embed });
+  _tempLinks[area].push({ label: label || url, url, embed, publicado: false });
   const list = document.getElementById(`links-edit-list-${area}`);
   const i = _tempLinks[area].length - 1;
   const div = document.createElement('div');
   div.className = 'link-item';
   div.id = `link-item-${area}-${i}`;
   const embedBadge = embed ? `<span style="font-size:10px;background:var(--gp);color:var(--gm);padding:1px 6px;border-radius:10px;margin-left:4px">incorporado</span>` : '';
-  div.innerHTML = `<i class="fas fa-${embed?'file-pdf':'link'}" style="color:${embed?'var(--red)':'var(--gl)'};font-size:12px"></i><span style="flex:1;font-size:13px"><strong>${label||url}</strong>${embedBadge} — <a href="${url}" target="_blank" style="color:var(--gl)">${url.slice(0,50)}${url.length>50?'...':''}</a></span><button class="link-del" onclick="removeFormacaoLink('${area}',${i})">×</button>`;
+  div.innerHTML = `<i class="fas fa-${embed?'file-pdf':'link'}" style="color:${embed?'var(--red)':'var(--gl)'};font-size:12px"></i><span style="flex:1;font-size:13px"><strong>${label||url}</strong>${embedBadge} — <a href="${url}" target="_blank" style="color:var(--gl)">${url.slice(0,50)}${url.length>50?'...':''}</a></span><button type="button" class="link-vis" id="link-vis-${area}-${i}" onclick="toggleFormacaoLinkVis('${area}',${i})" title="Alternar visibilidade para os formandos" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:var(--gray400)">🚫 Oculto</button><button class="link-del" onclick="removeFormacaoLink('${area}',${i})">×</button>`;
   list.appendChild(div);
   document.getElementById(`new-link-label-${area}`).value = '';
   document.getElementById(`new-link-url-${area}`).value = '';
@@ -4674,6 +4680,23 @@ function removeFormacaoLink(area, idx) {
   _tempLinks[area].splice(idx, 1);
   const item = document.getElementById(`link-item-${area}-${idx}`);
   if (item) item.remove();
+}
+
+function toggleFormacaoLinkVis(area, idx) {
+  if (!_tempLinks[area]) {
+    const d = formacaoData[area];
+    _tempLinks[area] = d?.links ? (typeof d.links === 'string' ? JSON.parse(d.links) : [...d.links]) : [];
+  }
+  const l = _tempLinks[area][idx];
+  if (!l) return;
+  // visível (sem campo ou true) -> oculto (false); oculto -> visível
+  l.publicado = (l.publicado === false);
+  const btn = document.getElementById(`link-vis-${area}-${idx}`);
+  if (btn) {
+    const oculto = l.publicado === false;
+    btn.textContent = oculto ? '🚫 Oculto' : '👁️ Visível';
+    btn.style.color = oculto ? 'var(--gray400)' : 'var(--gl)';
+  }
 }
 
 function insertHeading() {
