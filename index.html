@@ -4366,7 +4366,7 @@ async function renderFormacao() {
         <div class="formacao-card-img" style="background:${a.color}" onclick="openFormacaoArea('${a.area}')">
           <span style="font-size:60px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.15))">${a.icon}</span>
           ${done?`<span style="position:absolute;top:10px;left:10px;background:var(--gm);color:#fff;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600"><i class="fas fa-check"></i> Concluído</span>`:''}
-          ${(() => { const vl = isAdmin ? links : links.filter(l => l.publicado !== false); return vl.length ? `<span style="position:absolute;top:10px;right:10px;background:${a.accent};color:#fff;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600">${vl.length} link${vl.length>1?'s':''}</span>` : ''; })()}
+          ${(() => { const n = contarItensVisiveis(links, isAdmin); return n ? `<span style="position:absolute;top:10px;right:10px;background:${a.accent};color:#fff;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600">${n} link${n>1?'s':''}</span>` : ''; })()}
         </div>
         <div class="formacao-card-body">
           <div style="display:flex;align-items:center;justify-content:space-between">
@@ -4392,7 +4392,7 @@ function renderPastasFormacao(isAdmin) {
 
   let html = pastas.map(p => {
     const links = p.links ? (typeof p.links === 'string' ? JSON.parse(p.links) : p.links) : [];
-    const vl = isAdmin ? links : links.filter(l => l.publicado !== false);
+    const vl = { length: contarItensVisiveis(links, isAdmin) };
     const oculta = p.publicado === false;
     const dt = p.ultima_edicao ? new Date(p.ultima_edicao).toLocaleDateString('pt-PT') : '—';
     return `
@@ -4548,11 +4548,11 @@ async function openFormacaoArea(area) {
       <div class="formacao-content-view">${d.conteudo || '<p style="color:var(--gray400);font-style:italic">Sem conteúdo ainda.</p>'}</div>
     </div>
 
-    ${(isAdmin ? links.length : links.filter(l => l.publicado !== false).length) ? `
+    ${renderLinksGrupado(links) ? `
     <div class="formacao-editor">
       <h3><i class="fas fa-link" style="color:var(--gl);margin-right:6px"></i>Links e Recursos</h3>
       <div id="formacao-links-view">
-        ${renderLinksView(links)}
+        ${renderLinksGrupado(links)}
       </div>
     </div>` : ''}
 
@@ -4582,6 +4582,7 @@ async function editFormacaoArea(area) {
   const panel = document.getElementById(`formacao-edit-panel-${area}`);
   if (!panel) return;
   panel.classList.remove('hidden');
+  _garantirTempLinks(area);
 
   panel.innerHTML = `
     <div class="formacao-editor" style="border-top:3px solid var(--gl)">
@@ -4598,33 +4599,37 @@ async function editFormacaoArea(area) {
       <div id="formacao-editor-${area}" contenteditable="true" style="min-height:180px">${d.conteudo || ''}</div>
 
       <div style="margin-top:1.25rem">
-        <h3 style="font-size:13px;font-weight:600;color:var(--gn);margin-bottom:.75rem"><i class="fas fa-link" style="color:var(--gl);margin-right:6px"></i>Links e Recursos</h3>
-        <div id="links-edit-list-${area}">
-          ${links.map((l, i) => `
-            <div class="link-item" id="link-item-${area}-${i}">
-              <i class="fas fa-link" style="color:var(--gl);font-size:12px"></i>
-              <span style="flex:1;font-size:13px"><strong>${l.label||'—'}</strong> — <a href="${l.url}" target="_blank" style="color:var(--gl)">${l.url}</a></span>
-              <button type="button" class="link-vis" id="link-vis-${area}-${i}" onclick="toggleFormacaoLinkVis('${area}',${i})" title="Alternar visibilidade para os formandos" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:${l.publicado===false?'var(--gray400)':'var(--gl)'}">${l.publicado===false?'🚫 Oculto':'👁️ Visível'}</button>
-              <button class="link-del" onclick="removeFormacaoLink('${area}',${i})">×</button>
-            </div>`).join('')}
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+          <h3 style="font-size:13px;font-weight:600;color:var(--gn);margin:0"><i class="fas fa-folder" style="color:var(--gl);margin-right:6px"></i>Pastas</h3>
+          <button type="button" class="btn btn-outline btn-sm" onclick="criarPastaNaArea('${area}')"><i class="fas fa-folder-plus"></i> Nova Pasta</button>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 2fr auto auto;gap:8px;margin-top:.75rem;align-items:center">
+        <div id="pastas-edit-${area}"></div>
+      </div>
+
+      <div style="margin-top:1.25rem">
+        <h3 style="font-size:13px;font-weight:600;color:var(--gn);margin-bottom:.75rem"><i class="fas fa-link" style="color:var(--gl);margin-right:6px"></i>Links e Recursos</h3>
+        <div id="links-edit-list-${area}"></div>
+        <div style="display:grid;grid-template-columns:1fr 1.5fr 1fr auto auto;gap:8px;margin-top:.75rem;align-items:center">
           <input type="text" id="new-link-label-${area}" placeholder="Nome do link">
           <input type="url" id="new-link-url-${area}" placeholder="https://drive.google.com/file/d/...">
+          <select id="new-link-pasta-${area}" title="Pasta" style="font-size:12px"></select>
           <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:400;color:var(--gray600);white-space:nowrap;cursor:pointer">
             <input type="checkbox" id="new-link-embed-${area}" style="width:auto"> Incorporar
           </label>
           <button class="btn btn-primary btn-sm" onclick="addFormacaoLink('${area}')"><i class="fas fa-plus"></i></button>
         </div>
-        <div style="font-size:11px;color:var(--gray400);margin-top:4px"><i class="fas fa-info-circle"></i> Marque "Incorporar" para mostrar o PDF dentro da página (Google Drive, Supabase, etc.)</div>
+        <div style="font-size:11px;color:var(--gray400);margin-top:4px"><i class="fas fa-info-circle"></i> Marque "Incorporar" para mostrar o PDF na página. Escolha a pasta do link (ou "Sem pasta").</div>
       </div>
 
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)">
-        <button class="btn btn-outline" onclick="document.getElementById('formacao-edit-panel-${area}').classList.add('hidden')">Cancelar</button>
+        <button class="btn btn-outline" onclick="delete _tempLinks['${area}'];document.getElementById('formacao-edit-panel-${area}').classList.add('hidden')">Cancelar</button>
         <button class="btn btn-primary" onclick="saveFormacaoArea('${area}')"><i class="fas fa-save"></i> Guardar</button>
       </div>
     </div>
   `;
+  renderPastasEditList(area);
+  renderLinksEditList(area);
+  atualizarSelectPastas(area);
 }
 
 let _tempLinks = {};
@@ -4633,6 +4638,7 @@ function renderLinksView(links) {
   const _isAdmin = currentProfile?.role === 'admin';
   // Libertação progressiva: o formando não recebe links ocultos
   if (!_isAdmin) links = links.filter(l => l.publicado !== false);
+  links = links.filter(l => l.tipo !== 'pasta');
   // Check if links have categories (legislação style)
   const hasCats = links.some(l => l.categoria);
 
@@ -4731,50 +4737,176 @@ function addFormacaoLink(area) {
   const url = document.getElementById(`new-link-url-${area}`).value.trim();
   const embedEl = document.getElementById(`new-link-embed-${area}`);
   const embed = embedEl ? embedEl.checked : false;
+  const pastaEl = document.getElementById(`new-link-pasta-${area}`);
+  const pasta = pastaEl ? pastaEl.value : '';
   if (!url) { alert('Introduza um URL válido.'); return; }
-  if (!_tempLinks[area]) {
-    const d = formacaoData[area];
-    _tempLinks[area] = d?.links ? (typeof d.links === 'string' ? JSON.parse(d.links) : [...d.links]) : [];
-  }
-  _tempLinks[area].push({ label: label || url, url, embed, publicado: false });
-  const list = document.getElementById(`links-edit-list-${area}`);
-  const i = _tempLinks[area].length - 1;
-  const div = document.createElement('div');
-  div.className = 'link-item';
-  div.id = `link-item-${area}-${i}`;
-  const embedBadge = embed ? `<span style="font-size:10px;background:var(--gp);color:var(--gm);padding:1px 6px;border-radius:10px;margin-left:4px">incorporado</span>` : '';
-  div.innerHTML = `<i class="fas fa-${embed?'file-pdf':'link'}" style="color:${embed?'var(--red)':'var(--gl)'};font-size:12px"></i><span style="flex:1;font-size:13px"><strong>${label||url}</strong>${embedBadge} — <a href="${url}" target="_blank" style="color:var(--gl)">${url.slice(0,50)}${url.length>50?'...':''}</a></span><button type="button" class="link-vis" id="link-vis-${area}-${i}" onclick="toggleFormacaoLinkVis('${area}',${i})" title="Alternar visibilidade para os formandos" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:var(--gray400)">🚫 Oculto</button><button class="link-del" onclick="removeFormacaoLink('${area}',${i})">×</button>`;
-  list.appendChild(div);
+  _garantirTempLinks(area);
+  const item = { label: label || url, url, embed, publicado: false };
+  if (pasta) item.pasta = pasta;
+  _tempLinks[area].push(item);
   document.getElementById(`new-link-label-${area}`).value = '';
   document.getElementById(`new-link-url-${area}`).value = '';
   if (embedEl) embedEl.checked = false;
+  renderLinksEditList(area);
+  renderPastasEditList(area);
 }
 
 function removeFormacaoLink(area, idx) {
-  if (!_tempLinks[area]) {
-    const d = formacaoData[area];
-    _tempLinks[area] = d?.links ? (typeof d.links === 'string' ? JSON.parse(d.links) : [...d.links]) : [];
-  }
+  _garantirTempLinks(area);
   _tempLinks[area].splice(idx, 1);
-  const item = document.getElementById(`link-item-${area}-${idx}`);
-  if (item) item.remove();
+  renderLinksEditList(area);
+  renderPastasEditList(area);
 }
 
 function toggleFormacaoLinkVis(area, idx) {
-  if (!_tempLinks[area]) {
-    const d = formacaoData[area];
-    _tempLinks[area] = d?.links ? (typeof d.links === 'string' ? JSON.parse(d.links) : [...d.links]) : [];
-  }
+  _garantirTempLinks(area);
   const l = _tempLinks[area][idx];
   if (!l) return;
-  // visível (sem campo ou true) -> oculto (false); oculto -> visível
   l.publicado = (l.publicado === false);
-  const btn = document.getElementById(`link-vis-${area}-${idx}`);
-  if (btn) {
-    const oculto = l.publicado === false;
-    btn.textContent = oculto ? '🚫 Oculto' : '👁️ Visível';
-    btn.style.color = oculto ? 'var(--gray400)' : 'var(--gl)';
+  renderLinksEditList(area);
+}
+
+function _garantirTempLinks(area) {
+  if (_tempLinks[area] === undefined) {
+    const d = formacaoData[area];
+    _tempLinks[area] = d?.links ? (typeof d.links === 'string' ? JSON.parse(d.links) : JSON.parse(JSON.stringify(d.links))) : [];
   }
+}
+
+function _escAttr(s) { return String(s == null ? '' : s).replace(/"/g, '&quot;'); }
+
+function renderPastasEditList(area) {
+  const cont = document.getElementById(`pastas-edit-${area}`);
+  if (!cont) return;
+  const arr = _tempLinks[area] || [];
+  const pastas = arr.map((l, i) => ({ l, i })).filter(x => x.l.tipo === 'pasta');
+  if (!pastas.length) {
+    cont.innerHTML = '<div style="font-size:12px;color:var(--gray400);font-style:italic">Sem pastas. Use "Nova Pasta" para criar uma.</div>';
+    return;
+  }
+  cont.innerHTML = pastas.map(({ l, i }) => {
+    const oculta = l.publicado === false;
+    const n = arr.filter(x => x.tipo !== 'pasta' && x.pasta === l.nome).length;
+    return `<div class="link-item" id="pasta-edit-${area}-${i}">
+      <span style="font-size:14px">📁</span>
+      <span style="flex:1;font-size:13px"><strong>${l.nome}</strong> <span style="color:var(--gray400)">· ${n} link${n !== 1 ? 's' : ''}</span></span>
+      <button type="button" onclick="togglePastaEditVis('${area}',${i})" title="Visibilidade da pasta" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:${oculta ? 'var(--gray400)' : 'var(--gl)'}">${oculta ? '🚫 Oculta' : '👁️ Visível'}</button>
+      <button class="link-del" onclick="removePastaNaArea('${area}',${i})" title="Apagar pasta">×</button>
+    </div>`;
+  }).join('');
+}
+
+function renderLinksEditList(area) {
+  const cont = document.getElementById(`links-edit-list-${area}`);
+  if (!cont) return;
+  const arr = _tempLinks[area] || [];
+  const nomes = arr.filter(l => l.tipo === 'pasta').map(l => l.nome);
+  const itens = arr.map((l, i) => ({ l, i })).filter(x => x.l.tipo !== 'pasta');
+  if (!itens.length) {
+    cont.innerHTML = '<div style="font-size:12px;color:var(--gray400);font-style:italic">Sem links ainda.</div>';
+    return;
+  }
+  cont.innerHTML = itens.map(({ l, i }) => {
+    const oculto = l.publicado === false;
+    const url = l.url || '';
+    const opts = ['<option value="">Sem pasta</option>']
+      .concat(nomes.map(nm => `<option value="${_escAttr(nm)}" ${l.pasta === nm ? 'selected' : ''}>${nm}</option>`))
+      .join('');
+    return `<div class="link-item" id="link-item-${area}-${i}">
+      <i class="fas fa-link" style="color:var(--gl);font-size:12px"></i>
+      <span style="flex:1;font-size:13px;min-width:0"><strong>${l.label || '—'}</strong> — <a href="${url}" target="_blank" style="color:var(--gl)">${url.slice(0, 40)}${url.length > 40 ? '...' : ''}</a></span>
+      <select onchange="setLinkPasta('${area}',${i},this.value)" title="Pasta do link" style="font-size:12px;max-width:130px">${opts}</select>
+      <button type="button" onclick="toggleFormacaoLinkVis('${area}',${i})" title="Visibilidade do link" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:${oculto ? 'var(--gray400)' : 'var(--gl)'}">${oculto ? '🚫' : '👁️'}</button>
+      <button class="link-del" onclick="removeFormacaoLink('${area}',${i})">×</button>
+    </div>`;
+  }).join('');
+}
+
+function atualizarSelectPastas(area) {
+  const sel = document.getElementById(`new-link-pasta-${area}`);
+  if (!sel) return;
+  const arr = _tempLinks[area] || [];
+  const nomes = arr.filter(l => l.tipo === 'pasta').map(l => l.nome);
+  sel.innerHTML = ['<option value="">Sem pasta</option>']
+    .concat(nomes.map(nm => `<option value="${_escAttr(nm)}">${nm}</option>`)).join('');
+}
+
+function criarPastaNaArea(area) {
+  const nome = prompt('Nome da nova pasta:');
+  if (!nome || !nome.trim()) return;
+  const n = nome.trim();
+  _garantirTempLinks(area);
+  if (_tempLinks[area].some(l => l.tipo === 'pasta' && l.nome.toLowerCase() === n.toLowerCase())) {
+    alert('Já existe uma pasta com esse nome.'); return;
+  }
+  _tempLinks[area].push({ tipo: 'pasta', nome: n, publicado: false });
+  renderPastasEditList(area);
+  renderLinksEditList(area);
+  atualizarSelectPastas(area);
+}
+
+function togglePastaEditVis(area, idx) {
+  const l = (_tempLinks[area] || [])[idx];
+  if (!l) return;
+  l.publicado = (l.publicado === false);
+  renderPastasEditList(area);
+}
+
+function removePastaNaArea(area, idx) {
+  const arr = _tempLinks[area];
+  if (!arr) return;
+  const p = arr[idx];
+  if (!p || p.tipo !== 'pasta') return;
+  if (!confirm(`Apagar a pasta "${p.nome}"? Os links dela passam a "Sem pasta" (não são apagados).`)) return;
+  arr.forEach(l => { if (l.tipo !== 'pasta' && l.pasta === p.nome) delete l.pasta; });
+  arr.splice(idx, 1);
+  renderPastasEditList(area);
+  renderLinksEditList(area);
+  atualizarSelectPastas(area);
+}
+
+function setLinkPasta(area, idx, val) {
+  const l = (_tempLinks[area] || [])[idx];
+  if (!l) return;
+  if (val) l.pasta = val; else delete l.pasta;
+  renderPastasEditList(area);
+}
+
+function contarItensVisiveis(links, isAdmin) {
+  const arr = links || [];
+  const itens = arr.filter(l => l.tipo !== 'pasta');
+  if (isAdmin) return itens.length;
+  return itens.filter(l => l.publicado !== false &&
+    (!l.pasta || arr.some(p => p.tipo === 'pasta' && p.nome === l.pasta && p.publicado !== false))).length;
+}
+
+function renderLinksGrupado(links) {
+  const isAdmin = currentProfile?.role === 'admin';
+  const arr = links || [];
+  const pastas = arr.filter(l => l.tipo === 'pasta');
+  const itens = arr.filter(l => l.tipo !== 'pasta');
+  let out = '';
+  pastas.filter(p => isAdmin || p.publicado !== false).forEach(p => {
+    const oculta = p.publicado === false;
+    const itensP = itens.filter(l => l.pasta === p.nome && (isAdmin || l.publicado !== false));
+    if (!isAdmin && !itensP.length) return;
+    const badge = (isAdmin && oculta) ? ` <span style="font-size:10px;background:var(--amber,#b45309);color:#fff;padding:1px 7px;border-radius:10px">OCULTA</span>` : '';
+    out += `<div style="margin-bottom:1.25rem;${oculta ? 'opacity:.6;' : ''}">
+      <div style="font-size:13px;font-weight:600;color:var(--gn);margin-bottom:.6rem;display:flex;align-items:center;gap:8px"><span style="font-size:16px">📁</span> ${p.nome}${badge}</div>
+      <div style="padding-left:.5rem;border-left:2px solid var(--border)">
+        ${itensP.length ? renderLinksView(itensP) : '<div style="font-size:12px;color:var(--gray400);font-style:italic;padding:4px 0">Pasta vazia.</div>'}
+      </div>
+    </div>`;
+  });
+  const soltos = itens.filter(l => !l.pasta && (isAdmin || l.publicado !== false));
+  if (soltos.length) {
+    const temPastasVis = pastas.filter(p => isAdmin || p.publicado !== false).length;
+    out += `<div style="margin-bottom:.5rem">
+      ${temPastasVis ? '<div style="font-size:13px;font-weight:600;color:var(--gray600);margin-bottom:.6rem">Sem pasta</div>' : ''}
+      ${renderLinksView(soltos)}
+    </div>`;
+  }
+  return out;
 }
 
 function insertHeading() {
