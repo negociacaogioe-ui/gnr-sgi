@@ -4382,12 +4382,89 @@ async function renderFormacao() {
           </div>
         </div>
       </div>`;
+  }).join('') + renderPastasFormacao(isAdmin);
+}
+
+function renderPastasFormacao(isAdmin) {
+  const pastas = Object.values(formacaoData)
+    .filter(d => d && d.is_pasta)
+    .sort((a, b) => (a.titulo || '').localeCompare(b.titulo || '', 'pt'));
+
+  let html = pastas.map(p => {
+    const links = p.links ? (typeof p.links === 'string' ? JSON.parse(p.links) : p.links) : [];
+    const vl = isAdmin ? links : links.filter(l => l.publicado !== false);
+    const oculta = p.publicado === false;
+    const dt = p.ultima_edicao ? new Date(p.ultima_edicao).toLocaleDateString('pt-PT') : '—';
+    return `
+      <div class="formacao-card" style="${oculta ? 'opacity:.6;' : ''}">
+        <div class="formacao-card-img" style="background:#EEF2F7" onclick="openFormacaoArea('${p.area}')">
+          <span style="font-size:60px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.15))">📁</span>
+          ${vl.length ? `<span style="position:absolute;top:10px;right:10px;background:#3c5a78;color:#fff;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600">${vl.length} link${vl.length>1?'s':''}</span>` : ''}
+          ${isAdmin && oculta ? `<span style="position:absolute;top:10px;left:10px;background:var(--amber,#b45309);color:#fff;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600">OCULTA</span>` : ''}
+        </div>
+        <div class="formacao-card-body">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div class="formacao-card-title">${p.titulo || 'Pasta'}</div>
+            ${isAdmin ? `<div style="display:flex;gap:6px;flex-shrink:0">
+              <button type="button" title="${oculta ? 'Tornar visível aos formandos' : 'Ocultar dos formandos'}" onclick="event.stopPropagation();togglePastaVis('${p.area}',${p.publicado === false ? 'false' : 'true'})" style="border:none;background:none;cursor:pointer;font-size:14px;padding:2px">${oculta ? '🚫' : '👁️'}</button>
+              <button type="button" title="Apagar pasta" onclick="event.stopPropagation();apagarPastaFormacao('${p.area}')" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px;color:var(--red,#b91c1c)">🗑️</button>
+            </div>` : ''}
+          </div>
+          <div class="formacao-card-meta">Pasta temática · Atualizado: ${dt}</div>
+          <div style="margin-top:.75rem">
+            <span style="font-size:11px;color:#3c5a78;font-weight:500;cursor:pointer" onclick="openFormacaoArea('${p.area}')">Abrir pasta →</span>
+          </div>
+        </div>
+      </div>`;
   }).join('');
+
+  if (isAdmin) {
+    html += `
+      <div class="formacao-card" style="border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;min-height:180px;cursor:pointer;background:var(--gp)" onclick="criarPastaFormacao()">
+        <div style="text-align:center;color:var(--gm)">
+          <div style="font-size:40px;line-height:1">➕</div>
+          <div style="font-size:13px;font-weight:600;margin-top:8px">Nova Pasta</div>
+        </div>
+      </div>`;
+  }
+  return html;
+}
+
+async function criarPastaFormacao() {
+  const nome = prompt('Nome da nova pasta temática:');
+  if (!nome || !nome.trim()) return;
+  const titulo = nome.trim();
+  const slug = titulo.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 40) || 'pasta';
+  const area = `pasta_${slug}_${Date.now().toString(36)}`;
+  const { error } = await sb.from('formacao_conteudo').insert({
+    area, titulo, conteudo: '', links: [], is_pasta: true, publicado: false,
+    ultima_edicao: new Date().toISOString(),
+    editor_nome: currentProfile.nome, editor_id: currentUser.id
+  });
+  if (error) { alert('Erro ao criar pasta: ' + error.message); return; }
+  await renderFormacao();
+}
+
+async function togglePastaVis(area, estadoAtual) {
+  const { error } = await sb.from('formacao_conteudo').update({ publicado: !estadoAtual }).eq('area', area);
+  if (error) { alert('Erro ao alterar visibilidade: ' + error.message); return; }
+  await renderFormacao();
+}
+
+async function apagarPastaFormacao(area) {
+  const titulo = formacaoData[area]?.titulo || 'esta pasta';
+  if (!confirm(`Apagar a pasta "${titulo}" e todos os seus conteúdos? Esta ação é irreversível.`)) return;
+  const { error } = await sb.from('formacao_conteudo').delete().eq('area', area);
+  if (error) { alert('Erro ao apagar pasta: ' + error.message); return; }
+  await renderFormacao();
 }
 
 async function openFormacaoArea(area) {
-  const info = FORMACAO_AREAS.find(a => a.area === area);
-  const d = formacaoData[area] || { area, titulo: info.titulo, conteudo: '', links: [] };
+  const d = formacaoData[area] || { area, titulo: 'Pasta', conteudo: '', links: [] };
+  const info = FORMACAO_AREAS.find(a => a.area === area)
+    || { area, titulo: d.titulo || 'Pasta', desc: 'Pasta temática', icon: '📁', color: '#EEF2F7', accent: '#3c5a78' };
   const links = d.links ? (typeof d.links === 'string' ? JSON.parse(d.links) : d.links) : [];
   const isAdmin = currentProfile.role === 'admin';
 
@@ -4497,8 +4574,9 @@ async function openFormacaoArea(area) {
 }
 
 async function editFormacaoArea(area) {
-  const info = FORMACAO_AREAS.find(a => a.area === area);
-  const d = formacaoData[area] || { area, titulo: info.titulo, conteudo: '', links: [] };
+  const d = formacaoData[area] || { area, titulo: 'Pasta', conteudo: '', links: [] };
+  const info = FORMACAO_AREAS.find(a => a.area === area)
+    || { area, titulo: d.titulo || 'Pasta', desc: 'Pasta temática', icon: '📁', color: '#EEF2F7', accent: '#3c5a78' };
   const links = d.links ? (typeof d.links === 'string' ? JSON.parse(d.links) : d.links) : [];
 
   const panel = document.getElementById(`formacao-edit-panel-${area}`);
@@ -4704,7 +4782,8 @@ function insertHeading() {
 }
 
 async function saveFormacaoArea(area) {
-  const info = FORMACAO_AREAS.find(a => a.area === area);
+  const info = FORMACAO_AREAS.find(a => a.area === area) || { area, titulo: (formacaoData[area]?.titulo) || 'Pasta' };
+  const _isFixa = FORMACAO_AREAS.some(a => a.area === area) || FORMACAO_AREAS_ADMIN.some(a => a.area === area);
   const editorEl = document.getElementById(`formacao-editor-${area}`);
   if (!editorEl) return;
   const conteudo = editorEl.innerHTML;
@@ -4719,6 +4798,7 @@ async function saveFormacaoArea(area) {
     editor_nome: currentProfile.nome,
     editor_id: currentUser.id
   };
+  if (_isFixa) payload.publicado = true; // áreas fixas nunca são ocultadas ao gravar
 
   const { data: existing } = await sb.from('formacao_conteudo').select('id').eq('area', area).maybeSingle();
   let err;
