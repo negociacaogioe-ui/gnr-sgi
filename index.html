@@ -5922,6 +5922,7 @@ async function renderTreino() {
   document.getElementById('t-curso').textContent = all.filter(x => x.estado === 'Em curso').length;
   document.getElementById('t-res').textContent = all.filter(x => x.estado === 'Resolvido').length;
   renderTreinoTable();
+  if (isMobile && document.getElementById('mob-treino-list')) mobRenderTreinoCards();
 }
 
 function switchTreinoTab(tab) {
@@ -6133,6 +6134,52 @@ async function limparTreino() {
     sb.from('treino_itps').delete().neq('id', '00000000-0000-0000-0000-000000000000')
   ]);
   renderTreino();
+}
+
+function mobRenderTreino() {
+  loadTreino().then(() => { if (!treinoTab) treinoTab = 'todos'; mobSwitchTreinoTab(treinoTab); });
+}
+
+function mobSwitchTreinoTab(tab) {
+  treinoTab = tab;
+  const set = (id, on, cls) => { const b = document.getElementById(id); if (b) b.className = on ? ('btn ' + cls + ' btn-sm') : 'btn btn-outline btn-sm'; };
+  set('mob-treino-tab-todos', tab === 'todos', 'btn-primary');
+  set('mob-treino-tab-inc', tab === 'inc', 'btn-primary');
+  set('mob-treino-tab-itp', tab === 'itp', 'btn-itp');
+  mobRenderTreinoCards();
+}
+
+function mobRenderTreinoCards() {
+  const list = document.getElementById('mob-treino-list');
+  if (!list) return;
+  const base = (typeof treinoTodos !== 'undefined' && treinoTodos.length) ? treinoTodos : (treinoIncidentes || []).concat(treinoITPs || []);
+  const ci = document.getElementById('mob-t-inc'); if (ci) ci.textContent = base.filter(r => !r.is_itp).length;
+  const ct = document.getElementById('mob-t-itp'); if (ct) ct.textContent = base.filter(r => !!r.is_itp).length;
+  const data = base.filter(r => {
+    if (treinoTab === 'itp' && !r.is_itp) return false;
+    if (treinoTab === 'inc' && r.is_itp) return false;
+    return true;
+  });
+  if (!data.length) {
+    list.innerHTML = '<div style="padding:2rem 1rem;text-align:center;color:var(--gray600);font-size:13px">Sem registos de treino para este filtro. Cria o primeiro acima.</div>';
+    return;
+  }
+  list.innerHTML = data.map(r => `
+    <div style="background:#fff;padding:12px;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rl)">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">${classBadge(r)} ${gravBadge(r.gravidade)}</div>
+      <div style="font-weight:600;font-size:15px;color:var(--gn);margin-bottom:2px">${r.tipo}</div>
+      <div style="font-size:13px;color:var(--gray600)">${r.local || '—'}${r.cter ? ' · ' + r.cter : ''}</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gray600);margin:2px 0 8px">${fmtDateTime(r.data_hora)}${(r.is_itp && r.negociador) ? (' · Neg: ' + r.negociador) : ''}</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <select style="font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);flex:1;min-width:120px" onchange="quickTreinoStatus('inc','${r.id}',this.value)">
+          <option value="Em curso" ${r.estado === 'Em curso' ? 'selected' : ''}>Em curso</option>
+          <option value="Resolvido" ${r.estado === 'Resolvido' ? 'selected' : ''}>Resolvido</option>
+          <option value="Arquivado" ${r.estado === 'Arquivado' ? 'selected' : ''}>Arquivado</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="${r.is_itp ? ("editTreinoITP('" + r.id + "')") : ("editTreinoIncidente('" + r.id + "')")}"><i class="fas fa-edit"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="deleteTreino('inc','${r.id}')"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>`).join('');
 }
 
 
@@ -7686,6 +7733,7 @@ setImages();
   <div id="mob-menu-user" style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;color:var(--gn)"></div>
   <button onclick="mobToggleMenu();mobShowTab('novo-inc');mobBuildForms();" style="width:100%;text-align:left;padding:14px 16px;border:none;background:none;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--gray900)"><i class="fas fa-plus-circle" style="color:var(--gm);width:18px"></i> Novo Incidente</button>
   <button class="hidden" onclick="mobToggleMenu();mobShowTab('novo-itp');mobBuildForms();" style="width:100%;text-align:left;padding:14px 16px;border:none;background:none;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--gray900)"><i class="fas fa-shield-alt" style="color:var(--red);width:18px"></i> Novo ITP</button>
+  <button onclick="mobToggleMenu();mobShowTab('treino');mobRenderTreino();" style="width:100%;text-align:left;padding:14px 16px;border:none;background:none;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--gray900)"><i class="fas fa-shield-alt" style="color:var(--amber);width:18px"></i> Área de Treino</button>
   <button onclick="mobToggleMenu();mobAbrirPerfil();" style="width:100%;text-align:left;padding:14px 16px;border:none;background:none;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--gray900)"><i class="fas fa-user-edit" style="color:var(--gl);width:18px"></i> Editar Perfil</button>
   <div style="height:1px;background:var(--border)"></div>
   <button onclick="mobToggleMenu();doLogout();" style="width:100%;text-align:left;padding:14px 16px;border:none;background:none;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--red)"><i class="fas fa-sign-out-alt" style="width:18px"></i> Terminar Sessão</button>
@@ -7807,6 +7855,25 @@ setImages();
       </div>
       <div style="padding:16px" id="mob-novo-itp-form"></div>
     </div>
+  </div>
+
+  <div id="mob-screen-treino" class="mob-screen hidden" style="padding:.875rem;padding-bottom:calc(var(--mob-tab-h) + 1rem)">
+    <div style="background:var(--amberl);border:1px solid #f5dca0;border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--amber);margin-bottom:12px"><i class="fas fa-exclamation-triangle"></i> Ambiente de treino — os registos aqui criados NÃO afetam os dados reais.</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <div class="stat-card" style="flex:1;padding:10px"><div class="stat-info"><div class="stat-num" id="mob-t-inc" style="font-size:20px">0</div><div class="stat-label" style="font-size:11px">Incidentes</div></div></div>
+      <div class="stat-card" style="flex:1;padding:10px"><div class="stat-info"><div class="stat-num" id="mob-t-itp" style="font-size:20px">0</div><div class="stat-label" style="font-size:11px">ITP</div></div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="btn btn-primary btn-sm" style="flex:1" onclick="openTreinoModal('inc')"><i class="fas fa-plus"></i> Incidente</button>
+      <button class="btn btn-itp btn-sm" style="flex:1" onclick="openTreinoModal('itp')"><i class="fas fa-shield-alt"></i> ITP</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;align-items:center">
+      <button class="btn btn-primary btn-sm" id="mob-treino-tab-todos" onclick="mobSwitchTreinoTab('todos')">Todos</button>
+      <button class="btn btn-outline btn-sm" id="mob-treino-tab-inc" onclick="mobSwitchTreinoTab('inc')">Incidentes</button>
+      <button class="btn btn-outline btn-sm" id="mob-treino-tab-itp" onclick="mobSwitchTreinoTab('itp')">ITP</button>
+      <button class="btn btn-danger btn-sm" style="margin-left:auto" onclick="limparTreino()" title="Limpar todos os registos de treino"><i class="fas fa-trash"></i></button>
+    </div>
+    <div id="mob-treino-list"></div>
   </div>
 
 </div>
@@ -7966,6 +8033,7 @@ function mobShowTab(tab, resetStack) {
     form:       ['Formulários', mobDetail ? mobDetail.record.tipo : ''],
     'novo-inc': ['Novo Incidente', 'Registar ocorrência'],
     'novo-itp': ['Novo ITP', 'Incidente Tático-Policial'],
+    treino:     ['Área de Treino', 'Ambiente de simulação'],
   };
   const h = headers[tab] || ['SGI', ''];
   document.getElementById('mob-header-title').textContent = h[0];
