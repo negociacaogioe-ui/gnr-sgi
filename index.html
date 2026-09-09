@@ -1387,7 +1387,7 @@ async function loadNegociadores(){
   }catch(e){ allNegociadores=[]; }
 }
 async function loadData(){
-  const incRes = await sb.from('incidentes').select('*').order('created_at',{ascending:false});
+  const incRes = await sb.rpc('incidentes_lista');
   const _todos = incRes.data||[];
   allCasos = _todos;
   allIncidentes=_todos.filter(r=>!r.is_itp);
@@ -1459,7 +1459,21 @@ function showSection(s){
   if(s==='treino')renderTreino();
 }
 
-function openRecord(type,record){
+async function mostrarBloqueioCaso(id){
+  const pub=(allCasos||[]).find(r=>r.id===id);
+  const tipo=pub?(pub.is_itp?'itp':'inc'):'inc';
+  if(!confirm('Não participas neste caso. Só os participantes e o administrador o podem abrir.\n\nQueres constituir-te participante? (permitido apenas a negociadores do mesmo CTer do caso)')) return;
+  const { error }=await sb.rpc('incidentes_juntar',{ p_id:id });
+  if(error){ alert('Não foi possível constituir-te participante: '+error.message); return; }
+  await loadData();
+  if(typeof isMobile!=='undefined' && isMobile){ mobOpenDetail(tipo,id,false); } else { openRecord(tipo,id); }
+}
+
+async function openRecord(type,record){
+  const _id=(record && typeof record==='object')?record.id:record;
+  const { data:_full }=await sb.from('incidentes').select('*').eq('id',_id).maybeSingle();
+  if(!_full){ mostrarBloqueioCaso(_id); return; }
+  record=_full; type=_full.is_itp?'itp':'inc';
   prevSection=type==='inc'?'incidentes':'itp';
   currentDetail={type,record};
   document.getElementById('detail-back-btn').textContent='← Voltar a '+(type==='inc'?'Incidentes':'ITP');
@@ -2433,7 +2447,7 @@ function renderTableIncidentes(){
     <td>${classBadge(r)}</td>
     <td style="font-weight:500;cursor:pointer" onclick="openRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.tipo}</td>
     <td style="color:var(--gray600);font-size:12px">${r.cter||'—'}</td>
-    <td style="color:var(--gray600);cursor:pointer" onclick="openRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.local}</td>
+    <td style="color:var(--gray600);cursor:pointer" onclick="openRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.cter||'—'}</td>
     <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gray600)">${fmtDateTime(r.data_hora)}</td>
     <td>${gravBadge(r.gravidade)}</td>
     <td>
@@ -2471,9 +2485,9 @@ function renderTableITP(){
   ${data.map(r=>`<tr>
     <td style="font-weight:500;cursor:pointer" onclick="openRecord('itp',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.tipo}</td>
     <td style="color:var(--gray600);font-size:12px">${r.cter||'—'}</td>
-    <td style="color:var(--gray600);cursor:pointer" onclick="openRecord('itp',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.local}</td>
+    <td style="color:var(--gray600);cursor:pointer" onclick="openRecord('itp',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.cter||'—'}</td>
     <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gray600)">${fmtDateTime(r.data_hora)}</td>
-    <td>${r.negociador||'—'}</td>
+    <td>—</td>
     <td style="text-align:center;font-family:'IBM Plex Mono',monospace">${r.num_suspeitos}</td>
     <td style="text-align:center;font-family:'IBM Plex Mono',monospace">${r.num_refens}</td>
     <td>
@@ -2501,7 +2515,7 @@ async function saveIncidente(){
   showAlert('inc-alert','','');
   btn.innerHTML='<span class="spinner"></span>';btn.disabled=true;
   const cter=document.getElementById('inc-cter').value;
-  const{error}=await sb.from('incidentes').insert({tipo,local,cter,data_hora:new Date(data).toISOString(),gravidade:grav,gravidade_criterios:collectGravCriterios('inc-grav-criterios'),estado,descricao:desc,contacto_vitima:contactoVitima,contacto_agressor:contactoAgressor,autor_id:currentUser.id,autor_nome:currentProfile.nome});
+  const{error}=await sb.from('incidentes').insert({tipo,local,cter,data_hora:new Date(data).toISOString(),gravidade:grav,gravidade_criterios:collectGravCriterios('inc-grav-criterios'),estado,descricao:desc,contacto_vitima:contactoVitima,contacto_agressor:contactoAgressor,autor_id:currentUser.id,autor_nome:currentProfile.nome,participantes:[currentUser.id]});
   btn.innerHTML='Guardar';btn.disabled=false;
   if(error){showAlert('inc-alert','error','Erro: '+error.message);return;}
   closeModal('modal-inc');
@@ -2527,7 +2541,7 @@ async function saveITP(){
   showAlert('itp-alert','','');
   btn.innerHTML='<span class="spinner"></span>';btn.disabled=true;
   const cter=document.getElementById('itp-cter').value;
-  const{error}=await sb.from('incidentes').insert({is_itp:true,tipo,local,cter,data_hora:new Date(data).toISOString(),negociador:neg,num_suspeitos:sus,num_refens:ref,gravidade:(document.getElementById('itp-grav')?.value||''),gravidade_criterios:collectGravCriterios('itp-grav-criterios'),estado,descricao:desc,contacto_vitima:contactoVitima,contacto_agressor:contactoAgressor,autor_id:currentUser.id,autor_nome:currentProfile.nome});
+  const{error}=await sb.from('incidentes').insert({is_itp:true,tipo,local,cter,data_hora:new Date(data).toISOString(),negociador:neg,num_suspeitos:sus,num_refens:ref,gravidade:(document.getElementById('itp-grav')?.value||''),gravidade_criterios:collectGravCriterios('itp-grav-criterios'),estado,descricao:desc,contacto_vitima:contactoVitima,contacto_agressor:contactoAgressor,autor_id:currentUser.id,autor_nome:currentProfile.nome,participantes:[currentUser.id]});
   btn.innerHTML='Guardar';btn.disabled=false;
   if(error){showAlert('itp-alert','error','Erro: '+error.message);return;}
   closeModal('modal-itp');
@@ -5282,9 +5296,9 @@ async function adminAction(action,uid){
 
 
 // ===== EDITAR / ELIMINAR INCIDENTES =====
-function openEditIncidente(id) {
-  const r = allIncidentes.find(x => x.id === id);
-  if (!r) return;
+async function openEditIncidente(id) {
+  const { data:r } = await sb.from('incidentes').select('*').eq('id',id).maybeSingle();
+  if (!r) { alert('Sem permissão para abrir/editar este caso.'); return; }
   document.getElementById('edit-inc-id').value = r.id;
   document.getElementById('edit-inc-tipo').value = r.tipo;
   document.getElementById('edit-inc-local').value = r.local;
@@ -5330,9 +5344,9 @@ async function deleteIncidente() {
 }
 
 // ===== EDITAR / ELIMINAR ITP =====
-function openEditITP(id) {
-  const r = allITPs.find(x => x.id === id);
-  if (!r) return;
+async function openEditITP(id) {
+  const { data:r } = await sb.from('incidentes').select('*').eq('id',id).maybeSingle();
+  if (!r) { alert('Sem permissão para abrir/editar este caso.'); return; }
   document.getElementById('edit-itp-id').value = r.id;
   document.getElementById('edit-itp-tipo').value = r.tipo;
   document.getElementById('edit-itp-local').value = r.local;
@@ -8159,7 +8173,7 @@ function mobCardItem(type, r) {
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
         <div>
           <div style="font-size:15px;font-weight:600;color:var(--gn);margin-bottom:2px">${r.tipo}</div>
-          <div style="font-size:12px;color:var(--gray600)"><i class="fas fa-map-marker-alt" style="color:var(--gl)"></i> ${r.local}</div>
+          <div style="font-size:12px;color:var(--gray600)"><i class="fas fa-building" style="color:var(--gl)"></i> ${r.cter||'—'}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
           <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:${isItp?'var(--redl)':'var(--gp)'};color:${isItp?'var(--red)':'var(--gm)'}">${isItp?'ITP':'INC'}</span>
@@ -8177,14 +8191,15 @@ function mobCardItem(type, r) {
 }
 
 // ===== OPEN DETAIL =====
-function mobOpenDetail(type, id, isTreino) {
+async function mobOpenDetail(type, id, isTreino) {
   let record;
   if (isTreino) {
     const tbase = (typeof treinoTodos!=='undefined' && treinoTodos.length) ? treinoTodos : (treinoIncidentes||[]).concat(treinoITPs||[]);
     record = tbase.find(r => r.id === id);
   } else {
-    const base = (typeof allCasos!=='undefined' && allCasos.length) ? allCasos : (allIncidentes||[]).concat(allITPs||[]);
-    record = base.find(r => r.id === id) || (type === 'inc' ? allIncidentes : allITPs).find(r => r.id === id);
+    const { data:_full } = await sb.from('incidentes').select('*').eq('id',id).maybeSingle();
+    if(!_full){ mostrarBloqueioCaso(id); return; }
+    record=_full; type=_full.is_itp?'itp':'inc';
   }
   if (!record) return;
   mobDetail = { type, record, isTreino: !!isTreino };
@@ -9223,6 +9238,7 @@ async function mobSaveInc(){
     contacto_agressor:document.getElementById('mob-inc-ca')?.value.trim()||'',
     autor_id:currentUser.id,autor_nome:currentProfile.nome
   };
+  payload.participantes=[currentUser.id];
   const{error}=await sb.from('incidentes').insert(payload);
   if(error){mobShowAlert('mob-inc-alert','error','Erro: '+error.message);return;}
   await notificarListaIncidente(payload.tipo, payload.local, 'inc', payload.cter);
@@ -9252,6 +9268,7 @@ async function mobSaveITP(){
     autor_id:currentUser.id,autor_nome:currentProfile.nome
   };
   payload.is_itp=true;
+  payload.participantes=[currentUser.id];
   const{error}=await sb.from('incidentes').insert(payload);
   if(error){mobShowAlert('mob-itp-alert','error','Erro: '+error.message);return;}
   mobShowAlert('mob-itp-alert','success','ITP criado!');
