@@ -4775,23 +4775,87 @@ function _garantirTempLinks(area) {
 
 function _escAttr(s) { return String(s == null ? '' : s).replace(/"/g, '&quot;'); }
 
+let _dragArea = null, _dragIdx = null;
+
+function dragStartConteudo(ev, area, idx) {
+  _dragArea = area; _dragIdx = idx;
+  ev.dataTransfer.effectAllowed = 'move';
+  try { ev.dataTransfer.setData('text/plain', String(idx)); } catch (e) {}
+  ev.currentTarget.style.opacity = '0.5';
+}
+
+function dragEndConteudo(ev) {
+  ev.currentTarget.style.opacity = '';
+}
+
+function dropZoneOver(ev) {
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+  ev.currentTarget.style.background = 'var(--gp)';
+  ev.currentTarget.style.outline = '2px dashed var(--gl)';
+}
+
+function dropZoneLeave(ev) {
+  ev.currentTarget.style.background = '';
+  ev.currentTarget.style.outline = '';
+}
+
+function dropNaPasta(ev, area, pastaIdx) {
+  ev.preventDefault();
+  ev.currentTarget.style.background = '';
+  ev.currentTarget.style.outline = '';
+  if (_dragArea !== area || _dragIdx == null) return;
+  const arr = _tempLinks[area] || [];
+  const l = arr[_dragIdx];
+  _dragArea = null; _dragIdx = null;
+  if (!l || l.tipo === 'pasta') return;
+  if (pastaIdx === -1) { delete l.pasta; }
+  else { const p = arr[pastaIdx]; if (p && p.tipo === 'pasta') l.pasta = p.nome; }
+  renderPastasEditList(area);
+  renderLinksEditList(area);
+}
+
+function itemArrastavel(area, l, idx) {
+  const oculto = l.publicado === false;
+  const url = l.url || '';
+  const nomes = (_tempLinks[area] || []).filter(x => x.tipo === 'pasta').map(x => x.nome);
+  const opts = ['<option value="">Sem pasta</option>']
+    .concat(nomes.map(nm => `<option value="${_escAttr(nm)}" ${l.pasta === nm ? 'selected' : ''}>${nm}</option>`))
+    .join('');
+  return `<div class="link-item" id="link-item-${area}-${idx}">
+    <span draggable="true" ondragstart="dragStartConteudo(event,'${area}',${idx})" ondragend="dragEndConteudo(event)" style="color:var(--gray400);cursor:grab" title="Arraste para uma pasta (ou use o seletor)">⠿</span>
+    <span style="flex:1;font-size:13px;min-width:0"><strong>${l.label || '—'}</strong> — <a href="${url}" target="_blank" draggable="false" style="color:var(--gl)">${url.slice(0, 40)}${url.length > 40 ? '...' : ''}</a></span>
+    <select onchange="setLinkPasta('${area}',${idx},this.value)" title="Pasta do conteúdo" style="font-size:12px;max-width:140px">${opts}</select>
+    <button type="button" onclick="toggleFormacaoLinkVis('${area}',${idx})" title="Visibilidade do link" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:${oculto ? 'var(--gray400)' : 'var(--gl)'}">${oculto ? '🚫' : '👁️'}</button>
+    <button class="link-del" onclick="removeFormacaoLink('${area}',${idx})">×</button>
+  </div>`;
+}
+
 function renderPastasEditList(area) {
   const cont = document.getElementById(`pastas-edit-${area}`);
   if (!cont) return;
   const arr = _tempLinks[area] || [];
   const pastas = arr.map((l, i) => ({ l, i })).filter(x => x.l.tipo === 'pasta');
   if (!pastas.length) {
-    cont.innerHTML = '<div style="font-size:12px;color:var(--gray400);font-style:italic">Sem pastas. Use "Nova Pasta" para criar uma.</div>';
+    cont.innerHTML = '<div style="font-size:12px;color:var(--gray400);font-style:italic">Sem pastas. Use "Nova Pasta" para criar uma e arraste os conteúdos para lá.</div>';
     return;
   }
   cont.innerHTML = pastas.map(({ l, i }) => {
     const oculta = l.publicado === false;
-    const n = arr.filter(x => x.tipo !== 'pasta' && x.pasta === l.nome).length;
-    return `<div class="link-item" id="pasta-edit-${area}-${i}">
-      <span style="font-size:14px">📁</span>
-      <span style="flex:1;font-size:13px"><strong>${l.nome}</strong> <span style="color:var(--gray400)">· ${n} link${n !== 1 ? 's' : ''}</span></span>
-      <button type="button" onclick="togglePastaEditVis('${area}',${i})" title="Visibilidade da pasta" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:${oculta ? 'var(--gray400)' : 'var(--gl)'}">${oculta ? '🚫 Oculta' : '👁️ Visível'}</button>
-      <button class="link-del" onclick="removePastaNaArea('${area}',${i})" title="Apagar pasta">×</button>
+    const itens = arr.map((x, j) => ({ x, j })).filter(o => o.x.tipo !== 'pasta' && o.x.pasta === l.nome);
+    const linhas = itens.length
+      ? itens.map(({ x, j }) => itemArrastavel(area, x, j)).join('')
+      : '<div style="font-size:12px;color:var(--gray400);font-style:italic;padding:6px 8px">Arraste conteúdos para aqui.</div>';
+    return `<div style="border:1px solid var(--border);border-radius:var(--r);margin-bottom:.6rem;${oculta ? 'opacity:.65;' : ''}">
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--gp);border-radius:var(--r) var(--r) 0 0">
+        <span style="font-size:15px">📁</span>
+        <span style="flex:1;font-size:13px;font-weight:600">${l.nome} <span style="color:var(--gray400);font-weight:400">· ${itens.length} link${itens.length !== 1 ? 's' : ''}</span></span>
+        <button type="button" onclick="togglePastaEditVis('${area}',${i})" title="Visibilidade da pasta" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:${oculta ? 'var(--gray400)' : 'var(--gl)'}">${oculta ? '🚫 Oculta' : '👁️ Visível'}</button>
+        <button class="link-del" onclick="removePastaNaArea('${area}',${i})" title="Apagar pasta">×</button>
+      </div>
+      <div ondragover="dropZoneOver(event)" ondragleave="dropZoneLeave(event)" ondrop="dropNaPasta(event,'${area}',${i})" style="padding:6px;min-height:40px">
+        ${linhas}
+      </div>
     </div>`;
   }).join('');
 }
@@ -4800,26 +4864,15 @@ function renderLinksEditList(area) {
   const cont = document.getElementById(`links-edit-list-${area}`);
   if (!cont) return;
   const arr = _tempLinks[area] || [];
-  const nomes = arr.filter(l => l.tipo === 'pasta').map(l => l.nome);
-  const itens = arr.map((l, i) => ({ l, i })).filter(x => x.l.tipo !== 'pasta');
-  if (!itens.length) {
-    cont.innerHTML = '<div style="font-size:12px;color:var(--gray400);font-style:italic">Sem links ainda.</div>';
-    return;
-  }
-  cont.innerHTML = itens.map(({ l, i }) => {
-    const oculto = l.publicado === false;
-    const url = l.url || '';
-    const opts = ['<option value="">Sem pasta</option>']
-      .concat(nomes.map(nm => `<option value="${_escAttr(nm)}" ${l.pasta === nm ? 'selected' : ''}>${nm}</option>`))
-      .join('');
-    return `<div class="link-item" id="link-item-${area}-${i}">
-      <i class="fas fa-link" style="color:var(--gl);font-size:12px"></i>
-      <span style="flex:1;font-size:13px;min-width:0"><strong>${l.label || '—'}</strong> — <a href="${url}" target="_blank" style="color:var(--gl)">${url.slice(0, 40)}${url.length > 40 ? '...' : ''}</a></span>
-      <select onchange="setLinkPasta('${area}',${i},this.value)" title="Pasta do link" style="font-size:12px;max-width:130px">${opts}</select>
-      <button type="button" onclick="toggleFormacaoLinkVis('${area}',${i})" title="Visibilidade do link" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:${oculto ? 'var(--gray400)' : 'var(--gl)'}">${oculto ? '🚫' : '👁️'}</button>
-      <button class="link-del" onclick="removeFormacaoLink('${area}',${i})">×</button>
+  const soltos = arr.map((l, i) => ({ l, i })).filter(x => x.l.tipo !== 'pasta' && !x.l.pasta);
+  const linhas = soltos.length
+    ? soltos.map(({ l, i }) => itemArrastavel(area, l, i)).join('')
+    : '<div style="font-size:12px;color:var(--gray400);font-style:italic;padding:6px 8px">Sem conteúdos por atribuir. Arraste um conteúdo para aqui para o retirar de uma pasta.</div>';
+  cont.innerHTML = `
+    <div style="font-size:12px;font-weight:600;color:var(--gray600);margin-bottom:.4rem">Sem pasta</div>
+    <div ondragover="dropZoneOver(event)" ondragleave="dropZoneLeave(event)" ondrop="dropNaPasta(event,'${area}',-1)" style="border:1px dashed var(--border);border-radius:var(--r);padding:6px;min-height:44px">
+      ${linhas}
     </div>`;
-  }).join('');
 }
 
 function atualizarSelectPastas(area) {
@@ -4870,6 +4923,7 @@ function setLinkPasta(area, idx, val) {
   if (!l) return;
   if (val) l.pasta = val; else delete l.pasta;
   renderPastasEditList(area);
+  renderLinksEditList(area);
 }
 
 function contarItensVisiveis(links, isAdmin) {
