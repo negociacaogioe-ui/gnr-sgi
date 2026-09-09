@@ -4571,6 +4571,7 @@ async function openFormacaoArea(area) {
     <div id="formacao-edit-panel-${area}" class="hidden"></div>
   `;
   loadFicheirosArea(area);
+  if (isAdmin) editFormacaoArea(area);
 }
 
 async function editFormacaoArea(area) {
