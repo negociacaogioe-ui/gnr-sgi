@@ -562,7 +562,6 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
             <div class="field" style="margin:0"><label>Dependência</label><select id="pf-dep" onchange="renderPerfis()"><option value="">Todas</option><option>Álcool</option><option>Estupefacientes</option><option>Medicação / Psicofármacos</option><option>Jogo</option><option>Nenhuma</option><option>Desconhecida</option></select></div>
             <div class="field" style="margin:0"><label>Presença de arma</label><select id="pf-arma" onchange="renderPerfis()"><option value="">Todas</option><option>Nenhuma</option><option>Arma branca</option><option>Arma de fogo</option><option>Objeto contundente</option><option>Desconhecida</option></select></div>
             <div class="field" style="margin:0"><label>Relação com a vítima</label><select id="pf-relacao" onchange="renderPerfis()"><option value="">Todas</option><option>Cônjuge / companheiro(a)</option><option>Ex-cônjuge / ex-companheiro(a)</option><option>Familiar</option><option>Conhecido</option><option>Desconhecido</option><option>Não aplicável</option></select></div>
-            <div class="field" style="margin:0"><label>Gravidade</label><select id="pf-grav" onchange="renderPerfis()"><option value="">Todas</option><option>Baixa</option><option>Média</option><option>Alta</option><option>Crítica</option></select></div>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
             <div id="pf-amostra" style="font-size:13px;font-weight:600;color:var(--gm)"></div>
@@ -614,7 +613,6 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
       <input type="text" id="filter-inc-search" placeholder="🔍 Pesquisar..." style="max-width:220px" oninput="renderTableIncidentes()">
       <select id="filter-inc-class" onchange="renderTableIncidentes()"><option value="">Todas as classificações</option><option value="inc">Incidente de Segurança</option><option value="itp">ITP</option></select>
       <select id="filter-inc-estado" onchange="renderTableIncidentes()"><option value="">Todos os estados</option><option>Em curso</option><option>Resolvido</option><option>Arquivado</option></select>
-      <select id="filter-inc-grav" onchange="renderTableIncidentes()"><option value="">Todas as gravidades</option><option>Baixa</option><option>Média</option><option>Alta</option><option>Crítica</option></select>
       <select id="filter-inc-cter" onchange="renderTableIncidentes()"><option value="">Todos os CTer</option><option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option><option>CTer Castelo Branco</option><option>CTer Coimbra</option><option>CTer Évora</option><option>CTer Faro</option><option>CTer Guarda</option><option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option><option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option><option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option></select>
       <button class="btn btn-outline btn-sm" onclick="clearFilters('inc')"><i class="fas fa-times"></i> Limpar</button>
     </div>
@@ -905,8 +903,6 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
           <option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option>
         </select></div>
         <div class="field"><label>Data e hora</label><input type="datetime-local" id="inc-data"></div>
-        <div class="field"><label>Gravidade</label><select id="inc-grav" onchange="renderGravCriterios(this.value,'inc-grav-criterios',[])"><option value="">Selecionar...</option><option>Baixa</option><option>Média</option><option>Alta</option><option>Crítica</option></select></div>
-        <div class="form-full" id="inc-grav-criterios" style="display:none"></div>
         <div class="field"><label>Nº de Vítimas</label><input type="number" id="inc-vitimas" min="0" value="0"></div>
         <div class="field"><label>Nº de Reféns</label><input type="number" id="inc-refens" min="0" value="0"></div>
         <div class="field"><label>Estado</label><select id="inc-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
@@ -935,8 +931,6 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
         <div class="field form-full"><label>Localização</label><input type="text" id="treino-inc-local" placeholder="Ex: Lisboa, Rua..."></div>
         <div class="field form-full"><label>CTer</label><select id="treino-inc-cter"><option value="">Selecionar CTer...</option><option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option><option>CTer Castelo Branco</option><option>CTer Coimbra</option><option>CTer Évora</option><option>CTer Faro</option><option>CTer Guarda</option><option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option><option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option><option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option></select></div>
         <div class="field"><label>Data e hora</label><input type="datetime-local" id="treino-inc-data"></div>
-        <div class="field"><label>Gravidade</label><select id="treino-inc-grav" onchange="renderGravCriterios(this.value,'treino-inc-grav-criterios',[])"><option value="">Selecionar...</option><option>Baixa</option><option>Média</option><option>Alta</option><option>Crítica</option></select></div>
-        <div class="form-full" id="treino-inc-grav-criterios" style="display:none"></div>
         <div class="field"><label>Estado</label><select id="treino-inc-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
         <div class="field"><label><i class="fas fa-user" style="color:var(--gm)"></i> Contacto Vítima</label><input type="text" id="treino-inc-contacto-vitima" placeholder="Nº telefone ou contacto..."></div>
         <div class="field"><label><i class="fas fa-user-slash" style="color:var(--red)"></i> Contacto Agressor</label><input type="text" id="treino-inc-contacto-agressor" placeholder="Nº telefone ou contacto..."></div>
@@ -970,8 +964,6 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
         <div class="field"><label>Nº suspeitos</label><input type="number" id="treino-itp-sus" min="0" value="0"></div>
         <div class="field"><label>Nº reféns</label><input type="number" id="treino-itp-ref" min="0" value="0"></div>
         <div class="field"><label>Estado</label><select id="treino-itp-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
-        <div class="field"><label>Gravidade</label><select id="treino-itp-grav" onchange="renderGravCriterios(this.value,'treino-itp-grav-criterios',[])"><option value="">Selecionar...</option><option>Média</option><option>Alta</option><option>Crítica</option></select></div>
-        <div class="form-full" id="treino-itp-grav-criterios" style="display:none"></div>
         <div class="field"><label><i class="fas fa-user" style="color:var(--gm)"></i> Contacto Vítima</label><input type="text" id="treino-itp-contacto-vitima" placeholder="Nº telefone ou contacto..."></div>
         <div class="field"><label><i class="fas fa-user-slash" style="color:var(--red)"></i> Contacto Agressor</label><input type="text" id="treino-itp-contacto-agressor" placeholder="Nº telefone ou contacto..."></div>
         <div class="field form-full"><label>Descrição tática</label><textarea id="treino-itp-desc"></textarea></div>
@@ -1014,8 +1006,6 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
         <div class="field"><label>Nº suspeitos</label><input type="number" id="itp-sus" min="0" value="0"></div>
         <div class="field"><label>Nº de Reféns</label><input type="number" id="itp-ref" min="0" value="0"></div>
         <div class="field"><label>Estado</label><select id="itp-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
-        <div class="field"><label>Gravidade</label><select id="itp-grav" onchange="renderGravCriterios(this.value,'itp-grav-criterios',[])"><option value="">Selecionar...</option><option>Média</option><option>Alta</option><option>Crítica</option></select></div>
-        <div class="form-full" id="itp-grav-criterios" style="display:none"></div>
         <div class="field"><label><i class="fas fa-user" style="color:var(--gm)"></i> Contacto Vítima</label><input type="text" id="itp-contacto-vitima" placeholder="Nº telefone ou contacto..."></div>
         <div class="field"><label><i class="fas fa-user-slash" style="color:var(--red)"></i> Contacto Agressor</label><input type="text" id="itp-contacto-agressor" placeholder="Nº telefone ou contacto..."></div>
         <div class="field form-full"><label>Descrição tática</label><textarea id="itp-desc" placeholder="Situação tática..."></textarea></div>
@@ -1035,79 +1025,13 @@ let allCasos=[];
 let allNegociadores=[];
 let adminFiltroCter='';
 const sb=createClient(SURL,SKEY);
-const GRAV_CRITERIOS = {
-  // Escala alinhada com o modelo de 3 níveis do PDGNR M 1-08-02 (7.59):
-  // Comuns -> Baixa e Média · Intermédias -> Alta · Críticas -> Crítica.
-  // A separação entre Baixa e Média é granularidade operacional, não doutrina.
-  'Baixa': [
-    'Sem armas envolvidas ou reportadas',
-    'Sujeito contactável e em diálogo continuado',
-    'Nenhuma pessoa em perigo além do próprio sujeito',
-    'Situação estática e circunscrita a um único local',
-    'Meios locais habituais suficientes, sem necessidade de reforço',
-    'Resolução pacífica provável — situação comum (7.59)'
-  ],
-  'Média': [
-    'Arma branca ou objeto contundente presente, sem uso',
-    'Diálogo intermitente ou sujeito agitado',
-    'Terceiros no local sem ameaça direta',
-    'Dinâmica com risco de escalar',
-    'Exige acompanhamento ativo e reavaliação frequente',
-    'Resolúvel com meios locais, mas com reforço em prontidão'
-  ],
-  'Alta': [
-    'Arma de fogo ou outro meio letal confirmado ou provável',
-    'Ameaça explícita de dano a si próprio ou a terceiros',
-    'Sujeito barricado ou a recusar contacto',
-    'Pessoa com liberdade constrangida ou refém sob ameaça',
-    'Tentativa de suicídio em curso (parapeito, varanda, meio letal acessível)',
-    'Presença de pessoas vulneráveis (crianças, idosos, feridos)',
-    'Capacidade local excedida — requerido apoio especializado da UI/GIOE (ITP)',
-    'Desfecho tático ou não pacífico provável — situação intermédia (7.59)'
-  ],
-  'Crítica': [
-    'Elevado número de vítimas, provável ou já verificado (7.70)',
-    'Foco em múltiplos locais em simultâneo, exigindo distribuição das EN (7.73)',
-    'Número de agressores ou de vítimas acima da capacidade de resposta — possível declaração de ITPG ao abrigo do PCCCOFSS (7.73)',
-    'Active Shooter ou Active Killer — crimes contra a vida praticados de modo continuado (7.71)',
-    'Ataque terrorista com armas de fogo, explosivos ou incêndio (7.70)',
-    'Agressor em movimento ou em deslocação entre locais (7.73)',
-    'Impacto sobre população não envolvida ou infraestrutura crítica',
-    'Resolução pacífica muito improvável — exige resposta imediata, robusta e transacional (7.61, 7.62)'
-  ]
-};
-function renderGravCriterios(level, containerId, selected){
-  selected = selected || [];
-  var c = document.getElementById(containerId);
-  if(!c) return;
-  var items = (typeof GRAV_CRITERIOS !== 'undefined') ? GRAV_CRITERIOS[level] : null;
-  if(!items){ c.innerHTML=''; c.style.display='none'; return; }
-  c.style.display='';
-  var html = '<div class="grav-panel"><div class="grav-panel-title"><i class="fas fa-clipboard-check"></i> Critérios observáveis — assinala os que se verificam (opcional)</div>';
-  for(var i=0;i<items.length;i++){
-    var it = items[i];
-    var v = it.replace(/"/g,'&quot;');
-    var on = (selected.indexOf(it) > -1);
-    html += '<label class="grav-item' + (on?' checked':'') + '"><input type="checkbox" value="' + v + '" ' + (on?'checked':'') + '><span>' + it + '</span></label>';
-  }
-  html += '</div>';
-  c.innerHTML = html;
-  var boxes = c.querySelectorAll('.grav-item input[type=checkbox]');
-  for(var j=0;j<boxes.length;j++){
-    boxes[j].addEventListener('change', function(e){
-      var lbl = e.target.closest('.grav-item');
-      if(lbl) lbl.classList.toggle('checked', e.target.checked);
-    });
-  }
-}
-function collectGravCriterios(containerId){
-  var c = document.getElementById(containerId);
-  if(!c) return [];
-  var boxes = c.querySelectorAll('input[type=checkbox]:checked');
-  var out = [];
-  for(var i=0;i<boxes.length;i++){ out.push(boxes[i].value); }
-  return out;
-}
+// ===== GRAVIDADE — campo removido da interface =====
+// A classificação por gravidade deixou de ser pedida. As funções abaixo ficam
+// inertes para que qualquer chamada remanescente não parta nada. A coluna
+// `gravidade` e `gravidade_criterios` mantêm-se na base de dados, com o
+// histórico intacto — nada foi apagado.
+function renderGravCriterios(){ return; }
+function collectGravCriterios(){ return []; }
 const DISTRITOS_CONCELHOS = {"Aveiro": ["Águeda", "Albergaria-a-Velha", "Anadia", "Arouca", "Aveiro", "Castelo de Paiva", "Espinho", "Estarreja", "Santa Maria da Feira", "Ílhavo", "Mealhada", "Murtosa", "Oliveira de Azeméis", "Oliveira do Bairro", "Ovar", "São João da Madeira", "Sever do Vouga", "Vagos", "Vale de Cambra"], "Beja": ["Aljustrel", "Almodôvar", "Alvito", "Barrancos", "Beja", "Castro Verde", "Cuba", "Ferreira do Alentejo", "Mértola", "Moura", "Odemira", "Ourique", "Serpa", "Vidigueira"], "Braga": ["Amares", "Barcelos", "Braga", "Cabeceiras de Basto", "Celorico de Basto", "Esposende", "Fafe", "Guimarães", "Póvoa de Lanhoso", "Terras de Bouro", "Vieira do Minho", "Vila Nova de Famalicão", "Vila Verde", "Vizela"], "Bragança": ["Alfândega da Fé", "Bragança", "Carrazeda de Ansiães", "Freixo de Espada à Cinta", "Macedo de Cavaleiros", "Miranda do Douro", "Mirandela", "Mogadouro", "Torre de Moncorvo", "Vila Flor", "Vimioso", "Vinhais"], "Castelo Branco": ["Belmonte", "Castelo Branco", "Covilhã", "Fundão", "Idanha-a-Nova", "Oleiros", "Penamacor", "Proença-a-Nova", "Sertã", "Vila de Rei", "Vila Velha de Ródão"], "Coimbra": ["Arganil", "Cantanhede", "Coimbra", "Condeixa-a-Nova", "Figueira da Foz", "Góis", "Lousã", "Mira", "Miranda do Corvo", "Montemor-o-Velho", "Oliveira do Hospital", "Pampilhosa da Serra", "Penacova", "Penela", "Soure", "Tábua", "Vila Nova de Poiares"], "Évora": ["Alandroal", "Arraiolos", "Borba", "Estremoz", "Évora", "Montemor-o-Novo", "Mora", "Mourão", "Portel", "Redondo", "Reguengos de Monsaraz", "Vendas Novas", "Viana do Alentejo", "Vila Viçosa"], "Faro": ["Albufeira", "Alcoutim", "Aljezur", "Castro Marim", "Faro", "Lagoa", "Lagos", "Loulé", "Monchique", "Olhão", "Portimão", "São Brás de Alportel", "Silves", "Tavira", "Vila do Bispo", "Vila Real de Santo António"], "Guarda": ["Aguiar da Beira", "Almeida", "Celorico da Beira", "Figueira de Castelo Rodrigo", "Fornos de Algodres", "Gouveia", "Guarda", "Manteigas", "Mêda", "Pinhel", "Sabugal", "Seia", "Trancoso", "Vila Nova de Foz Côa"], "Leiria": ["Alcobaça", "Alvaiázere", "Ansião", "Batalha", "Bombarral", "Caldas da Rainha", "Castanheira de Pêra", "Figueiró dos Vinhos", "Leiria", "Marinha Grande", "Nazaré", "Óbidos", "Pedrógão Grande", "Peniche", "Pombal", "Porto de Mós"], "Lisboa": ["Alenquer", "Amadora", "Arruda dos Vinhos", "Azambuja", "Cadaval", "Cascais", "Lisboa", "Loures", "Lourinhã", "Mafra", "Odivelas", "Oeiras", "Sintra", "Sobral de Monte Agraço", "Torres Vedras", "Vila Franca de Xira"], "Portalegre": ["Alter do Chão", "Arronches", "Avis", "Campo Maior", "Castelo de Vide", "Crato", "Elvas", "Fronteira", "Gavião", "Marvão", "Monforte", "Nisa", "Ponte de Sor", "Portalegre", "Sousel"], "Porto": ["Amarante", "Baião", "Felgueiras", "Gondomar", "Lousada", "Maia", "Marco de Canaveses", "Matosinhos", "Paços de Ferreira", "Paredes", "Penafiel", "Porto", "Póvoa de Varzim", "Santo Tirso", "Trofa", "Valongo", "Vila do Conde", "Vila Nova de Gaia"], "Santarém": ["Abrantes", "Alcanena", "Almeirim", "Alpiarça", "Benavente", "Cartaxo", "Chamusca", "Constância", "Coruche", "Entroncamento", "Ferreira do Zêzere", "Golegã", "Mação", "Ourém", "Rio Maior", "Salvaterra de Magos", "Santarém", "Sardoal", "Tomar", "Torres Novas", "Vila Nova da Barquinha"], "Setúbal": ["Alcácer do Sal", "Alcochete", "Almada", "Barreiro", "Grândola", "Moita", "Montijo", "Palmela", "Santiago do Cacém", "Seixal", "Sesimbra", "Setúbal", "Sines"], "Viana do Castelo": ["Arcos de Valdevez", "Caminha", "Melgaço", "Monção", "Paredes de Coura", "Ponte da Barca", "Ponte de Lima", "Valença", "Viana do Castelo", "Vila Nova de Cerveira"], "Vila Real": ["Alijó", "Boticas", "Chaves", "Mesão Frio", "Mondim de Basto", "Montalegre", "Murça", "Peso da Régua", "Ribeira de Pena", "Sabrosa", "Santa Marta de Penaguião", "Valpaços", "Vila Pouca de Aguiar", "Vila Real"], "Viseu": ["Armamar", "Carregal do Sal", "Castro Daire", "Cinfães", "Lamego", "Mangualde", "Moimenta da Beira", "Mortágua", "Nelas", "Oliveira de Frades", "Penalva do Castelo", "Penedono", "Resende", "Santa Comba Dão", "São João da Pesqueira", "São Pedro do Sul", "Sátão", "Sernancelhe", "Tabuaço", "Tarouca", "Tondela", "Vila Nova de Paiva", "Viseu", "Vouzela"], "Região Autónoma dos Açores": ["Angra do Heroísmo", "Calheta (São Jorge)", "Corvo", "Horta", "Lagoa (Açores)", "Lajes das Flores", "Lajes do Pico", "Madalena", "Nordeste", "Ponta Delgada", "Povoação", "Praia da Vitória", "Ribeira Grande", "Santa Cruz da Graciosa", "Santa Cruz das Flores", "São Roque do Pico", "Velas", "Vila do Porto", "Vila Franca do Campo"], "Região Autónoma da Madeira": ["Calheta (Madeira)", "Câmara de Lobos", "Funchal", "Machico", "Ponta do Sol", "Porto Moniz", "Porto Santo", "Ribeira Brava", "Santa Cruz", "Santana", "São Vicente"]};
 function visadoDistritoChange(preselectConcelho){
   var d = document.getElementById('visado-distrito');
@@ -1546,7 +1470,6 @@ function partilharViaWhatsApp(){
     r.cter?`🏛 *CTer:* ${r.cter}`:'',
     isItp&&r.num_suspeitos!=null?`👤 *Suspeitos:* ${r.num_suspeitos}  |  Reféns: ${r.num_refens||0}`:'',
     isItp&&r.negociador?`🤝 *Negociador:* ${r.negociador}`:'',
-    !isItp&&r.gravidade?`⚠️ *Gravidade:* ${r.gravidade}`:'',
     r.estado?`📌 *Estado:* ${r.estado}`:'',
     r.descricao?`\n📝 *Resumo:*\n${r.descricao.slice(0,300)}${r.descricao.length>300?'…':''}`:'',
     ``,
@@ -1616,7 +1539,7 @@ function showAlert(id,type,msg){
 
 // ===== BADGES & UTILS =====
 function estadoBadge(e){const m={'Em curso':'badge-gold','Resolvido':'badge-green','Arquivado':'badge-gray'};return`<span class="badge ${m[e]||'badge-gray'}">${e}</span>`;}
-function gravBadge(g){const m={'Baixa':'badge-green','Média':'badge-gold','Alta':'badge-red','Crítica':'badge-red'};return`<span class="badge ${m[g]||'badge-gray'}">${g||'—'}</span>`;}
+function gravBadge(){return '';}
 function fmtDate(d){return new Date(d).toLocaleDateString('pt-PT');}
 function fmtDateTime(d){return new Date(d).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
 
@@ -2565,7 +2488,7 @@ async function puxarDadosPN(){
   const vis=_pxVisado(); if(vis) partes.push('VISADO:\n'+vis);
   _pxPreencher({
     'plano-desc': partes.join('\n\n'),
-    'plano-sit': [r.tipo, r.local, r.cter, r.gravidade?('Gravidade: '+r.gravidade):''].filter(Boolean).join(' · '),
+    'plano-sit': [r.tipo, r.local, r.cter].filter(Boolean).join(' · '),
     'plano-pos': _pxQuadro('posicao')
   });
 }
@@ -2669,7 +2592,6 @@ function renderPerfis(){
     const d=r.descricao_visado||{};
     if(fClass==='itp' && !r.is_itp) return false;
     if(fClass==='inc' && r.is_itp) return false;
-    if(fGrav && r.gravidade!==fGrav) return false;
     if(fFaixa && d.faixa_etaria!==fFaixa) return false;
     if(fGen && d.genero!==fGen) return false;
     if(fDist && d.distrito!==fDist) return false;
@@ -2987,7 +2909,7 @@ function classBadge(r){
 function renderTableIncidentes(){
   const search=(document.getElementById('filter-inc-search')?.value||'').toLowerCase();
   const estado=document.getElementById('filter-inc-estado')?.value||'';
-  const grav=document.getElementById('filter-inc-grav')?.value||'';
+  const grav='';
   const cter=document.getElementById('filter-inc-cter')?.value||'';
   const clas=document.getElementById('filter-inc-class')?.value||'';
   const base=(typeof allCasos!=='undefined'&&allCasos.length)?allCasos:allIncidentes.concat(allITPs);
@@ -2995,7 +2917,6 @@ function renderTableIncidentes(){
     if(clas==='itp' && !r.is_itp) return false;
     if(clas==='inc' && r.is_itp) return false;
     if(estado && r.estado!==estado) return false;
-    if(grav && r.gravidade!==grav) return false;
     if(cter && r.cter!==cter) return false;
     if(search && !( (r.tipo||'').toLowerCase().includes(search)||(r.local||'').toLowerCase().includes(search)||(r.descricao||'').toLowerCase().includes(search))) return false;
     return true;
@@ -3003,14 +2924,13 @@ function renderTableIncidentes(){
   document.getElementById('inc-count-label').textContent=data.length+' de '+base.length+' registo(s)';
   const el=document.getElementById('table-inc-wrap');
   if(!data.length){el.innerHTML='<div class="empty-state"><p>Sem resultados para os filtros selecionados.</p></div>';return;}
-  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Classificação</th><th>Tipo</th><th>CTer</th><th>Localização</th><th>Data/Hora</th><th>Gravidade</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
+  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Classificação</th><th>Tipo</th><th>CTer</th><th>Localização</th><th>Data/Hora</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
   ${data.map(r=>`<tr>
     <td>${classBadge(r)}</td>
     <td style="font-weight:500;cursor:pointer" onclick="openRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.tipo}</td>
     <td style="color:var(--gray600);font-size:12px">${r.cter||'—'}</td>
     <td style="color:var(--gray600);cursor:pointer" onclick="openRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.cter||'—'}</td>
     <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gray600)">${fmtDateTime(r.data_hora)}</td>
-    <td>${gravBadge(r.gravidade)}</td>
     <td>
       <select class="status-quick-btn" style="font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);cursor:pointer;background:${r.estado==='Em curso'?'var(--amberl)':r.estado==='Resolvido'?'var(--gp)':'var(--gray100)'};color:${r.estado==='Em curso'?'var(--amber)':r.estado==='Resolvido'?'var(--gm)':'var(--gray600)'}" onchange="quickStatusChange('inc','${r.id}',this.value,this)">
         <option value="Em curso" ${r.estado==='Em curso'?'selected':''}>Em curso</option>
@@ -3067,7 +2987,7 @@ async function saveIncidente(){
   const tipo=sgiTipoValor('inc-tipo')||'Por definir',
     local=document.getElementById('inc-local').value.trim()||'Por definir',
     data=document.getElementById('inc-data').value||(()=>{const n=new Date();n.setMinutes(n.getMinutes()-n.getTimezoneOffset());return n.toISOString().slice(0,16);})(),
-    grav=document.getElementById('inc-grav').value||'',
+    grav='',
     estado=document.getElementById('inc-estado').value,
     desc=document.getElementById('inc-desc').value.trim(),
     contactoVitima=document.getElementById('inc-contacto-vitima').value.trim(),
@@ -3102,7 +3022,7 @@ async function saveITP(){
   showAlert('itp-alert','','');
   btn.innerHTML='<span class="spinner"></span>';btn.disabled=true;
   const cter=document.getElementById('itp-cter').value;
-  const{error}=await sb.from('incidentes').insert({is_itp:true,tipo,local,cter,data_hora:new Date(data).toISOString(),negociador:neg,num_suspeitos:sus,num_refens:ref,gravidade:(document.getElementById('itp-grav')?.value||''),gravidade_criterios:collectGravCriterios('itp-grav-criterios'),estado,descricao:desc,contacto_vitima:contactoVitima,contacto_agressor:contactoAgressor,autor_id:currentUser.id,autor_nome:currentProfile.nome,participantes:[currentUser.id]});
+  const{error}=await sb.from('incidentes').insert({is_itp:true,tipo,local,cter,data_hora:new Date(data).toISOString(),negociador:neg,num_suspeitos:sus,num_refens:ref,gravidade:'',gravidade_criterios:collectGravCriterios('itp-grav-criterios'),estado,descricao:desc,contacto_vitima:contactoVitima,contacto_agressor:contactoAgressor,autor_id:currentUser.id,autor_nome:currentProfile.nome,participantes:[currentUser.id]});
   btn.innerHTML='Guardar';btn.disabled=false;
   if(error){showAlert('itp-alert','error','Erro: '+error.message);return;}
   closeModal('modal-itp');
@@ -3124,7 +3044,6 @@ function renderDetailHeader(){
   `;
   document.getElementById('detail-badges').innerHTML=`
     ${estadoBadge(r.estado)}
-    ${isItp?'':`${gravBadge(r.gravidade)}`}
     <span class="badge ${isItp?'badge-red':'badge-green'}" style="margin-left:4px">${isItp?'ITP':'Incidente'}</span>
   `;
 }
@@ -3140,7 +3059,6 @@ function renderResumo(){
         <div class="stat-card"><div class="s-label">Suspeitos</div><div class="s-num red">${r.num_suspeitos}</div></div>
         <div class="stat-card"><div class="s-label">Reféns</div><div class="s-num amber">${r.num_refens}</div></div>
       `:`
-        <div class="stat-card"><div class="s-label">Gravidade</div><div class="s-num">${r.gravidade||'—'}</div></div>
         <div class="stat-card"><div class="s-label">Estado</div><div class="s-num" style="font-size:18px">${r.estado}</div></div>
       `}
     </div>
@@ -3182,7 +3100,6 @@ function renderResumo(){
       <div id="en-acumulacao"></div>
       <button class="btn btn-primary btn-sm" id="en-save-btn" onclick="guardarEquipa()" style="margin-top:12px"><i class="fas fa-save"></i> Guardar EN</button>
     </div>`}
-    ${(r.gravidade&&Array.isArray(r.gravidade_criterios)&&r.gravidade_criterios.length)?`<div class="form-section"><h3>Gravidade — critérios assinalados (${r.gravidade})</h3><ul style="font-size:13px;line-height:1.7;margin:0;padding-left:18px">${r.gravidade_criterios.map(function(x){return '<li>'+x+'</li>';}).join('')}</ul></div>`:''}
     ${r.descricao?`<div class="form-section"><h3>Descrição</h3><p style="font-size:14px;line-height:1.7">${r.descricao}</p></div>`:''}
     <div style="margin-top:1rem;padding:12px;background:var(--gp);border-radius:var(--r);font-size:13px;color:var(--gm)">
       <i class="fas fa-info-circle"></i> Clique nos separadores acima para aceder aos formulários operacionais: IRIS, Monitorização de Contactos, SARI e Plano de Negociação.
@@ -3458,12 +3375,8 @@ function _relatorioPDF(r, type, iris, sari, plano, contactos, hist){
   kv('CTer / Unidade', r.cter);
   kv('Data e hora', r.data_hora ? fmtDateTime(r.data_hora) : '—');
   kv('Estado', r.estado);
-  if(!isItp) kv('Gravidade', r.gravidade);
   if(isItp){ kv('N.º de suspeitos', r.num_suspeitos); kv('N.º de reféns', r.num_refens); kv('Negociador', r.negociador); }
   kv('Registado por', r.autor_nome);
-  if(Array.isArray(r.gravidade_criterios) && r.gravidade_criterios.length){
-    kv('Critérios de gravidade', r.gravidade_criterios.join('; '));
-  }
 
   // ---------------- 2. Resumo da situação
   sec('2. Resumo da situação');
@@ -6111,8 +6024,6 @@ async function openEditIncidente(id) {
   document.getElementById('edit-inc-cter').value = r.cter || '';
   const dt = new Date(r.data_hora); dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
   document.getElementById('edit-inc-data').value = dt.toISOString().slice(0,16);
-  document.getElementById('edit-inc-grav').value = r.gravidade;
-  renderGravCriterios(r.gravidade,'edit-inc-grav-criterios',r.gravidade_criterios||[]);
   document.getElementById('edit-inc-estado').value = r.estado;
   document.getElementById('edit-inc-desc').value = r.descricao || '';
   showAlert('edit-inc-alert','','');
@@ -6125,7 +6036,7 @@ async function updateIncidente() {
   const local = document.getElementById('edit-inc-local').value.trim();
   const cter = document.getElementById('edit-inc-cter').value;
   const data = document.getElementById('edit-inc-data').value;
-  const grav = document.getElementById('edit-inc-grav').value;
+  const grav = '';
   const estado = document.getElementById('edit-inc-estado').value;
   const desc = document.getElementById('edit-inc-desc').value.trim();
   const btn = document.getElementById('btn-update-inc');
@@ -6163,8 +6074,6 @@ async function openEditITP(id) {
   document.getElementById('edit-itp-sus').value = r.num_suspeitos || 0;
   document.getElementById('edit-itp-ref').value = r.num_refens || 0;
   document.getElementById('edit-itp-estado').value = r.estado;
-  document.getElementById('edit-itp-grav').value = r.gravidade||'';
-  renderGravCriterios(r.gravidade,'edit-itp-grav-criterios',r.gravidade_criterios||[]);
   document.getElementById('edit-itp-desc').value = r.descricao || '';
   showAlert('edit-itp-alert','','');
   document.getElementById('modal-edit-itp').classList.remove('hidden');
@@ -6185,7 +6094,7 @@ async function updateITP() {
   showAlert('edit-itp-alert','','');
   btn.innerHTML='<span class="spinner"></span>'; btn.disabled=true;
   const old = allITPs.find(x => x.id === id);
-  const { error } = await sb.from('incidentes').update({ tipo, local, cter, data_hora: new Date(data).toISOString(), negociador:neg, num_suspeitos:sus, num_refens:ref, gravidade:(document.getElementById('edit-itp-grav')?.value||''), gravidade_criterios: collectGravCriterios('edit-itp-grav-criterios'), estado, descricao:desc }).eq('id', id);
+  const { error } = await sb.from('incidentes').update({ tipo, local, cter, data_hora: new Date(data).toISOString(), negociador:neg, num_suspeitos:sus, num_refens:ref, gravidade:'', gravidade_criterios: collectGravCriterios('edit-itp-grav-criterios'), estado, descricao:desc }).eq('id', id);
   btn.innerHTML='Guardar Alterações'; btn.disabled=false;
   if (error) { showAlert('edit-itp-alert','error','Erro: '+error.message); return; }
   await sb.from('historico').insert({ tabela:'itps', registo_id:id, acao:'editado', campos_alterados: { antes:{tipo:old.tipo,estado:old.estado}, depois:{tipo,estado} }, autor_id:currentUser.id, autor_nome:currentProfile.nome });
@@ -6794,14 +6703,13 @@ function renderTreinoTable() {
   });
   const el = document.getElementById('treino-inc-wrap');
   if (!data.length) { el.innerHTML = '<div class="empty-state"><p>Sem registos de treino para este filtro. Cria o primeiro!</p></div>'; return; }
-  el.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Classificação</th><th>Tipo</th><th>CTer</th><th>Localização</th><th>Data/Hora</th><th>Gravidade</th><th>Neg.</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
+  el.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Classificação</th><th>Tipo</th><th>CTer</th><th>Localização</th><th>Data/Hora</th><th>Neg.</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
   ${data.map(r => `<tr>
     <td>${classBadge(r)}</td>
     <td style="font-weight:500;cursor:pointer" onclick="openTreinoRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.tipo}</td>
     <td style="font-size:12px;color:var(--gray600)">${r.cter||'—'}</td>
     <td style="color:var(--gray600);cursor:pointer" onclick="openTreinoRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.local}</td>
     <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gray600)">${fmtDateTime(r.data_hora)}</td>
-    <td>${gravBadge(r.gravidade)}</td>
     <td style="font-size:12px;color:var(--gray600)">${r.is_itp ? (r.negociador||'—') : '—'}</td>
     <td>
       <select style="font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);cursor:pointer" onchange="quickTreinoStatus('inc','${r.id}',this.value)">
@@ -6847,7 +6755,6 @@ function openTreinoModal(type) {
     document.getElementById('treino-inc-local').value = '';
     document.getElementById('treino-inc-cter').value = '';
     document.getElementById('treino-inc-data').value = now.toISOString().slice(0,16);
-    document.getElementById('treino-inc-grav').value = '';
     document.getElementById('treino-inc-estado').value = 'Em curso';
     document.getElementById('treino-inc-desc').value = '';
     document.getElementById('treino-inc-contacto-vitima').value = '';
@@ -6863,7 +6770,6 @@ function openTreinoModal(type) {
     document.getElementById('treino-itp-sus').value = 0;
     document.getElementById('treino-itp-ref').value = 0;
     document.getElementById('treino-itp-estado').value = 'Em curso';
-    if(document.getElementById('treino-itp-grav')){document.getElementById('treino-itp-grav').value='';renderGravCriterios('','treino-itp-grav-criterios',[]);}
     document.getElementById('treino-itp-desc').value = '';
     document.getElementById('treino-itp-contacto-vitima').value = '';
     document.getElementById('treino-itp-contacto-agressor').value = '';
@@ -6878,7 +6784,7 @@ async function saveTreinoIncidente() {
   const local = document.getElementById('treino-inc-local').value.trim()||'Por definir';
   const cter = document.getElementById('treino-inc-cter').value;
   const data = document.getElementById('treino-inc-data').value||nowFallback;
-  const grav = document.getElementById('treino-inc-grav').value||'';
+  const grav = '';
   const estado = document.getElementById('treino-inc-estado').value;
   const desc = document.getElementById('treino-inc-desc').value.trim();
   const contactoVitima = document.getElementById('treino-inc-contacto-vitima').value.trim();
@@ -6911,7 +6817,7 @@ async function saveTreinoITP() {
   const contactoAgressor = document.getElementById('treino-itp-contacto-agressor').value.trim();
   const btn = document.getElementById('btn-save-treino-itp');
   btn.innerHTML='<span class="spinner"></span>'; btn.disabled=true;
-  const payload = { tipo, local, cter, data_hora:new Date(data).toISOString(), negociador:neg, num_suspeitos:sus, num_refens:ref, gravidade:(document.getElementById('treino-itp-grav')?.value||''), gravidade_criterios:collectGravCriterios('treino-itp-grav-criterios'), estado, descricao:desc, contacto_vitima:contactoVitima, contacto_agressor:contactoAgressor, autor_id:currentUser.id, autor_nome:currentProfile.nome };
+  const payload = { tipo, local, cter, data_hora:new Date(data).toISOString(), negociador:neg, num_suspeitos:sus, num_refens:ref, gravidade:'', gravidade_criterios:collectGravCriterios('treino-itp-grav-criterios'), estado, descricao:desc, contacto_vitima:contactoVitima, contacto_agressor:contactoAgressor, autor_id:currentUser.id, autor_nome:currentProfile.nome };
   const { error } = id
     ? await sb.from('treino_incidentes').update(payload).eq('id', id)
     : await sb.from('treino_incidentes').insert(Object.assign({}, payload, {is_itp:true, participantes:[currentUser.id]}));
@@ -6930,8 +6836,6 @@ function editTreinoIncidente(id) {
   document.getElementById('treino-inc-cter').value = r.cter||'';
   const dt = new Date(r.data_hora); dt.setMinutes(dt.getMinutes()-dt.getTimezoneOffset());
   document.getElementById('treino-inc-data').value = dt.toISOString().slice(0,16);
-  document.getElementById('treino-inc-grav').value = r.gravidade;
-  renderGravCriterios(r.gravidade,'treino-inc-grav-criterios',r.gravidade_criterios||[]);
   document.getElementById('treino-inc-estado').value = r.estado;
   document.getElementById('treino-inc-desc').value = r.descricao||'';
   document.getElementById('treino-inc-contacto-vitima').value = r.contacto_vitima||'';
@@ -6952,8 +6856,6 @@ function editTreinoITP(id) {
   document.getElementById('treino-itp-sus').value = r.num_suspeitos||0;
   document.getElementById('treino-itp-ref').value = r.num_refens||0;
   document.getElementById('treino-itp-estado').value = r.estado;
-  document.getElementById('treino-itp-grav').value = r.gravidade||'';
-  renderGravCriterios(r.gravidade,'treino-itp-grav-criterios',r.gravidade_criterios||[]);
   document.getElementById('treino-itp-desc').value = r.descricao||'';
   document.getElementById('treino-itp-contacto-vitima').value = r.contacto_vitima||'';
   document.getElementById('treino-itp-contacto-agressor').value = r.contacto_agressor||'';
@@ -7018,7 +6920,7 @@ function mobRenderTreinoCards() {
   list.innerHTML = data.map(r => `
     <div style="background:#fff;padding:12px;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rl)">
       <div onclick="mobOpenDetail('${r.is_itp?'itp':'inc'}','${r.id}',true)" style="cursor:pointer">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">${classBadge(r)} ${gravBadge(r.gravidade)}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">${classBadge(r)}</div>
         <div style="font-weight:600;font-size:15px;color:var(--gn);margin-bottom:2px">${r.tipo}</div>
         <div style="font-size:13px;color:var(--gray600)">${r.local || '—'}${r.cter ? ' · ' + r.cter : ''}</div>
         <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gray600);margin:2px 0 8px">${fmtDateTime(r.data_hora)}${(r.is_itp && r.negociador) ? (' · Neg: ' + r.negociador) : ''}</div>
@@ -8498,8 +8400,6 @@ setImages();
             <option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option>
             <option>CTer Açores</option><option>CTer Madeira</option></select></div>
         <div class="field"><label>Data e hora</label><input type="datetime-local" id="edit-inc-data"></div>
-        <div class="field"><label>Gravidade</label><select id="edit-inc-grav" onchange="renderGravCriterios(this.value,'edit-inc-grav-criterios',[])"><option value="">Selecionar...</option><option>Baixa</option><option>Média</option><option>Alta</option><option>Crítica</option></select></div>
-        <div class="form-full" id="edit-inc-grav-criterios" style="display:none"></div>
         <div class="field"><label>Nº de Vítimas</label><input type="number" id="edit-inc-vitimas" min="0" value="0"></div>
         <div class="field"><label>Nº de Reféns</label><input type="number" id="edit-inc-refens" min="0" value="0"></div>
         <div class="field"><label>Estado</label><select id="edit-inc-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
@@ -8544,8 +8444,6 @@ setImages();
         <div class="field"><label>Nº suspeitos</label><input type="number" id="edit-itp-sus" min="0"></div>
         <div class="field"><label>Nº de Reféns</label><input type="number" id="edit-itp-ref" min="0"></div>
         <div class="field"><label>Estado</label><select id="edit-itp-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
-        <div class="field"><label>Gravidade</label><select id="edit-itp-grav" onchange="renderGravCriterios(this.value,'edit-itp-grav-criterios',[])"><option value="">Selecionar...</option><option>Média</option><option>Alta</option><option>Crítica</option></select></div>
-        <div class="form-full" id="edit-itp-grav-criterios" style="display:none"></div>
         <div class="field form-full"><label>Descrição tática</label><textarea id="edit-itp-desc"></textarea></div>
       </div>
     </div>
@@ -8995,7 +8893,6 @@ function mobRenderLista() {
 function mobCardItem(type, r) {
   const isItp = type === 'itp';
   const estadoColor = {'Em curso':'var(--gm)','Resolvido':'var(--gray400)','Arquivado':'var(--gray400)'}[r.estado]||'var(--gray400)';
-  const gravColor = {Baixa:'var(--gm)',Média:'var(--amber)',Alta:'#d2691e',Crítica:'var(--red)'}[r.gravidade]||'';
   const cv = r.contacto_vitima||''; const ca = r.contacto_agressor||'';
   return `<div onclick="mobOpenDetail('${type}','${r.id}')" style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);border-left:4px solid ${isItp?'var(--red)':'var(--gl)'};margin-bottom:10px;box-shadow:var(--sh);cursor:pointer;overflow:hidden">
     <div style="padding:12px 14px">
@@ -9007,7 +8904,6 @@ function mobCardItem(type, r) {
         <div style="text-align:right;flex-shrink:0">
           <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:${isItp?'var(--redl)':'var(--gp)'};color:${isItp?'var(--red)':'var(--gm)'}">${isItp?'ITP':'INC'}</span>
           <div style="font-size:11px;color:${estadoColor};font-weight:600;margin-top:4px">${r.estado}</div>
-          ${r.gravidade?`<div style="font-size:10px;color:${gravColor};font-weight:500">${r.gravidade}</div>`:''}
         </div>
       </div>
       <div style="font-size:11px;color:var(--gray400);margin-bottom:6px"><i class="fas fa-clock"></i> ${fmtDateTime(r.data_hora)}</div>
@@ -9053,7 +8949,6 @@ function mobRenderDetalhe() {
       <div style="font-size:13px;opacity:.8"><i class="fas fa-map-marker-alt"></i> ${r.local}</div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
         <span style="background:rgba(255,255,255,.15);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600">${r.estado}</span>
-        ${r.gravidade?`<span style="background:rgba(255,255,255,.15);padding:4px 10px;border-radius:20px;font-size:11px">${r.gravidade}</span>`:''}
         ${r.num_refens?`<span style="background:rgba(255,255,255,.15);padding:4px 10px;border-radius:20px;font-size:11px"><i class="fas fa-users"></i> ${r.num_refens} reféns</span>`:''}
       </div>
     </div>
@@ -9183,8 +9078,6 @@ function mobAbrirEditar() {
       document.getElementById('edit-inc-id').value = r.id;
       sgiTipoSet('edit-inc-tipo', r.tipo||'');
       document.getElementById('edit-inc-local').value = r.local||'';
-      document.getElementById('edit-inc-grav').value = r.gravidade||'';
-      renderGravCriterios(r.gravidade,'edit-inc-grav-criterios',r.gravidade_criterios||[]);
       document.getElementById('edit-inc-estado').value = r.estado||'Em curso';
       document.getElementById('edit-inc-desc').value = r.descricao||'';
       if(r.data_hora){const d=new Date(r.data_hora);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());document.getElementById('edit-inc-data').value=d.toISOString().slice(0,16);}
@@ -9194,8 +9087,6 @@ function mobAbrirEditar() {
       document.getElementById('edit-itp-local').value = r.local||'';
       document.getElementById('edit-itp-neg').value = r.negociador||'';
       document.getElementById('edit-itp-estado').value = r.estado||'Em curso';
-      document.getElementById('edit-itp-grav').value = r.gravidade||'';
-      renderGravCriterios(r.gravidade,'edit-itp-grav-criterios',r.gravidade_criterios||[]);
       document.getElementById('edit-itp-desc').value = r.descricao||'';
       if(r.data_hora){const d=new Date(r.data_hora);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());document.getElementById('edit-itp-data').value=d.toISOString().slice(0,16);}
     }
@@ -10032,9 +9923,6 @@ function mobBuildForms(){
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">CTer *</label>
       <select id="mob-inc-cter"><option value="">Selecionar...</option><option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option><option>CTer Castelo Branco</option><option>CTer Coimbra</option><option>CTer Évora</option><option>CTer Faro</option><option>CTer Guarda</option><option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option><option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option><option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option></select></div>
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Data e Hora *</label><input type="datetime-local" id="mob-inc-data"></div>
-    <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Gravidade</label>
-      <select id="mob-inc-grav" onchange="renderGravCriterios(this.value,'mob-inc-grav-criterios',[])"><option value="">Selecionar...</option><option>Baixa</option><option>Média</option><option>Alta</option><option>Crítica</option></select></div>
-    <div id="mob-inc-grav-criterios" style="display:none;margin-bottom:12px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
       <div><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Contacto Vítima</label><input type="tel" id="mob-inc-cv" placeholder="Nº telefone..."></div>
       <div><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Contacto Agressor</label><input type="tel" id="mob-inc-ca" placeholder="Nº telefone..."></div>
@@ -10063,8 +9951,6 @@ function mobBuildForms(){
       <div><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Contacto Vítima</label><input type="tel" id="mob-itp-cv" placeholder="Nº telefone..."></div>
       <div><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Contacto Agressor</label><input type="tel" id="mob-itp-ca" placeholder="Nº telefone..."></div>
     </div>
-    <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Gravidade</label><select id="mob-itp-grav" onchange="renderGravCriterios(this.value,'mob-itp-grav-criterios',[])"><option value="">Selecionar...</option><option>Média</option><option>Alta</option><option>Crítica</option></select></div>
-    <div id="mob-itp-grav-criterios" style="display:none;margin-bottom:12px"></div>
     <div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Descrição Tática</label><textarea id="mob-itp-desc" placeholder="Situação tática..." rows="3"></textarea></div>
     <button onclick="mobSaveITP()" style="width:100%;padding:16px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-size:16px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px"><i class="fas fa-save"></i> Guardar ITP</button>`;
 
@@ -10091,13 +9977,13 @@ async function mobSaveInc(){
   const tipo=sgiTipoValor('mob-inc-tipo')||'Por definir';
   const local=document.getElementById('mob-inc-local')?.value.trim()||'Por definir';
   const data=document.getElementById('mob-inc-data')?.value||nowFallback;
-  const grav=document.getElementById('mob-inc-grav')?.value||'';
+  const grav='';
   const payload={
     tipo,local,
     cter:document.getElementById('mob-inc-cter')?.value||'',
     data_hora:new Date(data).toISOString(),
     gravidade:grav,
-    gravidade_criterios:collectGravCriterios('mob-inc-grav-criterios'),
+    gravidade_criterios:[],
     estado:'Em curso',
     descricao:document.getElementById('mob-inc-desc')?.value.trim()||'',
     contacto_vitima:document.getElementById('mob-inc-cv')?.value.trim()||'',
@@ -10125,8 +10011,8 @@ async function mobSaveITP(){
     negociador:document.getElementById('mob-itp-neg')?.value.trim()||currentProfile.nome,
     num_suspeitos:parseInt(document.getElementById('mob-itp-sus')?.value)||0,
     num_refens:parseInt(document.getElementById('mob-itp-ref')?.value)||0,
-    gravidade:(document.getElementById('mob-itp-grav')?.value||''),
-    gravidade_criterios:collectGravCriterios('mob-itp-grav-criterios'),
+    gravidade:'',
+    gravidade_criterios:[],
     estado:'Em curso',
     descricao:document.getElementById('mob-itp-desc')?.value.trim()||'',
     contacto_vitima:document.getElementById('mob-itp-cv')?.value.trim()||'',
