@@ -2354,14 +2354,13 @@ function renderPosto(){
     h+='<div class="form-section"><h3><i class="fas fa-headset" style="color:var(--red)"></i> Posto n.º 1 — contacto</h3>'
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Informação que lhe é prestada. Não preenche formulários durante o contacto.</p>'
       + _notasHTML(false)
-      +'<div style="margin-top:12px">'+_quadrosHTML(false)+'</div></div>';
+      +'</div>';
   }
   if(eN2){
     h+='<div class="form-section"><h3><i class="fas fa-user-group" style="color:var(--gl)"></i> Posto n.º 2 — apoio e blindagem</h3>'
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Organiza o fluxo de informação a passar ao n.º 1 (5.19) e pede ao n.º 3 o que faltar.</p>'
       + _notasHTML(true)
       + _pedidosHTML(true, eN3)
-      + (eN3?'':'<div style="margin-top:12px">'+_quadrosHTML(false)+'</div>')
       +'</div>';
   }
   if(eN3){
@@ -2371,9 +2370,6 @@ function renderPosto(){
       + _quadrosHTML(true)
       + (eN2?'':_pedidosHTML(false, true))
       +'</div>';
-  }
-  if((eN4||eNC) && !eN3){
-    h+='<div class="form-section"><h3><i class="fas fa-table-columns" style="color:var(--gray600)"></i> Quadros</h3>'+_quadrosHTML(false)+'</div>';
   }
   if(eN4){
     h+='<div class="form-section"><h3><i class="fas fa-filter" style="color:var(--gl)"></i> Posto n.º 4 — gestão da informação e doutrina</h3>'
