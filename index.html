@@ -1422,7 +1422,8 @@ async function openRecord(type,record){
   renderDetailHeader();
   showSection('detail');
   enVerTodosTabs = false;
-  showTab(enFuncoesAtuais().length ? 'tab-posto' : 'tab-resumo');
+  _postoEscolhido = null;
+  showTab('tab-posto');
   // Show edit/delete buttons for admin
   const isAdmin = currentProfile?.role === 'admin';
   const editBtn = document.getElementById('detail-edit-btn');
@@ -2043,10 +2044,60 @@ const EN_TABS = {
 };
 const TAB_BTN_ORDEM = ['tab-resumo','tab-info','tab-iris','tab-visado','tab-posto','tab-pd','tab-sari','tab-plano','tab-rnrv','tab-hist'];
 
+// Posição que o militar declarou ocupar neste caso (só nesta sessão, não é gravada).
+let _postoEscolhido = null;
+
+const EN_ORDEM = ['n1','n2','n3','n4','nc'];
+
+// Acumulação de funções (5.29 e 5.30): assumida em sentido decrescente, com
+// exceção do n.º 1, que nunca acumula. A posição mais alta escalada absorve as
+// funções das posições acima dela que não estejam preenchidas.
+function enAcumulacao(eq, k){
+  eq = eq || {};
+  if(!k) return [];
+  if(k === 'n1') return ['n1'];
+  const tem = p => !!(eq[p] && eq[p].id);
+  const i = EN_ORDEM.indexOf(k);
+  if(i < 0) return [];
+  // só acumula quem for a posição preenchida mais alta
+  for(let j = i + 1; j < EN_ORDEM.length; j++){ if(tem(EN_ORDEM[j])) return [k]; }
+  const out = [k];
+  for(let j = i + 1; j < EN_ORDEM.length; j++) out.push(EN_ORDEM[j]);
+  return out;
+}
+
+// A Coordenação sobe para a posição mais alta que estiver escalada.
+// Com Coordenador escalado, é partilhada com o n.º 4.
+function enQuemVeCoordenacao(eq){
+  const tem = k => !!(eq && eq[k] && eq[k].id);
+  if(tem('nc')) return ['nc','n4'];
+  if(tem('n4')) return ['n4'];
+  if(tem('n3')) return ['n3'];
+  if(tem('n2')) return ['n2'];
+  return ['n1'];
+}
+function podeVerCoordenacao(){
+  if(!currentDetail) return false;
+  const eq = (currentDetail.record && currentDetail.record.equipa) || {};
+  const donos = enQuemVeCoordenacao(eq);
+  return enFuncoesAtuais().some(k => donos.indexOf(k) > -1);
+}
 function enFuncoesAtuais(){
   if(!currentDetail || !currentUser) return [];
-  try { return enFuncoesDe(currentDetail.record.equipa||{}, currentUser.id) || []; }
+  const eq = (currentDetail.record && currentDetail.record.equipa) || {};
+  if(_postoEscolhido) return enAcumulacao(eq, _postoEscolhido);
+  try { return enFuncoesDe(eq, currentUser.id) || []; }
   catch(e){ return []; }
+}
+function escolherPosto(k){
+  _postoEscolhido = k;
+  renderPosto();
+  aplicarFiltroPosto();
+}
+function trocarPosto(){
+  _postoEscolhido = null;
+  renderPosto();
+  aplicarFiltroPosto();
 }
 function enAlguemEscalado(){
   const eq = (currentDetail && currentDetail.record && currentDetail.record.equipa) || {};
@@ -2060,12 +2111,15 @@ function aplicarFiltroPosto(){
   const f = enFuncoesAtuais();
   const isAdmin = currentProfile && (currentProfile.role === 'admin' || currentProfile.role === 'suporte');
   // Sem EN escalada ainda, ou admin/suporte, ou escape ligado -> mostra tudo.
-  const mostrarTudo = enVerTodosTabs || isAdmin || !enAlguemEscalado() || !f.length;
+  const mostrarTudo = enVerTodosTabs || isAdmin || !enAlguemEscalado();
 
   let permitidos = null;
-  if(!mostrarTudo){
+  if(!mostrarTudo && !_postoEscolhido){
+    permitidos = {'tab-posto': true, 'tab-resumo': true};
+  } else if(!mostrarTudo){
     const set = {};
     f.forEach(k => (EN_TABS[k]||[]).forEach(t => { set[t] = true; }));
+    if(!podeVerCoordenacao()) delete set['tab-posto'];
     permitidos = set;
   }
   const botoes = nav.querySelectorAll('.tab-btn');
@@ -2336,19 +2390,58 @@ async function exportQuadroCoordenadorPDF(){
   doc.save('QuadroCoordenador_' + String(r.local||'').replace(/[^\w]+/g,'_').slice(0,20) + '_' + new Date().toISOString().slice(0,16).replace(/[:T]/g,'') + '.pdf');
 }
 
+function _seletorPostoHTML(){
+  const eq = (currentDetail && currentDetail.record && currentDetail.record.equipa) || {};
+  const preenchidos = enPreenchidos(eq);
+  const tem = k => !!(eq[k] && eq[k].id);
+  const meu = (() => { try { return enFuncoesDe(eq, currentUser.id) || []; } catch(e){ return []; } })();
+
+  let h = '<div class="form-section">'
+    + '<h3><i class="fas fa-hand-pointer" style="color:var(--gl)"></i> Que posição ocupa neste caso?</h3>'
+    + '<p style="font-size:12px;color:var(--gray600);margin:-2px 0 12px;line-height:1.55">Escolha o seu número. Os formulários e separadores passam a ser os dessa posição, já com a acumulação de funções que resulta de a célula estar constituída a '
+    + preenchidos.length + ' negociador' + (preenchidos.length === 1 ? '' : 'es') + ' (5.29, 5.30).</p>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:9px">';
+
+  EN_POSICOES.forEach(p => {
+    const ocupada = tem(p.k);
+    const eMeu = meu.indexOf(p.k) > -1;
+    const acum = enAcumulacao(eq, p.k);
+    h += '<button onclick="escolherPosto(\'' + p.k + '\')" style="text-align:left;background:#fff;border:1px solid ' + (eMeu ? 'var(--gl)' : 'var(--border)') + ';border-left:3px solid ' + (eMeu ? 'var(--gl)' : 'var(--gray300)') + ';border-radius:var(--r);padding:11px 13px;cursor:pointer;font-family:\'IBM Plex Sans\',sans-serif">'
+      + '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">'
+      + '<span style="font-size:14px;font-weight:700;color:var(--gn)">' + p.nome + '</span>'
+      + (eMeu ? '<span style="background:var(--gl);color:#fff;border-radius:10px;padding:1px 7px;font-size:9.5px;font-weight:600">ESCALADO</span>' : '')
+      + '</div>'
+      + '<div style="font-size:11.5px;color:var(--gray600);line-height:1.45">' + p.desc + '</div>'
+      + (ocupada ? '<div style="font-size:10.5px;color:var(--gray400);margin-top:4px;font-family:\'IBM Plex Mono\',monospace">' + enNomeUtil(eq[p.k]) + '</div>' : '')
+      + (acum.length > 1 ? '<div style="font-size:10.5px;color:var(--gold);margin-top:4px;font-weight:600"><i class="fas fa-layer-group" style="margin-right:4px"></i>acumula ' + acum.slice(1).map(enNomePos).join(', ') + '</div>' : '')
+      + '</button>';
+  });
+
+  h += '</div>';
+  if(!preenchidos.length) h += '<p style="font-size:12px;color:var(--gray600);margin:12px 0 0"><i class="fas fa-circle-info" style="margin-right:5px"></i>A EN ainda não está escalada neste caso, por isso não há acumulação calculada.</p>';
+  return h + '</div>';
+}
+
 function renderPosto(){
   const el=document.getElementById('posto-content');
   if(!el||!currentDetail) return;
   const r=currentDetail.record;
   const eq=r.equipa||{};
-  const f=enFuncoesDe(eq, currentUser.id);
+  if(!_postoEscolhido){ el.innerHTML = _seletorPostoHTML(); return; }
+  const f = enFuncoesAtuais();
   if(!f.length){
-    el.innerHTML='<div class="form-section"><div style="padding:1.5rem;text-align:center;color:var(--gray400);font-size:13px"><i class="fas fa-user-slash" style="font-size:26px;opacity:.3;display:block;margin-bottom:8px"></i>Não está escalado na EN deste caso.<br>A escalação faz-se no separador <strong>Resumo</strong>.</div></div>';
+    el.innerHTML = _seletorPostoHTML();
     return;
   }
   const eN1=f.indexOf('n1')>-1, eN2=f.indexOf('n2')>-1, eN3=f.indexOf('n3')>-1, eN4=f.indexOf('n4')>-1, eNC=f.indexOf('nc')>-1;
-  let h='<div class="form-section"><h3><i class="fas fa-user-shield" style="color:var(--gl)"></i> O seu posto: '+f.map(enNomePos).join(' + ')+'</h3>';
-  if(f.length>1) h+='<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Acumulação de funções (5.29) — tem acesso aos formulários de todas as posições que ocupa.</p>';
+  let h='<div class="form-section"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+    +'<h3 style="margin:0"><i class="fas fa-user-shield" style="color:var(--gl)"></i> '+enNomePos(_postoEscolhido)+'</h3>'
+    +'<button class="btn btn-ghost btn-sm" onclick="trocarPosto()" style="font-size:11.5px"><i class="fas fa-rotate"></i> Trocar de posição</button></div>';
+  if(f.length>1){
+    h+='<p style="font-size:12px;color:var(--gray600);margin:8px 0 0;line-height:1.55"><i class="fas fa-layer-group" style="color:var(--gold);margin-right:5px"></i>'
+      +'<strong>Acumulação de funções (5.29, 5.30).</strong> A célula está constituída a '+enPreenchidos(eq).length+' negociadores, pelo que acumula: '
+      + f.slice(1).map(enNomePos).join(', ') + '.</p>';
+  }
   h+='</div>';
   if(eN1){
     h+='<div class="form-section"><h3><i class="fas fa-headset" style="color:var(--red)"></i> Posto n.º 1 — contacto</h3>'
@@ -6729,7 +6822,8 @@ function openTreinoRecord(type, record) {
   renderDetailHeader();
   showSection('detail');
   enVerTodosTabs = false;
-  showTab(enFuncoesAtuais().length ? 'tab-posto' : 'tab-resumo');
+  _postoEscolhido = null;
+  showTab('tab-posto');
 
   // Add treino badge to detail header
   const header = document.getElementById('detail-header');
