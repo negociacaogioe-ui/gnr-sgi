@@ -1493,7 +1493,8 @@ async function openRecord(type,record){
   document.getElementById('detail-back-btn').textContent='← Voltar a '+(type==='inc'?'Incidentes':'ITP');
   renderDetailHeader();
   showSection('detail');
-  showTab('tab-resumo');
+  enVerTodosTabs = false;
+  showTab(enFuncoesAtuais().length ? 'tab-posto' : 'tab-resumo');
   // Show edit/delete buttons for admin
   const isAdmin = currentProfile?.role === 'admin';
   const editBtn = document.getElementById('detail-edit-btn');
@@ -1561,8 +1562,7 @@ function showTab(tabId){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById(tabId).classList.add('active');
   var _vb=document.getElementById('tab-visado-btn'); if(_vb) _vb.style.display=(currentDetail&&currentDetail.isTreino)?'none':'';
-  const _tr=!!(currentDetail&&currentDetail.isTreino);
-  ['tab-posto-btn','tab-pd-btn'].forEach(function(b){var e=document.getElementById(b); if(e) e.style.display=_tr?'':'none';});
+  aplicarFiltroPosto();
   const idx=['tab-resumo','tab-info','tab-iris','tab-visado','tab-posto','tab-pd','tab-sari','tab-plano','tab-rnrv','tab-hist'].indexOf(tabId);
   document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
   if(tabId==='tab-resumo')renderResumo();
@@ -2064,6 +2064,317 @@ function _notasHTML(podeEnviar){
   }
   return h+'</div>';
 }
+
+// ===== FILTRO DE SEPARADORES POR POSTO NA EN =====
+// Cada posição vê apenas os separadores que lhe competem. Isto é organização
+// de interface, não segurança: o controlo de acesso real continua no RLS do
+// Supabase. Há sempre "Ver todos os separadores" porque no terreno acontecem
+// acumulações (5.29) e substituições.
+let enVerTodosTabs = false;
+
+const EN_TABS = {
+  n1: ['tab-posto','tab-resumo','tab-rnrv'],
+  n2: ['tab-posto','tab-resumo','tab-info','tab-rnrv'],
+  n3: ['tab-posto','tab-resumo','tab-info','tab-rnrv'],
+  n4: ['tab-posto','tab-resumo','tab-info','tab-pd','tab-plano','tab-iris','tab-sari','tab-visado','tab-hist'],
+  nc: ['tab-posto','tab-resumo','tab-info','tab-plano','tab-pd','tab-iris','tab-sari','tab-rnrv','tab-hist']
+};
+const TAB_BTN_ORDEM = ['tab-resumo','tab-info','tab-iris','tab-visado','tab-posto','tab-pd','tab-sari','tab-plano','tab-rnrv','tab-hist'];
+
+function enFuncoesAtuais(){
+  if(!currentDetail || !currentUser) return [];
+  try { return enFuncoesDe(currentDetail.record.equipa||{}, currentUser.id) || []; }
+  catch(e){ return []; }
+}
+function enAlguemEscalado(){
+  const eq = (currentDetail && currentDetail.record && currentDetail.record.equipa) || {};
+  return enPreenchidos(eq).length > 0;
+}
+function toggleVerTodosTabs(){ enVerTodosTabs = !enVerTodosTabs; aplicarFiltroPosto(); }
+
+function aplicarFiltroPosto(){
+  const nav = document.getElementById('tabs-nav');
+  if(!nav) return;
+  const f = enFuncoesAtuais();
+  const isAdmin = currentProfile && (currentProfile.role === 'admin' || currentProfile.role === 'suporte');
+  // Sem EN escalada ainda, ou admin/suporte, ou escape ligado -> mostra tudo.
+  const mostrarTudo = enVerTodosTabs || isAdmin || !enAlguemEscalado() || !f.length;
+
+  let permitidos = null;
+  if(!mostrarTudo){
+    const set = {};
+    f.forEach(k => (EN_TABS[k]||[]).forEach(t => { set[t] = true; }));
+    permitidos = set;
+  }
+  const botoes = nav.querySelectorAll('.tab-btn');
+  TAB_BTN_ORDEM.forEach((tid, i) => {
+    const b = botoes[i];
+    if(!b) return;
+    if(tid === 'tab-visado' && currentDetail && currentDetail.isTreino){ b.style.display = 'none'; return; }
+    b.style.display = (mostrarTudo || permitidos[tid]) ? '' : 'none';
+  });
+
+  // aviso + botão de escape
+  let aviso = document.getElementById('en-filtro-aviso');
+  if(!aviso){
+    aviso = document.createElement('div');
+    aviso.id = 'en-filtro-aviso';
+    aviso.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--gray600);margin:-6px 0 12px;padding:7px 11px;background:var(--gp);border:1px solid var(--border);border-radius:var(--r)';
+    nav.parentNode.insertBefore(aviso, nav.nextSibling);
+  }
+  if(!f.length && !isAdmin && enAlguemEscalado()){
+    aviso.innerHTML = '<span><i class="fas fa-user-slash" style="color:var(--gray400);margin-right:5px"></i>Não está escalado na EN deste caso — vê todos os separadores, mas o separador Posto não tem conteúdo para si.</span>';
+  } else if(mostrarTudo){
+    aviso.innerHTML = '<span><i class="fas fa-eye" style="color:var(--gl);margin-right:5px"></i>'
+      + (isAdmin ? 'Perfil de administração — vê todos os separadores.'
+         : !enAlguemEscalado() ? 'EN ainda por escalar — todos os separadores disponíveis. Depois de escalada, cada posto vê o que lhe compete.'
+         : 'A ver todos os separadores.') + '</span>'
+      + (f.length && !isAdmin ? '<button class="btn btn-ghost btn-sm" onclick="toggleVerTodosTabs()" style="font-size:11.5px;margin-left:auto"><i class="fas fa-filter"></i> Voltar ao meu posto</button>' : '');
+  } else {
+    aviso.innerHTML = '<span><i class="fas fa-user-shield" style="color:var(--gl);margin-right:5px"></i>A ver os separadores do seu posto: <strong>'
+      + f.map(enNomePos).join(' + ') + '</strong></span>'
+      + '<button class="btn btn-ghost btn-sm" onclick="toggleVerTodosTabs()" style="font-size:11.5px;margin-left:auto"><i class="fas fa-eye"></i> Ver todos os separadores</button>';
+  }
+}
+
+// ===== PEDIDOS DE INFORMAÇÃO (n.º 2 -> n.º 3) =====
+function _pedidosHTML(podeEnviar, podeResponder){
+  const r = currentDetail.record;
+  const ps = Array.isArray(r.pedidos_n3) ? r.pedidos_n3 : [];
+  let h = '<div style="background:#fff;border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:var(--r);padding:11px;margin-top:12px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px"><i class="fas fa-hand" style="margin-right:5px"></i>Pedidos de informação ao n.º 3</div>';
+  const pend = ps.filter(p => !p.resp).length;
+  h += ps.length
+    ? ps.slice().reverse().map((p, ri) => {
+        const i = ps.length - 1 - ri;
+        return '<div style="background:' + (p.resp ? 'var(--gp)' : '#fff') + ';border:1px solid ' + (p.resp ? 'var(--gl)' : 'var(--border)') + ';border-radius:6px;padding:8px 10px;margin-bottom:6px">'
+          + '<div style="font-size:13.5px;line-height:1.5;color:var(--gray900)">' + (p.resp ? '<i class="fas fa-check" style="color:var(--gm);margin-right:5px"></i>' : '<i class="fas fa-clock" style="color:var(--gold);margin-right:5px"></i>') + p.t + '</div>'
+          + (p.resp ? '<div style="font-size:12.5px;color:var(--gm);margin-top:4px;padding-left:16px">' + p.resp + '</div>' : '')
+          + '<div style="font-size:10.5px;color:var(--gray400);margin-top:3px;font-family:\'IBM Plex Mono\',monospace">' + (p.a||'—') + ' · ' + fmtDateTime(p.ts) + '</div>'
+          + (podeResponder && !p.resp ? '<div style="display:flex;gap:5px;margin-top:6px"><input id="ped-resp-' + i + '" placeholder="Responder..." onkeydown="if(event.key===\'Enter\')pedidoResponder(' + i + ')" style="font-size:12px;padding:5px 7px"><button class="btn btn-primary btn-sm" onclick="pedidoResponder(' + i + ')" style="padding:5px 9px"><i class="fas fa-reply"></i></button></div>' : '')
+          + '</div>';
+      }).join('')
+    : '<div style="font-size:12px;color:var(--gray400);font-style:italic">Sem pedidos.</div>';
+  if(podeResponder && pend) h = h.replace('Pedidos de informação ao n.º 3', 'Pedidos de informação ao n.º 3 <span style="background:var(--gold);color:var(--gn);border-radius:10px;padding:1px 7px;font-size:10px">' + pend + ' por responder</span>');
+  if(podeEnviar){
+    h += '<div style="display:flex;gap:5px;margin-top:8px"><input id="ped-in" placeholder="Pedir informação ao n.º 3..." onkeydown="if(event.key===\'Enter\')pedidoEnviar()" style="font-size:13px"><button class="btn btn-primary btn-sm" onclick="pedidoEnviar()"><i class="fas fa-paper-plane"></i></button></div>';
+  }
+  return h + '</div>';
+}
+async function pedidoEnviar(){
+  const inp = document.getElementById('ped-in');
+  if(!inp || !inp.value.trim()) return;
+  const ps = JSON.parse(JSON.stringify(currentDetail.record.pedidos_n3 || []));
+  ps.push({ t: inp.value.trim(), a: currentProfile.nome, ts: new Date().toISOString(), resp: null });
+  inp.value = '';
+  if(await _postoUpdate({pedidos_n3: ps})) renderPosto();
+}
+async function pedidoResponder(i){
+  const inp = document.getElementById('ped-resp-' + i);
+  if(!inp || !inp.value.trim()) return;
+  const ps = JSON.parse(JSON.stringify(currentDetail.record.pedidos_n3 || []));
+  if(!ps[i]) return;
+  ps[i].resp = inp.value.trim();
+  ps[i].respA = currentProfile.nome;
+  ps[i].respTs = new Date().toISOString();
+  if(await _postoUpdate({pedidos_n3: ps})) renderPosto();
+}
+
+// ===== ENTRADA RÁPIDA NOS QUADROS (n.º 3, durante o contacto) =====
+let _qRapidoDestino = 'exigencias';
+function _entradaRapidaHTML(){
+  return '<div style="background:var(--gn);border-radius:var(--r);padding:11px;margin-bottom:12px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px"><i class="fas fa-bolt" style="margin-right:5px"></i>Entrada rápida — escreva e Enter</div>'
+    + '<div style="display:flex;gap:5px;margin-bottom:8px"><input id="q-rapido" placeholder="Escreva aqui durante o contacto..." onkeydown="if(event.key===\'Enter\')quadroRapidoAdd()" style="font-size:15px;padding:10px 12px;flex:1"><button class="btn btn-gold btn-sm" onclick="quadroRapidoAdd()" style="padding:8px 14px"><i class="fas fa-plus"></i></button></div>'
+    + '<div style="display:flex;gap:5px;flex-wrap:wrap">'
+    + QUADROS_CAB.map((c, i) => '<button onclick="qRapidoDestino(\'' + c.k + '\')" id="qr-btn-' + c.k + '" style="border:1px solid rgba(255,255,255,.25);background:' + (_qRapidoDestino===c.k ? 'var(--gold)' : 'transparent') + ';color:' + (_qRapidoDestino===c.k ? 'var(--gn)' : 'rgba(255,255,255,.75)') + ';border-radius:20px;padding:5px 11px;font-size:11.5px;cursor:pointer;font-family:\'IBM Plex Sans\',sans-serif;font-weight:' + (_qRapidoDestino===c.k ? '600' : '400') + '"><span style="opacity:.6;margin-right:4px">' + (i+1) + '</span>' + c.t + '</button>').join('')
+    + '</div>'
+    + '<div style="font-size:10.5px;color:rgba(255,255,255,.45);margin-top:7px">Passa a maiúsculas automaticamente (5.22). Atalho: teclas 1 a ' + QUADROS_CAB.length + ' para trocar de quadro.</div>'
+    + '</div>';
+}
+function qRapidoDestino(k){
+  _qRapidoDestino = k;
+  QUADROS_CAB.forEach(c => {
+    const b = document.getElementById('qr-btn-' + c.k);
+    if(!b) return;
+    const on = c.k === k;
+    b.style.background = on ? 'var(--gold)' : 'transparent';
+    b.style.color = on ? 'var(--gn)' : 'rgba(255,255,255,.75)';
+    b.style.fontWeight = on ? '600' : '400';
+  });
+  const inp = document.getElementById('q-rapido'); if(inp) inp.focus();
+}
+async function quadroRapidoAdd(){
+  const inp = document.getElementById('q-rapido');
+  if(!inp || !inp.value.trim()) return;
+  const q = JSON.parse(JSON.stringify(currentDetail.record.quadros || {}));
+  if(!Array.isArray(q[_qRapidoDestino])) q[_qRapidoDestino] = [];
+  q[_qRapidoDestino].push({ t: inp.value.trim().toUpperCase(), a: currentProfile.nome, ts: new Date().toISOString() });
+  inp.value = '';
+  const destino = _qRapidoDestino;
+  if(await _postoUpdate({quadros: q})){
+    renderPosto();
+    setTimeout(() => { _qRapidoDestino = destino; qRapidoDestino(destino); }, 60);
+  }
+}
+
+// ===== QUADRO DO COORDENADOR =====
+// Painel de briefing ao Cmdt GI (4.85). Conteúdo por validar com a EN.
+async function renderQuadroCoordenador(){
+  const box = document.getElementById('qc-content');
+  if(!box || !currentDetail) return;
+  const { type, record:r } = currentDetail;
+  const pt = type === 'inc' ? 'incidente' : 'itp';
+  let iris = null, sari = null, plano = null, cts = [];
+  try{
+    const [a,b,c,d] = await Promise.all([
+      sb.from('iris').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+      sb.from('sari').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+      sb.from('plano_negociacao').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+      sb.from('rnrv_contactos').select('*').eq('parent_type',pt).eq('parent_id',r.id).order('contact_datetime',{ascending:false})
+    ]);
+    iris = a.data; sari = b.data; plano = c.data; cts = d.data || [];
+  }catch(e){}
+  if(!document.getElementById('qc-content')) return;
+
+  const decorrido = () => {
+    const ini = new Date(r.data_hora || r.created_at).getTime();
+    if(!ini) return '—';
+    const m = Math.floor((Date.now() - ini) / 60000);
+    return (m >= 60 ? Math.floor(m/60) + 'h' + String(m%60).padStart(2,'0') : m + ' min');
+  };
+  const cartao = (titulo, valor, sub, cor) =>
+    '<div style="background:#fff;border:1px solid var(--border);border-top:3px solid ' + (cor||'var(--gn)') + ';border-radius:var(--r);padding:11px 13px">'
+    + '<div style="font-size:10px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">' + titulo + '</div>'
+    + '<div style="font-size:19px;font-weight:700;color:' + (cor||'var(--gn)') + ';line-height:1.15">' + valor + '</div>'
+    + (sub ? '<div style="font-size:11.5px;color:var(--gray600);margin-top:3px;line-height:1.4">' + sub + '</div>' : '')
+    + '</div>';
+  const lista = (titulo, itens, cor) =>
+    '<div style="background:#fff;border:1px solid var(--border);border-top:3px solid ' + cor + ';border-radius:var(--r);padding:11px 13px">'
+    + '<div style="font-size:10px;font-weight:700;color:' + cor + ';text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">' + titulo + '</div>'
+    + (itens.length ? itens.slice(0,5).map(x => '<div style="font-size:12.5px;line-height:1.5;color:var(--gray900);font-family:\'IBM Plex Mono\',monospace;padding:2px 0">• ' + (x.t||x) + '</div>').join('')
+                    : '<div style="font-size:12px;color:var(--gray400);font-style:italic">—</div>')
+    + '</div>';
+
+  const q = r.quadros || {};
+  const eq = r.equipa || {};
+  const irisCor = iris ? (String(iris.risk_level||'').toUpperCase().indexOf('ELEV') > -1 ? 'var(--red)' : String(iris.risk_level||'').toUpperCase().indexOf('INTERM') > -1 ? 'var(--amber)' : 'var(--gm)') : 'var(--gray400)';
+  const sariCor = sari ? ((sari.risk_level||0) <= 3 ? 'var(--gm)' : (sari.risk_level||0) <= 6 ? 'var(--amber)' : 'var(--red)') : 'var(--gray400)';
+  const ult = cts[0];
+
+  box.innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin-bottom:10px">'
+    + cartao('Situação', r.tipo || '—', r.local || '', r.is_itp ? 'var(--red)' : 'var(--gl)')
+    + cartao('Estado / decorrido', r.estado || '—', 'Há ' + decorrido() + ' · ' + (r.cter||'—'))
+    + cartao('IRIS', iris ? (iris.score != null ? iris.score + ' pts' : '—') : 'Não preenchido', iris ? (iris.risk_level||'') : '', irisCor)
+    + cartao('SARI', sari ? (sari.negotiation_probability != null ? sari.negotiation_probability + '%' : '—') : 'Não preenchido', sari ? ('Cooperação · risco ' + (sari.risk_level != null ? sari.risk_level + '/10' : '—')) : '', sariCor)
+    + cartao('Contactos', String(cts.length), ult ? ('Último: ' + fmtDateTime(ult.contact_datetime)) : 'Sem contactos')
+    + cartao('EN', String(enPreenchidos(eq).length) + ' negociador(es)', (eq.isolado ? '<span style="color:var(--red);font-weight:600">Negociador isolado — contrário ao 5.28</span>' : (eq.conformidade || '')))
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-bottom:10px">'
+    + lista('Exigências / ameaças', Array.isArray(q.exigencias) ? q.exigencias : [], 'var(--red)')
+    + lista('Ações positivas da GNR', Array.isArray(q.acoes) ? q.acoes : [], 'var(--gl)')
+    + lista('Evitar', Array.isArray(q.evitar) ? q.evitar : [], 'var(--red)')
+    + '</div>'
+    + '<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 14px">'
+    + '<div style="font-size:10px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px">Plano de Negociação</div>'
+    + (plano
+        ? '<div style="font-size:12.5px;line-height:1.7;color:var(--gray900)">'
+          + '<strong>Tipo de situação:</strong> ' + (plano.tipo_situacao || '—').toUpperCase() + ' &nbsp;·&nbsp; <strong>Alinhamento:</strong> ' + (plano.alinhamento || '—') + '<br>'
+          + '<strong>Objetivo principal:</strong> ' + (plano.objetivo_principal || '—') + '<br>'
+          + '<strong>Posição:</strong> ' + (plano.posicao_adversario || '—') + '<br>'
+          + '<strong>Interesses:</strong> ' + (plano.interesses_adversario || '—') + '<br>'
+          + '<strong>Tempo estimado:</strong> ' + (plano.tempo_estimado || '—')
+          + '</div>'
+        : '<div style="font-size:12px;color:var(--gray400);font-style:italic">Plano de Negociação por preencher.</div>')
+    + '</div>';
+}
+
+
+// PDF de uma página para briefing ao Cmdt GI
+async function exportQuadroCoordenadorPDF(){
+  if(!currentDetail) return;
+  const { type, record:r } = currentDetail;
+  const pt = type === 'inc' ? 'incidente' : 'itp';
+  let iris=null, sari=null, plano=null, cts=[];
+  try{
+    const [a,b,c,d] = await Promise.all([
+      sb.from('iris').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+      sb.from('sari').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+      sb.from('plano_negociacao').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+      sb.from('rnrv_contactos').select('*').eq('parent_type',pt).eq('parent_id',r.id).order('contact_datetime',{ascending:false})
+    ]);
+    iris=a.data; sari=b.data; plano=c.data; cts=d.data||[];
+  }catch(e){ alert('Não foi possível carregar os dados: '+((e&&e.message)||e)); return; }
+
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF();
+  let y = addPDFHeader(doc, 'Quadro do Coordenador', 'Briefing ao Cmdt GI — ' + (r.tipo||'') + ' · ' + (r.local||''));
+  const q = r.quadros || {}, eq = r.equipa || {};
+  const nl = () => { if(y > 265){ doc.addPage(); y = addPDFHeader(doc, 'Quadro do Coordenador (cont.)', ''); } };
+  const kv = (k, v) => {
+    nl();
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(60,60,60);
+    doc.text(String(k)+':', 16, y);
+    doc.setFont('helvetica','normal'); doc.setTextColor(20,20,20);
+    const l = doc.splitTextToSize(String(v==null||v==='' ? '—' : v), 128);
+    doc.text(l, 70, y); y += Math.max(6, l.length*5);
+  };
+  const sec = t => {
+    y += 2; nl();
+    doc.setFillColor(26,58,31); doc.rect(10,y,190,9,'F');
+    doc.setTextColor(255,255,255); doc.setFontSize(9); doc.setFont('helvetica','bold');
+    doc.text(String(t).toUpperCase(), 15, y+6); y += 14;
+    doc.setTextColor(30,30,30); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  };
+  const bullets = it => {
+    if(!it || !it.length){ nl(); doc.setFont('helvetica','italic'); doc.setTextColor(130,130,130); doc.text('—', 20, y); doc.setFont('helvetica','normal'); doc.setTextColor(20,20,20); y += 6; return; }
+    it.slice(0,8).forEach(x => { nl(); const l = doc.splitTextToSize('• ' + (x.t||x), 178); doc.text(l, 18, y); y += l.length*5; });
+    y += 2;
+  };
+  const ini = new Date(r.data_hora || r.created_at).getTime();
+  const mins = ini ? Math.floor((Date.now()-ini)/60000) : 0;
+  const decorrido = mins >= 60 ? Math.floor(mins/60)+'h'+String(mins%60).padStart(2,'0') : mins+' min';
+
+  sec('Situação');
+  kv('Classificação', r.is_itp ? 'Incidente Tático-Policial (ITP)' : 'Incidente de Segurança');
+  kv('Tipo / local', (r.tipo||'—') + ' · ' + (r.local||'—'));
+  kv('CTer', r.cter); kv('Estado', r.estado); kv('Tempo decorrido', decorrido);
+  if(r.is_itp){ kv('Suspeitos', r.num_suspeitos); kv('Reféns', r.num_refens); }
+
+  sec('Avaliação de risco');
+  kv('IRIS', iris ? ((iris.score!=null?iris.score+' pts':'—') + ' · ' + (iris.risk_level||'—')) : 'Não preenchido');
+  kv('SARI — cooperação', sari ? ((sari.negotiation_probability!=null?sari.negotiation_probability+'%':'—')) : 'Não preenchido');
+  kv('SARI — risco de violência', sari ? ((sari.risk_level!=null?sari.risk_level+'/10':'—')) : 'Não preenchido');
+
+  sec('Equipa de Negociação');
+  if(eq.isolado) kv('Negociador isolado', 'SIM — ação contrária à doutrina (PDGNR 1-04-18, 5.28)');
+  EN_POSICOES.forEach(p => { if(eq[p.k] && eq[p.k].id) kv(p.nome, enNomeUtil(eq[p.k])); });
+  kv('Conformidade (5.28)', eq.conformidade);
+
+  sec('Modalidade de ação proposta (PN)');
+  if(plano){
+    kv('Tipo de situação', (plano.tipo_situacao||'—').toUpperCase());
+    kv('Alinhamento', plano.alinhamento);
+    kv('Objetivo principal', plano.objetivo_principal);
+    kv('Posição', plano.posicao_adversario);
+    kv('Interesses', plano.interesses_adversario);
+    kv('Tempo estimado', plano.tempo_estimado);
+    kv('Meios', plano.meios);
+  } else { kv('Plano de Negociação', 'Por preencher'); }
+
+  sec('Exigências / ameaças'); bullets(q.exigencias);
+  sec('Ações positivas da GNR'); bullets(q.acoes);
+  sec('Evitar'); bullets(q.evitar);
+
+  sec('Contactos');
+  kv('Total', cts.length);
+  kv('Último contacto', cts[0] ? fmtDateTime(cts[0].contact_datetime) : '—');
+
+  addPDFFooter(doc);
+  doc.save('QuadroCoordenador_' + String(r.local||'').replace(/[^\w]+/g,'_').slice(0,20) + '_' + new Date().toISOString().slice(0,16).replace(/[:T]/g,'') + '.pdf');
+}
+
 function renderPosto(){
   const el=document.getElementById('posto-content');
   if(!el||!currentDetail) return;
@@ -2086,13 +2397,19 @@ function renderPosto(){
   }
   if(eN2){
     h+='<div class="form-section"><h3><i class="fas fa-user-group" style="color:var(--gl)"></i> Posto n.º 2 — apoio e blindagem</h3>'
-      +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Organiza o fluxo de informação a passar ao n.º 1 (5.19).</p>'
-      + _notasHTML(true)+'</div>';
+      +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Organiza o fluxo de informação a passar ao n.º 1 (5.19) e pede ao n.º 3 o que faltar.</p>'
+      + _notasHTML(true)
+      + _pedidosHTML(true, eN3)
+      + (eN3?'':'<div style="margin-top:12px">'+_quadrosHTML(false)+'</div>')
+      +'</div>';
   }
   if(eN3){
     h+='<div class="form-section"><h3><i class="fas fa-table-columns" style="color:var(--gl)"></i> Posto n.º 3 — quadros</h3>'
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Receção e organização da informação. Clara, precisa, concisa e em maiúsculas (5.22).</p>'
-      + _quadrosHTML(true)+'</div>';
+      + _entradaRapidaHTML()
+      + _quadrosHTML(true)
+      + (eN2?'':_pedidosHTML(false, true))
+      +'</div>';
   }
   if((eN4||eNC) && !eN3){
     h+='<div class="form-section"><h3><i class="fas fa-table-columns" style="color:var(--gray600)"></i> Quadros</h3>'+_quadrosHTML(false)+'</div>';
@@ -2102,12 +2419,19 @@ function renderPosto(){
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Gere a informação a introduzir na CN e garante o cumprimento da doutrina, do PN e do PD (5.25-5.27).</p>'
       +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="showTab(\'tab-info\')"><i class="fas fa-inbox"></i> Registos de informação</button><button class="btn btn-outline btn-sm" onclick="showTab(\'tab-pd\')"><i class="fas fa-comments"></i> Plano de Diálogo</button></div></div>';
   }
-  if(eNC){
-    h+='<div class="form-section"><h3><i class="fas fa-star" style="color:var(--gold)"></i> Posto Coordenador</h3>'
-      +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Apresenta o PN ao Cmdt GI, detalhando a modalidade de ação proposta (4.85).</p>'
-      +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="showTab(\'tab-plano\')"><i class="fas fa-clipboard-list"></i> Plano de Negociação</button><button class="btn btn-outline btn-sm" onclick="showTab(\'tab-pd\')"><i class="fas fa-comments"></i> Plano de Diálogo</button></div></div>';
+  if(eNC || eN4){
+    h+='<div class="form-section"><h3><i class="fas fa-star" style="color:var(--gold)"></i> Quadro do Coordenador</h3>'
+      +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Resumo para briefar o Cmdt GI a qualquer momento, com a modalidade de ação proposta (4.85). Atualiza ao abrir o separador.</p>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'
+      +'<button class="btn btn-outline btn-sm" onclick="renderQuadroCoordenador()"><i class="fas fa-rotate"></i> Atualizar</button>'
+      +'<button class="btn btn-gold btn-sm" onclick="exportQuadroCoordenadorPDF()"><i class="fas fa-file-pdf"></i> PDF para briefing</button>'
+      +'<button class="btn btn-outline btn-sm" onclick="showTab(\'tab-plano\')"><i class="fas fa-clipboard-list"></i> Plano de Negociação</button>'
+      +'<button class="btn btn-outline btn-sm" onclick="showTab(\'tab-pd\')"><i class="fas fa-comments"></i> Plano de Diálogo</button></div>'
+      +'<div id="qc-content"><div style="padding:1.2rem;text-align:center;color:var(--gray400);font-size:13px"><i class="fas fa-spinner fa-spin"></i> A compor o quadro...</div></div>'
+      +'</div>';
   }
   el.innerHTML=h;
+  if(eNC || eN4) renderQuadroCoordenador();
 }
 // ---- Plano de Diálogo (4.88) ----
 const PD_CAMPOS=[
@@ -6462,7 +6786,8 @@ function openTreinoRecord(type, record) {
   document.getElementById('detail-back-btn').textContent = '← Voltar ao Treino';
   renderDetailHeader();
   showSection('detail');
-  showTab('tab-resumo');
+  enVerTodosTabs = false;
+  showTab(enFuncoesAtuais().length ? 'tab-posto' : 'tab-resumo');
 
   // Add treino badge to detail header
   const header = document.getElementById('detail-header');
