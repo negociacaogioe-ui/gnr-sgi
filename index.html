@@ -1981,16 +1981,41 @@ function _quadrosHTML(editavel){
   }).join('')+'</div>';
 }
 function _notasHTML(podeEnviar){
-  const r=currentDetail.record; const ns=Array.isArray(r.notas_n1)?r.notas_n1:[];
-  let h='<div style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:11px">'
-    +'<div style="font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px"><i class="fas fa-comment-dots" style="margin-right:5px"></i>Notas ao n.º 1</div>';
-  h += ns.length ? ns.slice().reverse().map(n=>'<div style="background:#fff;border:1px solid '+(n.urgente?'var(--red)':'var(--border)')+';border-left:3px solid '+(n.urgente?'var(--red)':'var(--gl)')+';border-radius:6px;padding:8px 10px;margin-bottom:6px"><div style="font-size:13.5px;line-height:1.5;color:var(--gray900)">'+(n.urgente?'<i class="fas fa-triangle-exclamation" style="color:var(--red);margin-right:5px"></i>':'')+n.t+'</div><div style="font-size:10.5px;color:var(--gray400);margin-top:3px;font-family:\'IBM Plex Mono\',monospace">'+(n.a||'—')+' · '+fmtDateTime(n.ts)+'</div></div>').join('')
-                : '<div style="font-size:12px;color:var(--gray400);font-style:italic">Sem notas.</div>';
-  if(podeEnviar){
-    h+='<div style="display:flex;gap:5px;margin-top:8px"><input id="nota-in" placeholder="Nota a passar ao n.º 1..." onkeydown="if(event.key===\'Enter\')notaEnviar()" style="font-size:13px"><button class="btn btn-primary btn-sm" onclick="notaEnviar()"><i class="fas fa-paper-plane"></i></button></div>'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><label style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--gray600);cursor:pointer"><input type="checkbox" id="nota-urgente" style="width:auto"> Urgente</label><button class="btn btn-ghost btn-sm" onclick="notasLimpar()" style="font-size:11px">Limpar</button></div>';
+  const r = currentDetail.record;
+  const ns = Array.isArray(r.notas_n1) ? r.notas_n1 : [];
+  let h = '<div style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:11px">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:9px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.05em"><i class="fas fa-note-sticky" style="margin-right:5px"></i>Notas ao n.º 1</div>'
+    + (ns.length ? '<div style="font-size:10.5px;color:var(--gray400);font-family:\'IBM Plex Mono\',monospace">' + ns.length + ' nota' + (ns.length===1?'':'s') + ' · mais antiga à esquerda</div>' : '')
+    + '</div>';
+
+  if(ns.length){
+    // fita de tempo horizontal: ordem cronológica, da esquerda para a direita
+    h += '<div style="display:flex;gap:10px;overflow-x:auto;padding:4px 2px 10px;align-items:flex-start">'
+      + ns.map((n, i) => {
+          const urg = !!n.urgente;
+          const fundo = urg ? '#ffd9d4' : '#fff3b0';
+          const borda = urg ? '#e8a79e' : '#e6d071';
+          const rot = (i % 2 === 0) ? '-1.1deg' : '0.9deg';
+          return '<div style="flex:0 0 172px;background:' + fundo + ';border:1px solid ' + borda + ';border-radius:2px;padding:10px 11px 9px;'
+            + 'box-shadow:1px 2px 5px rgba(0,0,0,.13);transform:rotate(' + rot + ');min-height:112px;display:flex;flex-direction:column">'
+            + '<div style="font-size:9.5px;font-weight:700;color:' + (urg ? '#8c2f22' : '#7a6a1f') + ';letter-spacing:.06em;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center">'
+            + '<span>#' + (i+1) + (urg ? ' · URGENTE' : '') + '</span></div>'
+            + '<div style="font-size:13px;line-height:1.45;color:#2b2b2b;flex:1;word-break:break-word">' + n.t + '</div>'
+            + '<div style="font-size:9.5px;color:rgba(0,0,0,.45);margin-top:7px;font-family:\'IBM Plex Mono\',monospace;line-height:1.35">'
+            + fmtDateTime(n.ts) + '<br>' + (n.a || '—') + '</div>'
+            + '</div>';
+        }).join('')
+      + '</div>';
+  } else {
+    h += '<div style="font-size:12px;color:var(--gray400);font-style:italic">Sem notas.</div>';
   }
-  return h+'</div>';
+
+  if(podeEnviar){
+    h += '<div style="display:flex;gap:5px;margin-top:8px"><input id="nota-in" placeholder="Nota a passar ao n.º 1..." onkeydown="if(event.key===\'Enter\')notaEnviar()" style="font-size:13px"><button class="btn btn-primary btn-sm" onclick="notaEnviar()"><i class="fas fa-paper-plane"></i></button></div>'
+      + '<div style="margin-top:6px"><label style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--gray600);cursor:pointer"><input type="checkbox" id="nota-urgente" style="width:auto;margin:0"> Marcar como urgente</label></div>';
+  }
+  return h + '</div>';
 }
 
 
@@ -2280,11 +2305,9 @@ async function renderQuadroCoordenador(){
 
   box.innerHTML =
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin-bottom:10px">'
-    + cartao('Situação', r.tipo || '—', (r.local || '—') + ' · ' + (r.cter || '—') + ' · há ' + decorrido(), r.is_itp ? 'var(--red)' : 'var(--gl)')
     + cartao('IRIS', iris ? (iris.score != null ? iris.score + ' pts' : '—') : 'Não preenchido', iris ? (iris.risk_level||'') : '', irisCor)
     + cartao('SARI', sari ? (sari.negotiation_probability != null ? sari.negotiation_probability + '%' : '—') : 'Não preenchido', sari ? ('Cooperação · risco ' + (sari.risk_level != null ? sari.risk_level + '/10' : '—')) : '', sariCor)
     + cartao('Contactos', String(cts.length), ult ? ('Último: ' + fmtDateTime(ult.contact_datetime)) : 'Sem contactos')
-    + cartao('EN', String(enPreenchidos(eq).length) + ' negociador(es)', (eq.isolado ? '<span style="color:var(--red);font-weight:600">Negociador isolado — contrário ao 5.28</span>' : (eq.conformidade || '')))
     + '</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-bottom:10px">'
     + lista('Exigências / ameaças', Array.isArray(q.exigencias) ? q.exigencias : [], 'var(--red)')
@@ -2390,6 +2413,79 @@ async function exportQuadroCoordenadorPDF(){
   doc.save('QuadroCoordenador_' + String(r.local||'').replace(/[^\w]+/g,'_').slice(0,20) + '_' + new Date().toISOString().slice(0,16).replace(/[:T]/g,'') + '.pdf');
 }
 
+
+// Cabeçalho comum a todas as posições — os mesmos cartões do Quadro do
+// Coordenador, sem o cartão da Situação nem o do número de negociadores.
+async function renderCabecalhoCoordenacao(){
+  const box = document.getElementById('coord-cab');
+  if(!box || !currentDetail) return;
+  const { type, record:r } = currentDetail;
+  const pt = type === 'inc' ? 'incidente' : 'itp';
+  let iris=null, sari=null, cts=[];
+  try{
+    const [a,b,d] = await Promise.all([
+      sb.from('iris').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+      sb.from('sari').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+      sb.from('rnrv_contactos').select('*').eq('parent_type',pt).eq('parent_id',r.id).order('contact_datetime',{ascending:false})
+    ]);
+    iris=a.data; sari=b.data; cts=d.data||[];
+  }catch(e){}
+  if(!document.getElementById('coord-cab')) return;
+
+  const ini = new Date(r.data_hora || r.created_at).getTime();
+  const m = ini ? Math.floor((Date.now()-ini)/60000) : 0;
+  const decorrido = m >= 60 ? Math.floor(m/60)+'h'+String(m%60).padStart(2,'0') : m+' min';
+  const cartao = (t,v,sub,cor) =>
+    '<div style="background:#fff;border:1px solid var(--border);border-top:3px solid '+(cor||'var(--gn)')+';border-radius:var(--r);padding:11px 13px">'
+    +'<div style="font-size:10px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">'+t+'</div>'
+    +'<div style="font-size:19px;font-weight:700;color:'+(cor||'var(--gn)')+';line-height:1.15">'+v+'</div>'
+    +(sub?'<div style="font-size:11.5px;color:var(--gray600);margin-top:3px;line-height:1.4">'+sub+'</div>':'')+'</div>';
+  const irisCor = iris ? (String(iris.risk_level||'').toUpperCase().indexOf('ELEV')>-1?'var(--red)':String(iris.risk_level||'').toUpperCase().indexOf('INTERM')>-1?'var(--amber)':'var(--gm)') : 'var(--gray400)';
+  const sariCor = sari ? ((sari.risk_level||0)<=3?'var(--gm)':(sari.risk_level||0)<=6?'var(--amber)':'var(--red)') : 'var(--gray400)';
+
+  box.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px">'
+    + cartao('IRIS', iris?(iris.score!=null?iris.score+' pts':'—'):'Não preenchido', iris?(iris.risk_level||''):'', irisCor)
+    + cartao('SARI', sari?(sari.negotiation_probability!=null?sari.negotiation_probability+'%':'—'):'Não preenchido', sari?('Risco '+(sari.risk_level!=null?sari.risk_level+'/10':'—')):'', sariCor)
+    + cartao('Contactos', String(cts.length), cts[0]?('Último: '+fmtDateTime(cts[0].contact_datetime)):'Sem contactos')
+    + cartao('Decorrido', decorrido, (r.estado||'—'))
+    + '</div>';
+}
+
+// Resumo do PN e do PD, em leitura, para o n.º 1 e o n.º 2.
+async function renderResumoPlanos(){
+  const box = document.getElementById('coord-planos');
+  if(!box || !currentDetail) return;
+  const { type, record:r } = currentDetail;
+  const pt = type === 'inc' ? 'incidente' : 'itp';
+  let plano = null;
+  try{
+    const a = await sb.from('plano_negociacao').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle();
+    plano = a.data;
+  }catch(e){}
+  if(!document.getElementById('coord-planos')) return;
+
+  const pd = r.plano_dialogo || {};
+  const linha = (k,v) => v ? '<div style="font-size:12.5px;line-height:1.6;margin-bottom:3px"><strong style="color:var(--gm)">'+k+':</strong> '+v+'</div>' : '';
+  let pnH = plano
+    ? (linha('Tipo de situação', (plano.tipo_situacao||'').toUpperCase())
+       + linha('Objetivo principal', plano.objetivo_principal)
+       + linha('Posição', plano.posicao_adversario)
+       + linha('Interesses', plano.interesses_adversario)
+       + linha('Alinhamento', plano.alinhamento)) || '<div style="font-size:12px;color:var(--gray400);font-style:italic">Sem conteúdo.</div>'
+    : '<div style="font-size:12px;color:var(--gray400);font-style:italic">Plano de Negociação por preencher.</div>';
+
+  let pdH = '';
+  if(typeof PD_CAMPOS !== 'undefined') PD_CAMPOS.forEach(cp => { if(pd[cp.k]) pdH += linha(cp.t, pd[cp.k]); });
+  if(!pdH) pdH = '<div style="font-size:12px;color:var(--gray400);font-style:italic">Plano de Diálogo por preencher.</div>';
+
+  box.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:10px">'
+    + '<div style="background:#fff;border:1px solid var(--border);border-top:3px solid var(--gl);border-radius:var(--r);padding:11px 13px">'
+    + '<div style="font-size:10px;font-weight:700;color:var(--gl);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px">Plano de Negociação</div>' + pnH + '</div>'
+    + '<div style="background:#fff;border:1px solid var(--border);border-top:3px solid var(--gold);border-radius:var(--r);padding:11px 13px">'
+    + '<div style="font-size:10px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px">Plano de Diálogo</div>' + pdH + '</div>'
+    + '</div>';
+}
+
 function _seletorPostoHTML(){
   const eq = (currentDetail && currentDetail.record && currentDetail.record.equipa) || {};
   const preenchidos = enPreenchidos(eq);
@@ -2443,6 +2539,8 @@ function renderPosto(){
       + f.slice(1).map(enNomePos).join(', ') + '.</p>';
   }
   h+='</div>';
+  h+='<div id="coord-cab" style="margin-bottom:14px"></div>';
+  if(eN1 || eN2) h+='<div id="coord-planos" style="margin-bottom:14px"></div>';
   if(eN1){
     h+='<div class="form-section"><h3><i class="fas fa-headset" style="color:var(--red)"></i> Posto n.º 1 — contacto</h3>'
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Informação que lhe é prestada. Não preenche formulários durante o contacto.</p>'
@@ -2481,6 +2579,8 @@ function renderPosto(){
       +'</div>';
   }
   el.innerHTML=h;
+  renderCabecalhoCoordenacao();
+  if(eN1 || eN2) renderResumoPlanos();
   if(eNC || eN4) renderQuadroCoordenador();
 }
 // ---- Plano de Diálogo (4.88) ----
