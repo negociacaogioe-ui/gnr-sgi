@@ -191,8 +191,17 @@ tr:hover td{background:var(--gp);cursor:pointer}
 /* RISK INDICATOR */
 .risk-indicator{padding:12px 16px;border-radius:var(--r);text-align:center;font-weight:600;font-size:14px;color:#fff;margin-top:.75rem}
 .risk-low{background:var(--gl)}
-.risk-medium{background:var(--amber)}
-.risk-high{background:#d2691e}
+.risk-medium{background:#e8b500;color:#3a2a00}
+.risk-high{background:var(--red)}
+/* ---- barra de gravacao automatica ---- */
+.sgi-bar{position:sticky;bottom:0;z-index:40;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-top:2px solid var(--gl);border-radius:var(--r);padding:10px 12px;margin-top:1rem;box-shadow:0 -5px 16px rgba(0,0,0,.08)}
+.sgi-bar .sgi-status{font-size:12px;color:var(--gray600);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.sgi-bar .sgi-status.ok{color:var(--gm)}
+.sgi-bar .sgi-status.save{color:var(--amber)}
+.sgi-bar .sgi-status.err{color:var(--red)}
+.sgi-bar input.sgi-motivo{flex:1;min-width:180px;font-size:13px;padding:8px 10px;margin:0}
+body.is-mobile .sgi-bar{flex-direction:column;align-items:stretch}
+body.is-mobile .sgi-bar .btn{width:100%;justify-content:center}
 .risk-extreme{background:var(--red);animation:pulse 1.5s infinite}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
 .score-display{font-size:20px;font-weight:600;text-align:center;padding:10px;background:var(--gray50);border-radius:var(--r);font-family:'IBM Plex Mono',monospace;margin:.75rem 0;color:var(--gn)}
@@ -690,6 +699,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
           <div id="detail-badges"></div>
           <button id="detail-edit-btn" class="btn btn-outline btn-sm" onclick="openDetailEdit()" title="Editar" style="display:none"><i class="fas fa-pencil-alt"></i> Editar</button>
           <button id="detail-delete-btn" class="btn btn-danger btn-sm" onclick="deleteCurrentDetail()" title="Eliminar" style="display:none"><i class="fas fa-trash"></i> Eliminar</button>
+          <button class="btn btn-gold btn-sm btn-relatorio" onclick="produzirRelatorio()" title="Relatório completo do registo em PDF"><i class="fas fa-file-contract"></i> Produzir relatório</button>
           <button id="detail-whatsapp-btn" class="btn btn-sm" onclick="partilharViaWhatsApp()" title="Partilhar via WhatsApp" style="background:#25D366;color:#fff;border-color:#25D366;display:none"><i class="fab fa-whatsapp"></i> Partilhar</button>
         </div>
       </div>
@@ -745,8 +755,8 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
               <div style="display:flex;flex-wrap:wrap;gap:14px"><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" class="visado-dep" value="Álcool" style="width:auto"> Álcool</label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" class="visado-dep" value="Estupefacientes" style="width:auto"> Estupefacientes</label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" class="visado-dep" value="Medicação / Psicofármacos" style="width:auto"> Medicação / Psicofármacos</label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" class="visado-dep" value="Jogo" style="width:auto"> Jogo</label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" class="visado-dep" value="Nenhuma" style="width:auto"> Nenhuma</label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" class="visado-dep" value="Desconhecida" style="width:auto"> Desconhecida</label></div>
               <p style="font-size:11.5px;color:var(--gray400);margin-top:6px"><i class="fas fa-lock" style="margin-right:4px"></i> Dados de saúde (categoria especial RGPD) — tratar com reserva.</p>
             </div>
-            <button class="btn btn-primary" id="visado-save-btn" onclick="saveVisado()" style="margin-top:14px"><i class="fas fa-save"></i> Guardar Descrição</button>
           </div>
+          <div id="visado-barra"></div>
         </div>
         <div id="tab-sari" class="tab-panel">
           <div id="sari-content"></div>
@@ -1126,10 +1136,13 @@ function renderVisado(){
   var b = document.querySelectorAll('.visado-dep');
   for(var j=0;j<b.length;j++){ b[j].checked = deps.indexOf(b[j].value) > -1; }
   var al=document.getElementById('visado-alert'); if(al){ al.className='hidden'; al.innerHTML=''; }
+  var bar=document.getElementById('visado-barra');
+  if(bar && !bar.innerHTML) bar.innerHTML = sgiBarraHTML('visado','Guardar Descrição');
+  sgiAutosaveLigar('visado');
 }
 async function saveVisado(){
   if(!currentDetail) return;
-  if(currentDetail.isTreino){ showAlert('visado-alert','error','A Descrição do Visado aplica-se apenas a situações reais.'); return; }
+  if(currentDetail.isTreino){ _sgiLastError='A Descrição do Visado aplica-se apenas a situações reais.'; showAlert('visado-alert','error',_sgiLastError); return; }
   var table = currentDetail.type==='itp' ? 'itps' : 'incidentes';
   function gv(id){ var e=document.getElementById(id); return e?e.value:''; }
   var deps = [];
@@ -1145,9 +1158,10 @@ async function saveVisado(){
   var btn = document.getElementById('visado-save-btn'); if(btn) btn.disabled = true;
   var res = await sb.from(table).update({ descricao_visado: obj }).eq('id', currentDetail.record.id);
   if(btn) btn.disabled = false;
-  if(res.error){ showAlert('visado-alert','error','Erro: '+res.error.message); return; }
+  if(res.error){ _sgiLastError = 'Erro: '+res.error.message; showAlert('visado-alert','error','Erro: '+res.error.message); return; }
+  _sgiLastError = null;
   currentDetail.record.descricao_visado = obj;
-  showAlert('visado-alert','success','Descrição do visado guardada.');
+  if(!_sgiSilent) showAlert('visado-alert','success','Descrição do visado guardada.');
   await loadData();
 }
 const SGI_I18N = {"Estatísticas": "Statistics", "Gestão de Utilizadores": "User Management", "Incidentes": "Incidents", "Incidentes Tático-Policiais": "Tactical-Police Incidents (ITP)", "Administração": "Administration", "Formação": "Training", "Área de Treino Operacional": "Operational Training Area", "Resumo": "Summary", "Informações": "Information", "Descrição do Visado": "Subject Description", "Contactos": "Contacts", "Histórico": "History", "Plano": "Plan", "Em curso": "Ongoing", "Resolvido": "Resolved", "Arquivado": "Archived", "Baixa": "Low", "Média": "Medium", "Alta": "High", "Crítica": "Critical", "Novo": "New", "Novo Incidente": "New Incident", "Novo ITP": "New ITP", "Guardar": "Save", "Guardar Incidente": "Save Incident", "Guardar ITP": "Save ITP", "Guardar IRIS": "Save IRIS", "Guardar SARI": "Save SARI", "Guardar Plano de Negociação": "Save Negotiation Plan", "Guardar Descrição": "Save Description", "Guardar Guião": "Save Script", "Editar": "Edit", "Editar Perfil": "Edit Profile", "Editar Registo": "Edit Record", "Eliminar": "Delete", "Enviar": "Send", "Cancelar": "Cancel", "Confirmar": "Confirm", "Responder": "Reply", "Limpar": "Clear", "Limpar Treino": "Clear Training", "Exportar PDF": "Export PDF", "Partilhar": "Share", "Sair": "Log out", "Terminar Sessão": "Log out", "Adicionar": "Add", "Adicionar contacto": "Add contact", "Registar Contacto": "Log Contact", "Registar Informação": "Log Information", "Nova Sinalização": "New Report", "Sinalizar VD": "Report DV", "Analisar Conteúdo": "Analyze Content", "Atualizar lista": "Refresh list", "Adicionar Vídeo": "Add Video", "Chamada / Gravador": "Call / Recorder", "Ligar e Gravar": "Call and Record", "Gravar": "Record", "Só Gravar": "Record Only", "Parar": "Stop", "Pausar": "Pause", "Terminar": "End", "Transmitir": "Transmit", "Ouvir em Direto": "Listen Live", "Parar Tx": "Stop Tx", "Migrar para Formação": "Migrate to Training", "Reordenar": "Reorder", "Registos de Informação": "Information Records", "Inv. Criminal": "Criminal Inv.", "Guião Anx. B": "Script Anx. B", "Acesso": "Access", "Alcunha / Apelido": "Nickname / Alias", "Arma Envolvida": "Weapon Involved", "Arma foi utilizada?": "Was the weapon used?", "Armas Presentes": "Weapons Present", "Armas Utilizadas": "Weapons Used", "CTer / Unidade": "Territorial Command (CTer)", "CTer / Unidade *": "Territorial Command (CTer) *", "Categoria": "Category", "Comando Territorial (CTer)": "Territorial Command (CTer)", "Comunicação": "Communication", "Concelho": "Municipality", "Cuidados Médicos": "Medical Care", "Data": "Date", "Data da avaliação": "Assessment date", "Data de Nascimento": "Date of Birth", "Data e Hora": "Date and Time", "Data e hora": "Date and time", "Descrição": "Description", "Descrição (opcional)": "Description (optional)", "Descrição Armas": "Weapons Description", "Descrição Física": "Physical Description", "Descrição das Outras Pessoas": "Description of Other People", "Descrição tática": "Tactical description", "Distrito / Região": "District / Region", "Documento de Identificação": "Identification Document", "Doenças / Problemas de Saúde": "Illnesses / Health Problems", "Doenças Mentais Diagnosticadas": "Diagnosed Mental Illnesses", "Duração (min)": "Duration (min)", "Duração do Incidente": "Incident Duration", "Email institucional": "Institutional email", "Estado": "Status", "Estado Emocional": "Emotional State", "Exigências / Reivindicações": "Demands / Claims", "Faixa etária": "Age range", "Fatores de Stress Recentes": "Recent Stress Factors", "Ferimentos Visíveis": "Visible Injuries", "Fiabilidade da Fonte": "Source Reliability", "Fonte": "Source", "Gravidade": "Severity", "Género": "Gender", "Histórico Criminal": "Criminal History", "Histórico Psiquiátrico": "Psychiatric History", "Histórico de Ameaças": "Threat History", "Idade": "Age", "Impacto na Negociação": "Impact on Negotiation", "Informação": "Information", "Informações adicionais": "Additional information", "Interesses (necessidades reais)": "Interests (real needs)", "Localização": "Location", "Medicação em Uso": "Current Medication", "Meios de Comunicação": "Means of Communication", "Mensagem": "Message", "Motivação aparente": "Apparent motivation", "Nacionalidade": "Nationality", "Negociador": "Negotiator", "Nome": "Name", "Nome Completo": "Full Name", "Nome completo": "Full name", "Nome do visado": "Subject name", "Notas Operacionais": "Operational Notes", "Nº Identificação": "ID No.", "Nº Ocorrências Anteriores": "No. of Prior Occurrences", "Nº de Pisos": "No. of Floors", "Nº de Reféns": "No. of Hostages", "Nº de Vítimas": "No. of Victims", "Nº reféns": "No. hostages", "Nº suspeitos": "No. suspects", "Nível de Risco *": "Risk Level *", "Nível de Acesso": "Access Level", "Objetivo Principal": "Main Objective", "Objetivos Intermédios": "Intermediate Objectives", "Observações": "Remarks", "Palavra-passe": "Password", "Pessoas Presentes": "People Present", "Posição (o que diz que quer)": "Position (what they say they want)", "Posto": "Rank", "Posto / Categoria": "Rank / Category", "Posto / Função": "Rank / Role", "Presença de arma": "Weapon present", "Reféns": "Hostages", "Relação com a vítima": "Relationship to victim", "Relações Pessoais / Conflitos": "Personal Relationships / Conflicts", "Religiosidade": "Religiosity", "Risco de Suicídio": "Suicide Risk", "Sexo": "Sex", "Substâncias": "Substances", "Tempo Estimado": "Estimated Time", "Tentativas de Suicídio Anteriores": "Previous Suicide Attempts", "Tipo": "Type", "Tipo *": "Type *", "Tipo de Crime": "Crime Type", "Tipo de Residência": "Type of Residence", "Tipo de Situação": "Type of Situation", "Tipo de crime / ocorrência": "Crime / occurrence type", "Tipos de Ocorrência": "Occurrence Types", "Toda a informação recolhida": "All information gathered", "Título": "Title", "Unidade": "Unit", "Violência Doméstica": "Domestic Violence", "Visibilidade Interior": "Interior Visibility", "Zona / Localidade": "Zone / Locality", "Armas": "Weapons", "Ativação": "Activation", "Ações": "Actions", "Data/Hora": "Date/Time", "Dur.": "Dur.", "Influência": "Influence", "Neg.": "Neg.", "Notas": "Notes", "Ocorrências": "Occurrences", "Papel": "Role", "Ref.": "Hostages", "Risco": "Risk", "Sus.": "Suspects", "Zona": "Zone", "Selecionar...": "Select...", "Todas as gravidades": "All severities", "Masculino": "Male", "Feminino": "Female", "Outro / Não especificado": "Other / Unspecified", "Nenhuma": "None", "Desconhecida": "Unknown", "Arma branca": "Bladed weapon", "Arma de fogo": "Firearm", "Objeto contundente": "Blunt object", "Álcool": "Alcohol", "Estupefacientes": "Narcotics", "Medicação / Psicofármacos": "Medication / Psychotropics", "Jogo": "Gambling", "Cônjuge / companheiro(a)": "Spouse / partner", "Ex-cônjuge / ex-companheiro(a)": "Ex-spouse / ex-partner", "Familiar": "Family member", "Conhecido": "Acquaintance", "Desconhecido": "Stranger", "Não aplicável": "Not applicable", "Violência doméstica": "Domestic violence", "Tentativa de suicídio": "Suicide attempt", "Sequestro / Reféns": "Kidnapping / Hostages", "Ameaça / Coação": "Threat / Coercion", "Homicídio / Tentativa": "Homicide / Attempt", "Roubo": "Robbery", "Distúrbio / Perturbação da ordem": "Disturbance / Public disorder", "Indivíduo barricado": "Barricaded individual", "Outro": "Other", "Filtrar por:": "Filter by:", "Ano": "Year", "Intervalo": "Range", "Todos os registos": "All records", "até": "to"};
@@ -1604,6 +1618,169 @@ function fmtDateTime(d){return new Date(d).toLocaleString('pt-PT',{day:'2-digit'
 
 
 
+
+// ===== GRAVACAO AUTOMATICA + REGISTO DE ALTERACOES =====
+// Grava sozinho ~1,2 s depois da ultima alteracao. Cada gravacao escreve no
+// historico: data/hora, quem, que campo mudou (antes -> depois) e o motivo.
+let _sgiSilent = false;        // true durante uma gravacao automatica
+let _sgiLastError = null;      // preenchido pelas funcoes de gravacao
+const _sgiTimers = {}, _sgiSnaps = {}, _sgiBound = {};
+const SGI_ATRASO = 1200;
+
+function _sgiFalhou(msg){ _sgiLastError = msg; if(!_sgiSilent) alert(msg); }
+function _sgiGuardou(msg){ _sgiLastError = null; if(!_sgiSilent) alert(msg); }
+
+const SGI_LABELS = {
+  iris: {'iris-name':'Nome do visado','iris-pid':'N.º identificação','iris-date':'Data da avaliação',
+         'iris-gender':'Sexo','iris-age':'Idade','iris-rel':'Religiosidade',
+         'iris-isolation':'Vive só / sem apoio','iris-loss':'Perda recente','iris-phys':'Doença física',
+         'iris-subs':'Abuso de substâncias','iris-psych':'Doença psiquiátrica',
+         'iris-pshist':'Internamento psiquiátrico','iris-famhist':'História familiar de suicídio',
+         'iris-suhist':'Comportamentos suicidários prévios','iris-suplan':'Plano suicida'},
+  sari: {'sari-age':'Idade','sari-mental':'Estado emocional','sari-crim':'Histórico criminal',
+         'sari-threat':'Histórico de ameaças','sari-sit':'Tipo de situação','sari-wep':'Arma envolvida',
+         'sari-wepused':'Arma utilizada','sari-host':'Reféns','sari-comm':'Comunicação',
+         'sari-viol':'Violência doméstica','sari-subs':'Substâncias','sari-dur':'Duração do incidente',
+         'sari-info':'Informações adicionais'},
+  plano:{'plano-desc':'Descrição','plano-prob':'Identificação do problema','plano-sit':'Tipo de situação',
+         'plano-pos':'Posição do adversário','plano-int':'Interesses do adversário',
+         'plano-align':'Alinhamento posição/interesses','plano-obj':'Objetivo principal',
+         'plano-obji':'Objetivos intermédios','plano-tempo':'Tempo estimado','plano-meios':'Meios a utilizar'},
+  visado:{'visado-faixa':'Faixa etária','visado-genero':'Género','visado-distrito':'Distrito',
+          'visado-concelho':'Concelho','visado-crime':'Tipo de crime','visado-relacao':'Relação com a vítima',
+          'visado-arma':'Presença de arma','visado-motivacao':'Motivação aparente'},
+  pd:   {'pd-quadro_ref':'Quadro de referência','pd-problema':'Identificação do problema',
+         'pd-local':'O local','pd-pos_int':'Posição e interesses','pd-solucoes':'Soluções'}
+};
+
+const SGI_FORMS = {
+  iris:  {panel:'iris-content',  titulo:'IRIS',                save:()=>saveIRIS()},
+  sari:  {panel:'sari-content',  titulo:'SARI',                save:()=>saveSARI()},
+  plano: {panel:'plano-content', titulo:'Plano de Negociação', save:()=>savePlano()},
+  visado:{panel:'tab-visado',    titulo:'Descrição do Visado', save:()=>saveVisado()},
+  pd:    {panel:'pd-content',    titulo:'Plano de Diálogo',    save:()=>guardarPD()}
+};
+
+function _sgiValor(el){
+  if(!el) return '';
+  if(el.type === 'checkbox') return el.checked ? 'Sim' : 'Não';
+  if(el.tagName === 'SELECT'){
+    const o = el.options[el.selectedIndex];
+    return o ? (o.textContent || '').trim() : (el.value || '');
+  }
+  return (el.value || '').trim();
+}
+function _sgiFoto(key){
+  const map = SGI_LABELS[key] || {}, out = {};
+  Object.keys(map).forEach(id => { const el = document.getElementById(id); if(el) out[id] = _sgiValor(el); });
+  if(key === 'visado'){
+    const d = []; document.querySelectorAll('.visado-dep').forEach(c => { if(c.checked) d.push(c.value); });
+    out['visado-deps'] = d.join(', ');
+  }
+  return out;
+}
+function _sgiDiferencas(key, antes, depois){
+  const map = Object.assign({}, SGI_LABELS[key] || {});
+  if(key === 'visado') map['visado-deps'] = 'Dependências';
+  const alt = [];
+  Object.keys(map).forEach(id => {
+    const a = antes[id] === undefined ? '' : antes[id];
+    const b = depois[id] === undefined ? '' : depois[id];
+    if(a !== b) alt.push({campo: map[id], antes: a || '(vazio)', depois: b || '(vazio)'});
+  });
+  return alt;
+}
+function _sgiEstado(key, modo, extra){
+  const el = document.getElementById('sgi-status-' + key);
+  if(!el) return;
+  const hora = new Date().toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'});
+  if(modo === 'pendente') el.className = 'sgi-status save',
+    el.innerHTML = '<i class="fas fa-pen"></i> Alterações por gravar...';
+  else if(modo === 'a-gravar') el.className = 'sgi-status save',
+    el.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A gravar...';
+  else if(modo === 'erro') el.className = 'sgi-status err',
+    el.innerHTML = '<i class="fas fa-triangle-exclamation"></i> Não gravou' + (extra ? ' — ' + extra : '');
+  else el.className = 'sgi-status ok',
+    el.innerHTML = '<i class="fas fa-circle-check"></i> Gravado às ' + hora;
+}
+
+function sgiBarraHTML(key, rotulo){
+  return '<div class="sgi-bar">'
+    + '<div class="sgi-status" id="sgi-status-' + key + '"><i class="fas fa-cloud"></i> Gravação automática ativa</div>'
+    + '<input type="text" class="sgi-motivo" id="sgi-motivo-' + key + '" placeholder="Motivo da alteração (opcional — fica no histórico)">'
+    + '<button class="btn btn-primary btn-sm" onclick="sgiGravarAgora(\'' + key + '\')" style="white-space:nowrap"><i class="fas fa-save"></i> ' + (rotulo || 'Guardar agora') + '</button>'
+    + '</div>';
+}
+
+function sgiAutosaveLigar(key){
+  const cfg = SGI_FORMS[key]; if(!cfg) return;
+  const root = document.getElementById(cfg.panel); if(!root) return;
+  _sgiSnaps[key] = _sgiFoto(key);
+  if(_sgiBound[key] === root) return;   // já ligado a este nó do DOM
+  _sgiBound[key] = root;
+  const aoEditar = ev => {
+    const t = ev.target;
+    if(!t) return;
+    if(t.id === 'sgi-motivo-' + key) return;              // o motivo sozinho não grava
+    const conhecido = (SGI_LABELS[key] && t.id in SGI_LABELS[key])
+      || (key === 'visado' && t.classList && t.classList.contains('visado-dep'));
+    if(!conhecido) return;
+    sgiAutosaveAgendar(key);
+  };
+  root.addEventListener('input', aoEditar);
+  root.addEventListener('change', aoEditar);
+}
+function sgiAutosaveAgendar(key){
+  _sgiEstado(key, 'pendente');
+  clearTimeout(_sgiTimers[key]);
+  _sgiTimers[key] = setTimeout(() => sgiAutosaveExec(key), SGI_ATRASO);
+}
+function sgiGravarAgora(key){ clearTimeout(_sgiTimers[key]); return sgiAutosaveExec(key, true); }
+
+async function sgiAutosaveExec(key, forcar){
+  const cfg = SGI_FORMS[key];
+  if(!cfg || !currentDetail) return;
+  clearTimeout(_sgiTimers[key]);
+  const antes = _sgiSnaps[key] || {};
+  const depois = _sgiFoto(key);
+  const alt = _sgiDiferencas(key, antes, depois);
+  if(!alt.length && !forcar){ _sgiEstado(key, 'ok'); return; }
+  _sgiEstado(key, 'a-gravar');
+  _sgiLastError = null;
+  const anterior = _sgiSilent; _sgiSilent = true;
+  try { await cfg.save(); } catch(e){ _sgiLastError = (e && e.message) || 'erro inesperado'; }
+  _sgiSilent = anterior;
+  if(_sgiLastError){ _sgiEstado(key, 'erro', _sgiLastError); return; }
+  _sgiSnaps[key] = depois;
+  if(alt.length){
+    const mot = document.getElementById('sgi-motivo-' + key);
+    const motivo = (mot && mot.value.trim()) || '';
+    await sgiRegistarAlteracao(cfg.titulo, alt, motivo);
+    if(mot) mot.value = '';
+  }
+  _sgiEstado(key, 'ok');
+}
+
+// tabela do histórico para o registo aberto
+function sgiTabelaHist(){
+  if(!currentDetail) return 'incidentes';
+  if(currentDetail.isTreino) return 'treino_incidentes';
+  return currentDetail.type === 'itp' ? 'itps' : 'incidentes';
+}
+async function sgiRegistarAlteracao(formulario, alteracoes, motivo){
+  if(!currentDetail) return;
+  try{
+    await sb.from('historico').insert({
+      tabela: sgiTabelaHist(),
+      registo_id: currentDetail.record.id,
+      acao: 'editado',
+      campos_alterados: {formulario: formulario, motivo: motivo || null, alteracoes: alteracoes},
+      autor_id: currentUser.id,
+      autor_nome: currentProfile.nome
+    });
+  }catch(e){ console.warn('histórico', e); }
+}
+
 // ===== EQUIPA DE NEGOCIAÇÃO (EN) — PDGNR 1-04-18, cap. 5 =====
 const EN_POSICOES = [
   {k:'n1', nome:'Negociador n.º 1', desc:'Comunica com a contraparte'},
@@ -1664,6 +1841,7 @@ function enCterDe(id){
   return u ? (u.cter||'') : '';
 }
 function enSetCterFiltro(v){ _enCterFiltro = v; _enPintaSelects(); enAvaliar(); }
+function enSetIsolado(v){ _enWork.isolado = !!v; enAvaliar(); }
 function enSetPos(k, id){
   if(!id){ delete _enWork[k]; }
   else {
@@ -1713,6 +1891,8 @@ function renderEquipaSelects(){
     fs.innerHTML=html;
     if(_enCterFiltro && _enCterFiltro!=='__itp__' && !ctrs.includes(_enCterFiltro)) fs.value='';
   }
+  const ic=document.getElementById('en-isolado');
+  if(ic) ic.checked = !!_enWork.isolado;
   _enPintaSelects();
   enAvaliar();
 }
@@ -1742,6 +1922,16 @@ function enAvaliar(){
       + (enPodeUI() ? ' <span style="color:var(--gm)">UI/GIOE disponível (ITP declarado).</span>' : ' <span style="color:var(--gray400)">UI/GIOE só após declaração de ITP.</span>')
       + (ctrs.length>1 ? '<br><i class="fas fa-users" style="margin-right:5px;color:var(--amber)"></i>EN mista: '+ctrs.join(', ') : '');
   }
+  const iso=document.getElementById('en-isolado-nota');
+  if(iso){
+    if(_enWork.isolado){
+      iso.style.display='';
+      iso.innerHTML='<div style="background:var(--redl);border:1px solid var(--red);border-radius:var(--r);padding:10px 12px;font-size:12.5px;color:var(--red);line-height:1.55;margin-top:8px">'
+        +'<i class="fas fa-triangle-exclamation" style="margin-right:5px"></i><strong>Negociador isolado — ação contrária à doutrina.</strong><br>'
+        +'O PDGNR 1-04-18, 5.28, estabelece que a Equipa de Negociação não funciona com menos de 2 negociadores. '
+        +'O registo é permitido para refletir a situação real no terreno, mas a não conformidade com o 5.28 fica assinalada no caso, no histórico e no relatório.</div>';
+    } else { iso.innerHTML=''; iso.style.display='none'; }
+  }
   const ac=document.getElementById('en-acumulacao');
   if(ac){
     const acu=enAcumulacao(eq);
@@ -1763,7 +1953,9 @@ async function guardarEquipa(){
   if(conf.estado==='nao-conforme'){
     if(!confirm('ATENÇÃO — constituição NÃO CONFORME com o manual (5.28).\n\n'+conf.msg+'\n\nO registo vai ser guardado com esta não conformidade assinalada no caso. Confirma?')) return;
   }
+  if(_enWork.isolado && !confirm('NEGOCIADOR ISOLADO — ação contrária à doutrina.\n\nO PDGNR 1-04-18, 5.28, estabelece que a Equipa de Negociação não funciona com menos de 2 negociadores.\n\nO registo é permitido, mas a não conformidade com o 5.28 fica assinalada no caso, no histórico e no relatório. Confirma?')) return;
   eq.conformidade = conf.estado;
+  eq.isolado = !!_enWork.isolado;
   const ids=enPreenchidos(eq).map(k=>eq[k].id);
   if(new Set(ids).size!==ids.length){ alert('O mesmo negociador não pode ocupar duas posições. A acumulação de funções é automática (5.29), não se atribui a mesma pessoa a dois postos.'); return; }
   const btn=document.getElementById('en-save-btn'); if(btn) btn.disabled=true;
@@ -1771,7 +1963,7 @@ async function guardarEquipa(){
   const{error}=await sb.from(_tbl).update({equipa:eq, participantes:_parts}).eq('id',r.id);
   if(btn) btn.disabled=false;
   if(error){ alert('Erro ao guardar a EN: '+error.message); return; }
-  const resumo=EN_POSICOES.filter(p=>eq[p.k]).map(p=>p.nome+': '+enNomeUtil(eq[p.k])).join('; ');
+  const resumo=(eq.isolado?'[Negociador isolado] ':'')+EN_POSICOES.filter(p=>eq[p.k]).map(p=>p.nome+': '+enNomeUtil(eq[p.k])).join('; ');
   await sb.from('historico').insert({tabela:_tbl,registo_id:r.id,acao:'EN escalada — '+resumo,autor_id:currentUser.id,autor_nome:currentProfile.nome}).catch(()=>{});
   currentDetail.record.equipa=eq;
   if(currentDetail.isTreino){ await renderTreino(); } else { await loadData(); }
@@ -1809,7 +2001,7 @@ function _postoTbl(){ return currentDetail?.isTreino ? 'treino_incidentes' : 'in
 async function _postoUpdate(patchObj){
   const r=currentDetail.record;
   const{error}=await sb.from(_postoTbl()).update(patchObj).eq('id',r.id);
-  if(error){ alert('Erro: '+error.message); return false; }
+  if(error){ _sgiFalhou('Erro: '+error.message); return false; }
   Object.assign(currentDetail.record, patchObj);
   return true;
 }
@@ -1934,7 +2126,8 @@ function renderPD(){
     +'<div id="pd-alert" class="hidden" style="margin-bottom:.75rem"></div>'
     +'<div style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:12px;color:var(--gray600);line-height:1.5">Puxa o que já está registado (visado, IRIS, âncoras, familiares, quadros). As soluções e a identificação do problema ficam para a equipa.</span><button class="btn btn-outline btn-sm" onclick="puxarDadosPD()" style="flex-shrink:0"><i class="fas fa-download"></i> Puxar dados do caso</button></div>'
     +PD_CAMPOS.map(cp=>'<div class="field form-full"><label>'+cp.t+'</label><textarea id="pd-'+cp.k+'" rows="3" placeholder="'+cp.p+'">'+(pd[cp.k]||'')+'</textarea></div>').join('')
-    +'<button class="btn btn-primary" id="pd-save-btn" onclick="guardarPD()" style="margin-top:10px"><i class="fas fa-save"></i> Guardar Plano de Diálogo</button></div>';
+    +'</div>'+sgiBarraHTML('pd','Guardar Plano de Diálogo');
+  sgiAutosaveLigar('pd');
 }
 async function guardarPD(){
   if(!currentDetail) return;
@@ -1943,9 +2136,12 @@ async function guardarPD(){
   const btn=document.getElementById('pd-save-btn'); if(btn) btn.disabled=true;
   const ok=await _postoUpdate({plano_dialogo:pd});
   if(btn) btn.disabled=false;
-  if(!ok) return;
-  await sb.from('historico').insert({tabela:_postoTbl(),registo_id:currentDetail.record.id,acao:'Plano de Diálogo atualizado',autor_id:currentUser.id,autor_nome:currentProfile.nome}).catch(()=>{});
-  showAlert('pd-alert','success','Plano de Diálogo guardado.');
+  if(!ok){ _sgiLastError='Não foi possível guardar o Plano de Diálogo.'; return; }
+  _sgiLastError=null;
+  if(!_sgiSilent){
+    await sb.from('historico').insert({tabela:_postoTbl(),registo_id:currentDetail.record.id,acao:'Plano de Diálogo atualizado',autor_id:currentUser.id,autor_nome:currentProfile.nome}).catch(()=>{});
+    showAlert('pd-alert','success','Plano de Diálogo guardado.');
+  }
 }
 
 // ===== PUXAR DADOS DO CASO (factual; não preenche campos de juízo) =====
@@ -1996,6 +2192,7 @@ function _pxPreencher(mapa){
   alert('Dados factuais puxados do caso.\n\nOs campos de análise (identificação do problema, objetivos, meios, soluções) ficam por preencher — são o raciocínio da equipa.');
 }
 async function puxarDadosPN(){
+  setTimeout(()=>{ if(typeof sgiAutosaveAgendar==='function') sgiAutosaveAgendar('plano'); }, 400);
   if(!currentDetail) return;
   const r=currentDetail.record;
   const partes=[];
@@ -2010,6 +2207,7 @@ async function puxarDadosPN(){
   });
 }
 async function puxarDadosPD(){
+  setTimeout(()=>{ if(typeof sgiAutosaveAgendar==='function') sgiAutosaveAgendar('pd'); }, 400);
   if(!currentDetail) return;
   const r=currentDetail.record;
   const qr=[]; const vis=_pxVisado(); if(vis) qr.push(vis);
@@ -2613,6 +2811,11 @@ function renderResumo(){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         ${EN_POSICOES.map(p=>`<div class="field" style="margin:0"><label>${p.nome}</label><select id="en-${p.k}" onchange="enSetPos('${p.k}',this.value)"></select><div style="font-size:11px;color:var(--gray400);margin-top:3px">${p.desc}</div></div>`).join('')}
       </div>
+      <label style="display:flex;align-items:flex-start;gap:10px;margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r);background:#fff;cursor:pointer">
+        <input type="checkbox" id="en-isolado" style="width:18px;height:18px;min-width:18px;margin:1px 0 0;accent-color:var(--gl);cursor:pointer" onchange="enSetIsolado(this.checked)">
+        <span style="font-size:13.5px;line-height:1.45;color:var(--gray900)"><strong>Negociador Isolado</strong> — o negociador está sozinho, sem restante EN constituída. Fica assinalado no registo e no relatório.</span>
+      </label>
+      <div id="en-isolado-nota"></div>
       <div id="en-acumulacao"></div>
       <button class="btn btn-primary btn-sm" id="en-save-btn" onclick="guardarEquipa()" style="margin-top:12px"><i class="fas fa-save"></i> Guardar EN</button>
     </div>`}
@@ -2687,10 +2890,11 @@ async function renderIRIS(){
     </div>
     <div id="iris-score" class="score-display">SCORE: <span id="iris-score-val">0</span> PONTOS</div>
     <div id="iris-risk" class="risk-indicator risk-low" style="display:none"></div>
-    <button class="btn btn-primary btn-full" style="margin-top:1rem" onclick="saveIRIS()"><i class="fas fa-save"></i> Guardar IRIS</button>
+    ${sgiBarraHTML('iris','Guardar IRIS')}
   `;
   calcIRIS();
   document.querySelectorAll('#iris-gender,#iris-age,#iris-rel').forEach(el=>el.addEventListener('change',calcIRIS));
+  sgiAutosaveLigar('iris');
 }
 
 function calcIRIS(){
@@ -2739,8 +2943,8 @@ async function saveIRIS(){
   let err;
   if(ex){const res=await sb.from('iris').update(payload).eq('id',ex.id);err=res.error;}
   else{const res=await sb.from('iris').insert(payload);err=res.error;}
-  if(err){alert('Erro ao guardar: '+err.message);return;}
-  alert('IRIS guardado com sucesso!');
+  if(err){_sgiFalhou('Erro ao guardar: '+err.message);return;}
+  _sgiGuardou('IRIS guardado com sucesso!');
 }
 
 // ===== PDF HEADER HELPER =====
@@ -2820,6 +3024,242 @@ function addPDFFooter(doc){
     doc.setTextColor(150,180,150);
     doc.text('Pág. '+i+' / '+pages,195,293,{align:'right'});
   }
+}
+
+
+// ===== RELATÓRIO COMPLETO DO REGISTO (PDF) =====
+// Resumo da situação + EN + contactos efetuados + os formulários em anexo.
+async function produzirRelatorio(){
+  if(!currentDetail && !(typeof mobDetail!=='undefined' && mobDetail)){ alert('Abre primeiro um incidente ou ITP.'); return; }
+  const det = currentDetail || mobDetail;
+  const r = det.record;
+  const type = det.type;
+  const pt = type === 'inc' ? 'incidente' : 'itp';
+  const btns = document.querySelectorAll('.btn-relatorio');
+  btns.forEach(b => { b.disabled = true; b.dataset.old = b.innerHTML; b.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A produzir...'; });
+  try{
+    const [iR, sR, pR, cR, hR] = await Promise.all([
+      sb.from('iris').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+      sb.from('sari').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+      sb.from('plano_negociacao').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+      sb.from('rnrv_contactos').select('*').eq('parent_type',pt).eq('parent_id',r.id).order('contact_datetime',{ascending:true}),
+      sb.from('historico').select('*').in('tabela',['incidentes','itps','treino_incidentes']).eq('registo_id',r.id).order('created_at',{ascending:false}).limit(30)
+    ]);
+    _relatorioPDF(r, type, iR.data, sR.data, pR.data, cR.data||[], hR.data||[]);
+  }catch(e){
+    alert('Não foi possível produzir o relatório: ' + ((e && e.message) || e));
+  }finally{
+    btns.forEach(b => { b.disabled = false; if(b.dataset.old) b.innerHTML = b.dataset.old; });
+  }
+}
+
+function _relatorioPDF(r, type, iris, sari, plano, contactos, hist){
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF();
+  const isItp = !!r.is_itp || type === 'itp';
+  const titulo = isItp ? 'Relatório de Incidente Tático-Policial' : 'Relatório de Incidente de Segurança';
+  let y = addPDFHeader(doc, titulo, (r.tipo || '') + ' — ' + (r.local || ''));
+
+  const nl = () => { if(y > 268){ doc.addPage(); y = addPDFHeader(doc, titulo + ' (cont.)', ''); } };
+  const sec = t => {
+    y += 2; nl();
+    doc.setFillColor(26,58,31); doc.rect(10, y, 190, 9, 'F');
+    doc.setTextColor(255,255,255); doc.setFontSize(9); doc.setFont('helvetica','bold');
+    doc.text(String(t).toUpperCase(), 15, y + 6);
+    y += 14; doc.setTextColor(30,30,30); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  };
+  const kv = (k, v) => {
+    nl();
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(60,60,60);
+    doc.text(String(k) + ':', 16, y);
+    doc.setFont('helvetica','normal'); doc.setTextColor(20,20,20);
+    const linhas = doc.splitTextToSize(String(v == null || v === '' ? '—' : v), 130);
+    doc.text(linhas, 68, y);
+    y += Math.max(6, linhas.length * 5);
+  };
+  const par = t => {
+    if(!t) return;
+    nl();
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(20,20,20);
+    const linhas = doc.splitTextToSize(String(t), 184);
+    linhas.forEach(l => { nl(); doc.text(l, 16, y); y += 5; });
+    y += 3;
+  };
+  const vazio = t => { nl(); doc.setFont('helvetica','italic'); doc.setTextColor(130,130,130); doc.setFontSize(9); doc.text(t, 16, y); doc.setFont('helvetica','normal'); doc.setTextColor(20,20,20); y += 8; };
+
+  // ---------------- 1. Identificação
+  sec('1. Identificação do registo');
+  kv('Classificação', isItp ? 'Incidente Tático-Policial (ITP)' : 'Incidente de Segurança');
+  kv('Tipo', r.tipo);
+  kv('Local', r.local);
+  kv('CTer / Unidade', r.cter);
+  kv('Data e hora', r.data_hora ? fmtDateTime(r.data_hora) : '—');
+  kv('Estado', r.estado);
+  if(!isItp) kv('Gravidade', r.gravidade);
+  if(isItp){ kv('N.º de suspeitos', r.num_suspeitos); kv('N.º de reféns', r.num_refens); kv('Negociador', r.negociador); }
+  kv('Registado por', r.autor_nome);
+  if(Array.isArray(r.gravidade_criterios) && r.gravidade_criterios.length){
+    kv('Critérios de gravidade', r.gravidade_criterios.join('; '));
+  }
+
+  // ---------------- 2. Resumo da situação
+  sec('2. Resumo da situação');
+  if(r.descricao) par(r.descricao); else vazio('Sem descrição registada.');
+
+  // ---------------- 3. Equipa de Negociação
+  sec('3. Equipa de Negociação');
+  const eq = r.equipa || {};
+  if(eq.isolado){
+    kv('Negociador isolado', 'SIM — negociador sozinho, sem restante EN constituída');
+    kv('Nota doutrinária', 'Ação contrária à doutrina: o PDGNR 1-04-18, 5.28, estabelece que a EN não funciona com menos de 2 negociadores.');
+  }
+  let algum = false;
+  EN_POSICOES.forEach(p => { if(eq[p.k] && eq[p.k].id){ algum = true; kv(p.nome, enNomeUtil(eq[p.k]) + (eq[p.k].cter ? ' · ' + eq[p.k].cter : '')); } });
+  if(!algum && !eq.isolado) vazio('EN por escalar.');
+  if(eq.conformidade) kv('Conformidade (5.28)', eq.conformidade);
+
+  // ---------------- 4. Contactos
+  sec('4. Contactos efetuados');
+  kv('Contacto da vítima', r.contacto_vitima);
+  kv('Contacto do agressor', r.contacto_agressor);
+  y += 2;
+  if(contactos.length){
+    nl();
+    doc.setFillColor(238,248,239); doc.rect(10, y, 190, 7, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(26,58,31);
+    doc.text('Data / hora', 13, y + 5); doc.text('Tipo', 52, y + 5);
+    doc.text('Dur.', 76, y + 5); doc.text('Risco', 89, y + 5); doc.text('Notas', 108, y + 5);
+    y += 10; doc.setFont('helvetica','normal'); doc.setTextColor(20,20,20); doc.setFontSize(8);
+    contactos.forEach(c => {
+      nl();
+      const notas = doc.splitTextToSize(String(c.notes || '—'), 90);
+      doc.text(c.contact_datetime ? fmtDateTime(c.contact_datetime) : '—', 13, y);
+      doc.text(String(c.contact_type || '—').slice(0, 13), 52, y);
+      doc.text(String(c.duration_min != null ? c.duration_min + ' min' : '—'), 76, y);
+      doc.text(String(c.suicide_risk || '—').slice(0, 10), 89, y);
+      doc.text(notas, 108, y);
+      y += Math.max(5.5, notas.length * 4.5);
+    });
+    y += 4;
+    doc.setFontSize(9);
+    kv('Total de contactos', contactos.length);
+  } else {
+    vazio('Sem contactos registados.');
+  }
+
+  // ---------------- 5. IRIS
+  sec('5. Anexo A — IRIS (Índice de Risco de Suicídio)');
+  if(iris){
+    kv('Visado', iris.patient_name); kv('N.º identificação', iris.patient_id);
+    kv('Data da avaliação', iris.assessment_date);
+    kv('Score', (iris.score != null ? iris.score : '—') + ' pontos');
+    kv('Nível de risco', iris.risk_level);
+    kv('Sexo', iris.gender === 'male' ? 'Masculino' : iris.gender === 'female' ? 'Feminino' : '—');
+    kv('Idade', iris.age_group === 'over45' ? '45 anos ou mais' : iris.age_group === 'under45' ? 'Menos de 45 anos' : '—');
+    kv('Religiosidade', iris.religiosity === 'no' ? 'Sem fatores religiosos' : iris.religiosity === 'yes' ? 'Com fatores religiosos' : '—');
+    const sim = [];
+    if(iris.isolation) sim.push('Vive só / sem apoio');
+    if(iris.recent_loss) sim.push('Perda recente');
+    if(iris.physical_illness) sim.push('Doença física');
+    if(iris.substance_abuse) sim.push('Abuso de substâncias');
+    if(iris.psychiatric_illness) sim.push('Doença psiquiátrica');
+    if(iris.psychiatric_history) sim.push('Internamento psiquiátrico');
+    if(iris.family_suicide) sim.push('História familiar de suicídio');
+    if(iris.suicide_history) sim.push('Comportamentos suicidários prévios');
+    if(iris.suicide_plan) sim.push('PLANO SUICIDA ORGANIZADO');
+    kv('Fatores assinalados', sim.length ? sim.join('; ') : 'Nenhum');
+  } else { vazio('IRIS não preenchido.'); }
+
+  // ---------------- 6. SARI
+  sec('6. Anexo B — SARI (cooperação e risco de violência)');
+  if(sari){
+    kv('Cooperação esperada', (sari.negotiation_probability != null ? sari.negotiation_probability : '—') + '%');
+    kv('Risco de violência', (sari.risk_level != null ? sari.risk_level : '—') + '/10');
+    kv('Idade', sari.age_group); kv('Estado emocional', sari.mental_state);
+    kv('Histórico criminal', sari.criminal_history); kv('Histórico de ameaças', sari.threat_history);
+    kv('Tipo de situação', sari.situation_type); kv('Arma envolvida', sari.weapons);
+    kv('Arma utilizada', sari.weapon_used); kv('Reféns', sari.hostages);
+    kv('Comunicação', sari.communication); kv('Violência doméstica', sari.violence_history);
+    kv('Substâncias', sari.substance_use); kv('Duração', sari.duration);
+    if(sari.additional_info){ kv('Informações adicionais', ''); par(sari.additional_info); }
+  } else { vazio('SARI não preenchido.'); }
+
+  // ---------------- 7. Plano de Negociação
+  sec('7. Anexo C — Plano de Negociação');
+  if(plano){
+    kv('Tipo de situação', plano.tipo_situacao);
+    kv('Alinhamento', plano.alinhamento);
+    if(plano.descricao){ kv('Descrição', ''); par(plano.descricao); }
+    if(plano.identificacao_problema){ kv('Identificação do problema', ''); par(plano.identificacao_problema); }
+    if(plano.posicao_adversario){ kv('Posição do adversário', ''); par(plano.posicao_adversario); }
+    if(plano.interesses_adversario){ kv('Interesses do adversário', ''); par(plano.interesses_adversario); }
+    if(plano.objetivo_principal){ kv('Objetivo principal', ''); par(plano.objetivo_principal); }
+    if(plano['objetivos_intermédios']){ kv('Objetivos intermédios', ''); par(plano['objetivos_intermédios']); }
+    if(plano.tempo_estimado){ kv('Tempo estimado', ''); par(plano.tempo_estimado); }
+    if(plano.meios){ kv('Meios a utilizar', ''); par(plano.meios); }
+  } else { vazio('Plano de Negociação não preenchido.'); }
+
+  // ---------------- 8. Plano de Diálogo
+  sec('8. Anexo D — Plano de Diálogo');
+  const pd = r.plano_dialogo || {};
+  let temPD = false;
+  PD_CAMPOS.forEach(cp => { if(pd[cp.k]){ temPD = true; kv(cp.t, ''); par(pd[cp.k]); } });
+  if(!temPD) vazio('Plano de Diálogo não preenchido.');
+
+  // ---------------- 9. Descrição do Visado
+  sec('9. Anexo E — Descrição do Visado');
+  const dv = r.descricao_visado || {};
+  if(Object.keys(dv).length){
+    kv('Faixa etária', dv.faixa_etaria); kv('Género', dv.genero);
+    kv('Distrito', dv.distrito); kv('Concelho', dv.concelho);
+    kv('Tipo de crime', dv.tipo_crime); kv('Relação com a vítima', dv.relacao_vitima);
+    kv('Presença de arma', dv.arma);
+    kv('Dependências', Array.isArray(dv.dependencias) ? dv.dependencias.join(', ') : dv.dependencias);
+    kv('Motivação aparente', dv.motivacao);
+  } else { vazio('Descrição do Visado não preenchida.'); }
+
+  // ---------------- 10. Quadros do posto n.º 3
+  const q = r.quadros || {};
+  const temQ = QUADROS_CAB.some(c => Array.isArray(q[c.k]) && q[c.k].length);
+  if(temQ){
+    sec('10. Anexo F — Quadros de informação (posto n.º 3)');
+    QUADROS_CAB.forEach(c => {
+      const it = Array.isArray(q[c.k]) ? q[c.k] : [];
+      if(!it.length) return;
+      kv(c.t, '');
+      it.forEach(x => { nl(); doc.setFontSize(9); doc.text('• ' + String(x.t || x), 20, y); y += 5; });
+      y += 3;
+    });
+  }
+
+  // ---------------- 11. Histórico
+  sec((temQ ? '11.' : '10.') + ' Histórico de alterações (últimas 30)');
+  if(hist.length){
+    doc.setFontSize(8);
+    hist.forEach(h => {
+      nl();
+      const c = h.campos_alterados || {};
+      let linha = fmtDateTime(h.created_at) + ' — ' + (h.autor_nome || '—') + ' — ' + (h.acao || '');
+      if(c.formulario) linha += ' (' + c.formulario + ')';
+      doc.setFont('helvetica','bold'); doc.setTextColor(30,30,30);
+      doc.text(doc.splitTextToSize(linha, 184), 16, y); y += 5;
+      doc.setFont('helvetica','normal'); doc.setTextColor(80,80,80);
+      if(Array.isArray(c.alteracoes)){
+        c.alteracoes.forEach(a => {
+          nl();
+          const t = doc.splitTextToSize('   · ' + a.campo + ': "' + a.antes + '" -> "' + a.depois + '"', 180);
+          doc.text(t, 16, y); y += t.length * 4.2;
+        });
+      }
+      if(c.motivo){ nl(); const m = doc.splitTextToSize('   Motivo: ' + c.motivo, 180); doc.text(m, 16, y); y += m.length * 4.2; }
+      y += 2;
+    });
+    doc.setTextColor(20,20,20); doc.setFontSize(9);
+  } else { vazio('Sem histórico registado.'); }
+
+  addPDFFooter(doc);
+  const nome = 'Relatorio_' + (isItp ? 'ITP' : 'Incidente') + '_' + String(r.local || '').replace(/[^\w]+/g, '_').slice(0, 24) + '_' + new Date().toISOString().slice(0,10) + '.pdf';
+  doc.save(nome);
 }
 
 function exportIRISPDF(){
@@ -3577,9 +4017,10 @@ async function renderSARI(){
       <div class="result-card"><div class="result-title">Cooperação Esperada</div><div class="result-value"><span id="sari-neg-val">0</span>%</div><div class="prob-bar-wrap"><div class="prob-bar green-bar" id="sari-neg-bar" style="width:0%"></div></div><div class="result-desc" id="sari-neg-desc"></div></div>
       <div class="result-card red-card"><div class="result-title">Risco de Violência (RVD-1L)</div><div class="result-value"><span id="sari-risk-val">0</span>/10</div><div class="prob-bar-wrap"><div class="prob-bar red-bar" id="sari-risk-bar" style="width:0%"></div></div><div class="result-desc" id="sari-risk-desc"></div></div>
     </div>
-    <button class="btn btn-primary btn-full" style="margin-top:1rem" onclick="saveSARI()"><i class="fas fa-save"></i> Guardar SARI</button>
+    ${sgiBarraHTML('sari','Guardar SARI')}
   `;
   calcSARI();
+  sgiAutosaveLigar('sari');
 }
 
 function calcSARI(){
@@ -3631,8 +4072,8 @@ async function saveSARI(){
   let err;
   if(ex){const res=await sb.from('sari').update(payload).eq('id',ex.id);err=res.error;}
   else{const res=await sb.from('sari').insert(payload);err=res.error;}
-  if(err){alert('Erro: '+err.message);return;}
-  alert('SARI guardado!');
+  if(err){_sgiFalhou('Erro: '+err.message);return;}
+  _sgiGuardou('SARI guardado!');
 }
 
 function exportSARIPDF(){
@@ -3749,14 +4190,16 @@ async function renderPlano(){
       <span style="font-size:12px;color:var(--gray600);line-height:1.5">Puxa a informação já registada no caso (descrição, quadros, IRIS, visado). Os objetivos e a identificação do problema não são preenchidos — são o raciocínio da EN.</span>
       <button class="btn btn-outline btn-sm" onclick="puxarDadosPN()" style="flex-shrink:0"><i class="fas fa-download"></i> Puxar dados do caso</button>
     </div>
-    <button class="btn btn-primary btn-full" onclick="savePlano()"><i class="fas fa-save"></i> Guardar Plano de Negociação</button>
+    ${sgiBarraHTML('plano','Guardar Plano')}
   </div>${contactosSidebar}</div>
   `;
   updateAlignBox();
+  sgiAutosaveLigar('plano');
 }
 
 function selectSit(val){
   document.getElementById('plano-sit').value=val;
+  if(typeof sgiAutosaveAgendar==='function') sgiAutosaveAgendar('plano');
   document.getElementById('sit-crise').classList.toggle('selected',val==='crise');
   document.getElementById('sit-conflito').classList.toggle('selected',val==='conflito');
 }
@@ -3789,8 +4232,8 @@ async function savePlano(){
   let err;
   if(ex){const res=await sb.from('plano_negociacao').update(payload).eq('id',ex.id);err=res.error;}
   else{const res=await sb.from('plano_negociacao').insert(payload);err=res.error;}
-  if(err){alert('Erro: '+err.message);return;}
-  alert('Plano guardado!');
+  if(err){_sgiFalhou('Erro: '+err.message);return;}
+  _sgiGuardou('Plano guardado!');
 }
 
 function exportPlanoPDF(){
@@ -5471,7 +5914,11 @@ document.addEventListener('click', e => {
 
 // ===== HISTÓRICO NO DETALHE =====
 async function loadHistorico(type, id) {
-  const { data } = await sb.from('historico').select('*').eq('tabela', type==='inc'?'incidentes':'itps').eq('registo_id', id).order('created_at', { ascending: false });
+  // o mesmo registo pode ter entradas gravadas com tabela 'incidentes', 'itps'
+  // ou 'treino_incidentes' — o registo_id (UUID) e' que manda.
+  const { data } = await sb.from('historico').select('*')
+    .in('tabela', ['incidentes','itps','treino_incidentes'])
+    .eq('registo_id', id).order('created_at', { ascending: false });
   return data || [];
 }
 
@@ -5899,6 +6346,28 @@ setupRealtimeSync_investigacao = () => {
 };
 
 // ===== TAB: HISTÓRICO =====
+function histFormulario(h){
+  const c = h && h.campos_alterados;
+  return (c && c.formulario) ? ' — <strong style="color:var(--gm);font-weight:600">'+c.formulario+'</strong>' : '';
+}
+function histDetalheHTML(h){
+  const c = h && h.campos_alterados;
+  if(!c) return '';
+  if(Array.isArray(c.alteracoes)){
+    let out = '<div style="margin-top:6px;border-left:2px solid var(--gpale);padding-left:10px">';
+    out += c.alteracoes.map(a =>
+      '<div style="font-size:12px;color:var(--gray600);line-height:1.6">'
+      + '<strong style="color:var(--gray900);font-weight:600">'+a.campo+':</strong> '
+      + '<span style="text-decoration:line-through;opacity:.65">'+(a.antes||'')+'</span> '
+      + '<i class="fas fa-arrow-right" style="font-size:9px;color:var(--gl);margin:0 3px"></i> '
+      + '<span style="color:var(--gm);font-weight:500">'+(a.depois||'')+'</span></div>').join('');
+    if(c.motivo) out += '<div style="font-size:12px;color:var(--amber);margin-top:4px"><i class="fas fa-comment-dots" style="margin-right:4px"></i>Motivo: '+c.motivo+'</div>';
+    out += '</div>';
+    return out;
+  }
+  return '<div style="font-size:11px;color:var(--gray400);font-family:\'IBM Plex Mono\',monospace;margin-top:2px">'+JSON.stringify(c)+'</div>';
+}
+
 async function renderHistorico() {
   const {type,record:r} = currentDetail;
   const el = document.getElementById('hist-content');
@@ -5911,8 +6380,8 @@ async function renderHistorico() {
       <div class="hist-item">
         <div class="hist-icon ${h.acao}">${icons[h.acao]||'?'}</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:500;color:var(--gray900)">${h.autor_nome||'—'} <span style="font-weight:400;color:var(--gray600)">${h.acao} este registo</span></div>
-          ${h.campos_alterados?`<div style="font-size:11px;color:var(--gray400);font-family:'IBM Plex Mono',monospace;margin-top:2px">${JSON.stringify(h.campos_alterados)}</div>`:''}
+          <div style="font-size:13px;font-weight:500;color:var(--gray900)">${h.autor_nome||'—'} <span style="font-weight:400;color:var(--gray600)">${h.acao} este registo${histFormulario(h)}</span></div>
+          ${histDetalheHTML(h)}
           <div style="font-size:11px;color:var(--gray400);margin-top:2px">${fmtDateTime(h.created_at)}</div>
         </div>
       </div>`).join('')}</div>`
@@ -8230,6 +8699,8 @@ function mobRenderDetalhe() {
     </div>
 
     <div style="padding:.875rem">
+      <button class="btn btn-gold btn-relatorio" onclick="produzirRelatorio()" style="width:100%;margin-bottom:12px;justify-content:center"><i class="fas fa-file-contract"></i> Produzir relatório</button>
+
       <!-- Classificação ITP -->
       <div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);margin-bottom:12px;padding:14px">
         <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px"><i class="fas fa-shield-halved" style="color:${isItp?'var(--red)':'var(--gl)'}"></i> Classificação</div>
@@ -8953,6 +9424,12 @@ function mobRenderChamada() {
       </div>
     </div>
 
+    <!-- Resumo IRIS / SARI / Plano -->
+    <div style="font-size:11px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px"><i class="fas fa-clipboard-check" style="color:var(--gl)"></i> Resumo dos formulários</div>
+    <div id="mob-chamada-resumo" style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:16px">
+      <div style="background:#fff;border:1px dashed var(--border);border-radius:var(--r);padding:12px;text-align:center;font-size:12px;color:var(--gray400)"><i class="fas fa-spinner fa-spin"></i> A carregar IRIS, SARI e Plano...</div>
+    </div>
+
     <!-- Contactos -->
     <div style="font-size:11px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px"><i class="fas fa-phone-alt" style="color:var(--gl)"></i> Iniciar Chamada</div>
 
@@ -8984,6 +9461,35 @@ function mobRenderChamada() {
 
   mobPopularDispositivos();
   mobRenderGravacoes();
+  mobCarregarResumoChamada();
+}
+
+// Resumo IRIS / SARI / Plano no ecrã de Contactos (mobile) — o mesmo que
+// o desktop mostra em cima da Monitorização de Contactos.
+async function mobCarregarResumoChamada(){
+  const box = document.getElementById('mob-chamada-resumo');
+  if(!box || !mobDetail) return;
+  const {type, record:r} = mobDetail;
+  const pt = type === 'inc' ? 'incidente' : 'itp';
+  try{
+    const [ir, sr, pr] = await Promise.all([
+      sb.from('iris').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+      sb.from('sari').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+      sb.from('plano_negociacao').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle()
+    ]);
+    const atual = document.getElementById('mob-chamada-resumo');
+    if(!atual) return;
+    atual.innerHTML = buildContactosSummary(ir.data||null, sr.data||null, pr.data||null, r);
+    // no telemóvel os cartões abrem o formulário respetivo, não separadores
+    atual.querySelectorAll('[onclick]').forEach(c => {
+      const o = c.getAttribute('onclick')||'';
+      const m = o.match(/tab-(iris|sari|plano)/);
+      if(m) c.setAttribute('onclick', "mobAbrirForm('" + m[1] + "')");
+    });
+  }catch(e){
+    const atual = document.getElementById('mob-chamada-resumo');
+    if(atual) atual.innerHTML = '<div style="background:var(--redl);border:1px solid var(--red);border-radius:var(--r);padding:10px;font-size:12px;color:var(--red)">Não foi possível carregar o resumo.</div>';
+  }
 }
 
 async function mobPopularDispositivos() {
