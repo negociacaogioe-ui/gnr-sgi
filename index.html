@@ -887,10 +887,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
       <div id="inc-alert" class="hidden"></div>
       <div class="form-grid">
         <div class="field form-full"><label>Tipo de Situação</label>
-          <select id="inc-tipo"><option value="">Selecionar...</option>
-            <option>Barricado</option><option>Barricado Armado</option><option>Tentativa de Suicídio</option>
-            <option>Atirador Ativo</option><option>Esfaqueador Ativo</option><option>Ameaça de Bomba</option>
-          </select>
+          <select id="inc-tipo" onchange="sgiTipoOutro('inc-tipo')"><option value="">Selecionar...</option><option>Violência Doméstica</option><option>Sequestro</option><option>Tentativa de Suicídio</option><option>Atirador Ativo</option><option>Outro</option></select><div id="inc-tipo-outro-wrap" class="hidden" style="margin-top:6px"><input type="text" id="inc-tipo-outro" maxlength="60" placeholder="ESPECIFIQUE O TIPO DE SITUAÇÃO" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase"></div>
         </div>
         <div class="field form-full"><label>Tipo de Crime</label>
           <select id="inc-crime" onchange="document.getElementById('inc-crime-outro-wrap').classList.toggle('hidden',this.value!=='Outro')">
@@ -934,7 +931,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
       <input type="hidden" id="treino-inc-id">
       <div id="treino-inc-alert" class="hidden"></div>
       <div class="form-grid">
-        <div class="field form-full"><label>Tipo *</label><select id="treino-inc-tipo"><option value="">Selecionar...</option><option>Violência doméstica</option><option>Desordem pública</option><option>Violência entre pessoas</option><option>Tentativa de suicídio</option><option>Sequestro</option><option>Atirador ativo</option><option>Esfaqueador ativo</option><option>Ameaça de bomba</option><option>Outro</option></select></div>
+        <div class="field form-full"><label>Tipo *</label><select id="treino-inc-tipo" onchange="sgiTipoOutro('treino-inc-tipo')"><option value="">Selecionar...</option><option>Violência Doméstica</option><option>Sequestro</option><option>Tentativa de Suicídio</option><option>Atirador Ativo</option><option>Outro</option></select><div id="treino-inc-tipo-outro-wrap" class="hidden" style="margin-top:6px"><input type="text" id="treino-inc-tipo-outro" maxlength="60" placeholder="ESPECIFIQUE O TIPO DE SITUAÇÃO" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase"></div></div>
         <div class="field form-full"><label>Localização</label><input type="text" id="treino-inc-local" placeholder="Ex: Lisboa, Rua..."></div>
         <div class="field form-full"><label>CTer</label><select id="treino-inc-cter"><option value="">Selecionar CTer...</option><option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option><option>CTer Castelo Branco</option><option>CTer Coimbra</option><option>CTer Évora</option><option>CTer Faro</option><option>CTer Guarda</option><option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option><option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option><option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option></select></div>
         <div class="field"><label>Data e hora</label><input type="datetime-local" id="treino-inc-data"></div>
@@ -965,7 +962,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
       <input type="hidden" id="treino-itp-id">
       <div id="treino-itp-alert" class="hidden"></div>
       <div class="form-grid">
-        <div class="field form-full"><label>Tipo *</label><select id="treino-itp-tipo"><option value="">Selecionar...</option><option>Sequestro sem reféns</option><option>Sequestro com reféns</option><option>Tiroteio ativo</option><option>Atirador ativo</option><option>Esfaqueador ativo</option><option>Atentado terrorista</option><option>Ameaça de bomba</option><option>Outro</option></select></div>
+        <div class="field form-full"><label>Tipo *</label><select id="treino-itp-tipo" onchange="sgiTipoOutro('treino-itp-tipo')"><option value="">Selecionar...</option><option>Violência Doméstica</option><option>Sequestro</option><option>Tentativa de Suicídio</option><option>Atirador Ativo</option><option>Outro</option></select><div id="treino-itp-tipo-outro-wrap" class="hidden" style="margin-top:6px"><input type="text" id="treino-itp-tipo-outro" maxlength="60" placeholder="ESPECIFIQUE O TIPO DE SITUAÇÃO" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase"></div></div>
         <div class="field form-full"><label>Localização</label><input type="text" id="treino-itp-local"></div>
         <div class="field form-full"><label>CTer</label><select id="treino-itp-cter"><option value="">Selecionar CTer...</option><option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option><option>CTer Castelo Branco</option><option>CTer Coimbra</option><option>CTer Évora</option><option>CTer Faro</option><option>CTer Guarda</option><option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option><option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option><option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option></select></div>
         <div class="field"><label>Data e hora</label><input type="datetime-local" id="treino-itp-data"></div>
@@ -994,9 +991,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
       <div id="itp-alert" class="hidden"></div>
       <div class="form-grid">
         <div class="field form-full"><label>Tipo de Situação</label>
-          <select id="itp-tipo"><option value="">Selecionar...</option>
-            <option>Barricado</option><option>Barricado Armado</option><option>Tentativa de Suicídio</option>
-            <option>Atirador Ativo</option><option>Esfaqueador Ativo</option><option>Ameaça de Bomba</option></select>
+          <select id="itp-tipo" onchange="sgiTipoOutro('itp-tipo')"><option value="">Selecionar...</option><option>Violência Doméstica</option><option>Sequestro</option><option>Tentativa de Suicídio</option><option>Atirador Ativo</option><option>Outro</option></select><div id="itp-tipo-outro-wrap" class="hidden" style="margin-top:6px"><input type="text" id="itp-tipo-outro" maxlength="60" placeholder="ESPECIFIQUE O TIPO DE SITUAÇÃO" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase"></div>
         </div>
         <div class="field form-full"><label>Tipo de Crime</label>
           <select id="itp-crime" onchange="document.getElementById('itp-crime-outro-wrap').classList.toggle('hidden',this.value!=='Outro')">
@@ -2065,6 +2060,41 @@ function _notasHTML(podeEnviar){
   return h+'</div>';
 }
 
+
+// ===== TIPO DE SITUAÇÃO — lista única para a área real e a área de treino =====
+// As quatro listas anteriores divergiam entre si e nas maiúsculas, o que partia
+// as estatísticas (o mesmo tipo contava como dois). Passa a ser esta a lista,
+// com "Outro" a abrir um campo livre que fica sempre em maiúsculas e é gravado
+// na coluna `tipo`, entrando por isso nas estatísticas como qualquer outro tipo.
+const SGI_TIPOS = ['Violência Doméstica','Sequestro','Tentativa de Suicídio','Atirador Ativo'];
+
+function sgiTipoOutro(id){
+  const sel = document.getElementById(id);
+  const wrap = document.getElementById(id + '-outro-wrap');
+  if(!sel || !wrap) return;
+  const on = sel.value === 'Outro';
+  wrap.classList.toggle('hidden', !on);
+  if(on){ const i = document.getElementById(id + '-outro'); if(i) setTimeout(() => i.focus(), 30); }
+}
+function sgiTipoValor(id){
+  const sel = document.getElementById(id);
+  if(!sel) return '';
+  if(sel.value !== 'Outro') return sel.value;
+  const i = document.getElementById(id + '-outro');
+  const v = (i && i.value.trim().toUpperCase()) || '';
+  return v || 'Outro';
+}
+function sgiTipoSet(id, valor){
+  const sel = document.getElementById(id);
+  if(!sel) return;
+  const v = valor || '';
+  const i = document.getElementById(id + '-outro');
+  if(!v){ sel.value = ''; if(i) i.value = ''; }
+  else if(SGI_TIPOS.indexOf(v) > -1){ sel.value = v; if(i) i.value = ''; }
+  else { sel.value = 'Outro'; if(i) i.value = v.toUpperCase(); }
+  sgiTipoOutro(id);
+}
+
 // ===== FILTRO DE SEPARADORES POR POSTO NA EN =====
 // Cada posição vê apenas os separadores que lhe competem. Isto é organização
 // de interface, não segurança: o controlo de acesso real continua no RLS do
@@ -3025,7 +3055,7 @@ function renderTableITP(){
 
 // ===== SAVE RECORDS =====
 async function saveIncidente(){
-  const tipo=document.getElementById('inc-tipo').value||'Por definir',
+  const tipo=sgiTipoValor('inc-tipo')||'Por definir',
     local=document.getElementById('inc-local').value.trim()||'Por definir',
     data=document.getElementById('inc-data').value||(()=>{const n=new Date();n.setMinutes(n.getMinutes()-n.getTimezoneOffset());return n.toISOString().slice(0,16);})(),
     grav=document.getElementById('inc-grav').value||'',
@@ -3049,7 +3079,7 @@ async function saveIncidente(){
 
 async function saveITP(){
   const nowFallback=(()=>{const n=new Date();n.setMinutes(n.getMinutes()-n.getTimezoneOffset());return n.toISOString().slice(0,16);})();
-  const tipo=document.getElementById('itp-tipo').value||'Por definir',
+  const tipo=sgiTipoValor('itp-tipo')||'Por definir',
     local=document.getElementById('itp-local').value.trim()||'Por definir',
     data=document.getElementById('itp-data').value||nowFallback,
     neg=document.getElementById('itp-neg').value.trim()||currentProfile.nome,
@@ -6067,7 +6097,7 @@ async function openEditIncidente(id) {
   const { data:r } = await sb.from('incidentes').select('*').eq('id',id).maybeSingle();
   if (!r) { alert('Sem permissão para abrir/editar este caso.'); return; }
   document.getElementById('edit-inc-id').value = r.id;
-  document.getElementById('edit-inc-tipo').value = r.tipo;
+  sgiTipoSet('edit-inc-tipo', r.tipo);
   document.getElementById('edit-inc-local').value = r.local;
   document.getElementById('edit-inc-cter').value = r.cter || '';
   const dt = new Date(r.data_hora); dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
@@ -6082,7 +6112,7 @@ async function openEditIncidente(id) {
 
 async function updateIncidente() {
   const id = document.getElementById('edit-inc-id').value;
-  const tipo = document.getElementById('edit-inc-tipo').value;const crime = document.getElementById('edit-inc-crime')?.value==='Outro'?(document.getElementById('edit-inc-crime-outro')?.value.trim()||'Outro'):(document.getElementById('edit-inc-crime')?.value||'');
+  const tipo = sgiTipoValor('edit-inc-tipo');const crime = document.getElementById('edit-inc-crime')?.value==='Outro'?(document.getElementById('edit-inc-crime-outro')?.value.trim()||'Outro'):(document.getElementById('edit-inc-crime')?.value||'');
   const local = document.getElementById('edit-inc-local').value.trim();
   const cter = document.getElementById('edit-inc-cter').value;
   const data = document.getElementById('edit-inc-data').value;
@@ -6115,7 +6145,7 @@ async function openEditITP(id) {
   const { data:r } = await sb.from('incidentes').select('*').eq('id',id).maybeSingle();
   if (!r) { alert('Sem permissão para abrir/editar este caso.'); return; }
   document.getElementById('edit-itp-id').value = r.id;
-  document.getElementById('edit-itp-tipo').value = r.tipo;
+  sgiTipoSet('edit-itp-tipo', r.tipo);
   document.getElementById('edit-itp-local').value = r.local;
   document.getElementById('edit-itp-cter').value = r.cter || '';
   const dt = new Date(r.data_hora); dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
@@ -6133,7 +6163,7 @@ async function openEditITP(id) {
 
 async function updateITP() {
   const id = document.getElementById('edit-itp-id').value;
-  const tipo = document.getElementById('edit-itp-tipo').value;const crime = document.getElementById('edit-itp-crime')?.value==='Outro'?(document.getElementById('edit-itp-crime-outro')?.value.trim()||'Outro'):(document.getElementById('edit-itp-crime')?.value||'');
+  const tipo = sgiTipoValor('edit-itp-tipo');const crime = document.getElementById('edit-itp-crime')?.value==='Outro'?(document.getElementById('edit-itp-crime-outro')?.value.trim()||'Outro'):(document.getElementById('edit-itp-crime')?.value||'');
   const local = document.getElementById('edit-itp-local').value.trim();
   const cter = document.getElementById('edit-itp-cter').value;
   const data = document.getElementById('edit-itp-data').value;
@@ -6804,7 +6834,7 @@ function openTreinoModal(type) {
   const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
   if (type === 'inc') {
     document.getElementById('treino-inc-id').value = '';
-    document.getElementById('treino-inc-tipo').value = '';
+    sgiTipoSet('treino-inc-tipo', '');
     document.getElementById('treino-inc-local').value = '';
     document.getElementById('treino-inc-cter').value = '';
     document.getElementById('treino-inc-data').value = now.toISOString().slice(0,16);
@@ -6816,7 +6846,7 @@ function openTreinoModal(type) {
     document.getElementById('modal-treino-inc').classList.remove('hidden');
   } else {
     document.getElementById('treino-itp-id').value = '';
-    document.getElementById('treino-itp-tipo').value = '';
+    sgiTipoSet('treino-itp-tipo', '');
     document.getElementById('treino-itp-local').value = '';
     document.getElementById('treino-itp-cter').value = '';
     document.getElementById('treino-itp-data').value = now.toISOString().slice(0,16);
@@ -6835,7 +6865,7 @@ function openTreinoModal(type) {
 async function saveTreinoIncidente() {
   const nowFallback=(()=>{const n=new Date();n.setMinutes(n.getMinutes()-n.getTimezoneOffset());return n.toISOString().slice(0,16);})();
   const id = document.getElementById('treino-inc-id').value;
-  const tipo = document.getElementById('treino-inc-tipo').value||'Por definir';
+  const tipo = sgiTipoValor('treino-inc-tipo')||'Por definir';
   const local = document.getElementById('treino-inc-local').value.trim()||'Por definir';
   const cter = document.getElementById('treino-inc-cter').value;
   const data = document.getElementById('treino-inc-data').value||nowFallback;
@@ -6859,7 +6889,7 @@ async function saveTreinoIncidente() {
 async function saveTreinoITP() {
   const nowFallback=(()=>{const n=new Date();n.setMinutes(n.getMinutes()-n.getTimezoneOffset());return n.toISOString().slice(0,16);})();
   const id = document.getElementById('treino-itp-id').value;
-  const tipo = document.getElementById('treino-itp-tipo').value||'Por definir';
+  const tipo = sgiTipoValor('treino-itp-tipo')||'Por definir';
   const local = document.getElementById('treino-itp-local').value.trim()||'Por definir';
   const cter = document.getElementById('treino-itp-cter').value;
   const data = document.getElementById('treino-itp-data').value||nowFallback;
@@ -6886,7 +6916,7 @@ function editTreinoIncidente(id) {
   const r = treinoIncidentes.find(x => x.id === id);
   if (!r) return;
   document.getElementById('treino-inc-id').value = r.id;
-  document.getElementById('treino-inc-tipo').value = r.tipo;
+  sgiTipoSet('treino-inc-tipo', r.tipo);
   document.getElementById('treino-inc-local').value = r.local;
   document.getElementById('treino-inc-cter').value = r.cter||'';
   const dt = new Date(r.data_hora); dt.setMinutes(dt.getMinutes()-dt.getTimezoneOffset());
@@ -6904,7 +6934,7 @@ function editTreinoITP(id) {
   const r = treinoITPs.find(x => x.id === id);
   if (!r) return;
   document.getElementById('treino-itp-id').value = r.id;
-  document.getElementById('treino-itp-tipo').value = r.tipo;
+  sgiTipoSet('treino-itp-tipo', r.tipo);
   document.getElementById('treino-itp-local').value = r.local;
   document.getElementById('treino-itp-cter').value = r.cter||'';
   const dt = new Date(r.data_hora); dt.setMinutes(dt.getMinutes()-dt.getTimezoneOffset());
@@ -8443,9 +8473,7 @@ setImages();
       <input type="hidden" id="edit-inc-id">
       <div id="edit-inc-alert" class="hidden"></div>
       <div class="form-grid">
-        <div class="field form-full"><label>Tipo de Situação</label><select id="edit-inc-tipo"><option value="">Selecionar...</option>
-            <option>Barricado</option><option>Barricado Armado</option><option>Tentativa de Suicídio</option>
-            <option>Atirador Ativo</option><option>Esfaqueador Ativo</option><option>Ameaça de Bomba</option></select></div>
+        <div class="field form-full"><label>Tipo de Situação</label><select id="edit-inc-tipo" onchange="sgiTipoOutro('edit-inc-tipo')"><option value="">Selecionar...</option><option>Violência Doméstica</option><option>Sequestro</option><option>Tentativa de Suicídio</option><option>Atirador Ativo</option><option>Outro</option></select><div id="edit-inc-tipo-outro-wrap" class="hidden" style="margin-top:6px"><input type="text" id="edit-inc-tipo-outro" maxlength="60" placeholder="ESPECIFIQUE O TIPO DE SITUAÇÃO" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase"></div></div>
         <div class="field form-full"><label>Tipo de Crime</label>
           <select id="edit-inc-crime" onchange="document.getElementById('edit-inc-crime-outro-wrap').classList.toggle('hidden',this.value!=='Outro')"><option value="">Selecionar...</option>
             <option>Violência doméstica</option><option>Homicídio</option><option>Sequestro</option><option>Outro</option></select>
@@ -8486,9 +8514,7 @@ setImages();
       <input type="hidden" id="edit-itp-id">
       <div id="edit-itp-alert" class="hidden"></div>
       <div class="form-grid">
-        <div class="field form-full"><label>Tipo de Situação</label><select id="edit-itp-tipo"><option value="">Selecionar...</option>
-            <option>Barricado</option><option>Barricado Armado</option><option>Tentativa de Suicídio</option>
-            <option>Atirador Ativo</option><option>Esfaqueador Ativo</option><option>Ameaça de Bomba</option></select></div>
+        <div class="field form-full"><label>Tipo de Situação</label><select id="edit-itp-tipo" onchange="sgiTipoOutro('edit-itp-tipo')"><option value="">Selecionar...</option><option>Violência Doméstica</option><option>Sequestro</option><option>Tentativa de Suicídio</option><option>Atirador Ativo</option><option>Outro</option></select><div id="edit-itp-tipo-outro-wrap" class="hidden" style="margin-top:6px"><input type="text" id="edit-itp-tipo-outro" maxlength="60" placeholder="ESPECIFIQUE O TIPO DE SITUAÇÃO" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase"></div></div>
         <div class="field form-full"><label>Tipo de Crime</label>
           <select id="edit-itp-crime" onchange="document.getElementById('edit-itp-crime-outro-wrap').classList.toggle('hidden',this.value!=='Outro')"><option value="">Selecionar...</option>
             <option>Violência doméstica</option><option>Homicídio</option><option>Sequestro</option><option>Outro</option></select>
@@ -9146,7 +9172,7 @@ function mobAbrirEditar() {
     const r = mobDetail.record;
     if (type==='inc') {
       document.getElementById('edit-inc-id').value = r.id;
-      document.getElementById('edit-inc-tipo').value = r.tipo||'';
+      sgiTipoSet('edit-inc-tipo', r.tipo||'');
       document.getElementById('edit-inc-local').value = r.local||'';
       document.getElementById('edit-inc-grav').value = r.gravidade||'';
       renderGravCriterios(r.gravidade,'edit-inc-grav-criterios',r.gravidade_criterios||[]);
@@ -9155,7 +9181,7 @@ function mobAbrirEditar() {
       if(r.data_hora){const d=new Date(r.data_hora);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());document.getElementById('edit-inc-data').value=d.toISOString().slice(0,16);}
     } else {
       document.getElementById('edit-itp-id').value = r.id;
-      document.getElementById('edit-itp-tipo').value = r.tipo||'';
+      sgiTipoSet('edit-itp-tipo', r.tipo||'');
       document.getElementById('edit-itp-local').value = r.local||'';
       document.getElementById('edit-itp-neg').value = r.negociador||'';
       document.getElementById('edit-itp-estado').value = r.estado||'Em curso';
@@ -9990,7 +10016,7 @@ function mobBuildForms(){
   if(incForm) incForm.innerHTML=`
     <div id="mob-inc-alert" style="display:none;padding:10px;border-radius:var(--r);margin-bottom:12px;font-size:13px"></div>
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Tipo de Situação</label>
-      <select id="mob-inc-tipo"><option value="">Selecionar...</option><option>Barricado</option><option>Barricado Armado</option><option>Tentativa de Suicídio</option><option>Atirador Ativo</option><option>Esfaqueador Ativo</option><option>Ameaça de Bomba</option></select></div>
+      <select id="mob-inc-tipo" onchange="sgiTipoOutro('mob-inc-tipo')"><option value="">Selecionar...</option><option>Violência Doméstica</option><option>Sequestro</option><option>Tentativa de Suicídio</option><option>Atirador Ativo</option><option>Outro</option></select><div id="mob-inc-tipo-outro-wrap" class="hidden" style="margin-top:6px"><input type="text" id="mob-inc-tipo-outro" maxlength="60" placeholder="ESPECIFIQUE O TIPO DE SITUAÇÃO" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase"></div></div>
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Tipo de Crime</label>
       <select id="mob-inc-crime"><option value="">Selecionar...</option><option>Violência doméstica</option><option>Homicídio</option><option>Sequestro</option><option>Outro</option></select></div>
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Localização</label><input type="text" id="mob-inc-local" placeholder="Morada ou localidade"></div>
@@ -10012,7 +10038,7 @@ function mobBuildForms(){
   if(itpForm) itpForm.innerHTML=`
     <div id="mob-itp-alert" style="display:none;padding:10px;border-radius:var(--r);margin-bottom:12px;font-size:13px"></div>
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Tipo de Situação</label>
-      <select id="mob-itp-tipo"><option value="">Selecionar...</option><option>Barricado</option><option>Barricado Armado</option><option>Tentativa de Suicídio</option><option>Atirador Ativo</option><option>Esfaqueador Ativo</option><option>Ameaça de Bomba</option></select></div>
+      <select id="mob-itp-tipo" onchange="sgiTipoOutro('mob-itp-tipo')"><option value="">Selecionar...</option><option>Violência Doméstica</option><option>Sequestro</option><option>Tentativa de Suicídio</option><option>Atirador Ativo</option><option>Outro</option></select><div id="mob-itp-tipo-outro-wrap" class="hidden" style="margin-top:6px"><input type="text" id="mob-itp-tipo-outro" maxlength="60" placeholder="ESPECIFIQUE O TIPO DE SITUAÇÃO" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase"></div></div>
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Tipo de Crime</label>
       <select id="mob-itp-crime"><option value="">Selecionar...</option><option>Violência doméstica</option><option>Homicídio</option><option>Sequestro</option><option>Outro</option></select></div>
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Localização</label><input type="text" id="mob-itp-local" placeholder="Morada ou referência"></div>
@@ -10053,7 +10079,7 @@ function mobShowAlert(id,type,msg){
 
 async function mobSaveInc(){
   const nowFallback=(()=>{const n=new Date();n.setMinutes(n.getMinutes()-n.getTimezoneOffset());return n.toISOString().slice(0,16);})();
-  const tipo=document.getElementById('mob-inc-tipo')?.value||'Por definir';
+  const tipo=sgiTipoValor('mob-inc-tipo')||'Por definir';
   const local=document.getElementById('mob-inc-local')?.value.trim()||'Por definir';
   const data=document.getElementById('mob-inc-data')?.value||nowFallback;
   const grav=document.getElementById('mob-inc-grav')?.value||'';
@@ -10080,7 +10106,7 @@ async function mobSaveInc(){
 
 async function mobSaveITP(){
   const nowFallback=(()=>{const n=new Date();n.setMinutes(n.getMinutes()-n.getTimezoneOffset());return n.toISOString().slice(0,16);})();
-  const tipo=document.getElementById('mob-itp-tipo')?.value||'Por definir';
+  const tipo=sgiTipoValor('mob-itp-tipo')||'Por definir';
   const local=document.getElementById('mob-itp-local')?.value.trim()||'Por definir';
   const data=document.getElementById('mob-itp-data')?.value||nowFallback;
   const payload={
