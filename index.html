@@ -2226,8 +2226,7 @@ async function renderQuadroCoordenador(){
 
   box.innerHTML =
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin-bottom:10px">'
-    + cartao('Situação', r.tipo || '—', r.local || '', r.is_itp ? 'var(--red)' : 'var(--gl)')
-    + cartao('Estado / decorrido', r.estado || '—', 'Há ' + decorrido() + ' · ' + (r.cter||'—'))
+    + cartao('Situação', r.tipo || '—', (r.local || '—') + ' · ' + (r.cter || '—') + ' · há ' + decorrido(), r.is_itp ? 'var(--red)' : 'var(--gl)')
     + cartao('IRIS', iris ? (iris.score != null ? iris.score + ' pts' : '—') : 'Não preenchido', iris ? (iris.risk_level||'') : '', irisCor)
     + cartao('SARI', sari ? (sari.negotiation_probability != null ? sari.negotiation_probability + '%' : '—') : 'Não preenchido', sari ? ('Cooperação · risco ' + (sari.risk_level != null ? sari.risk_level + '/10' : '—')) : '', sariCor)
     + cartao('Contactos', String(cts.length), ult ? ('Último: ' + fmtDateTime(ult.contact_datetime)) : 'Sem contactos')
