@@ -1036,35 +1036,44 @@ let allNegociadores=[];
 let adminFiltroCter='';
 const sb=createClient(SURL,SKEY);
 const GRAV_CRITERIOS = {
+  // Escala alinhada com o modelo de 3 níveis do PDGNR M 1-08-02 (7.59):
+  // Comuns -> Baixa e Média · Intermédias -> Alta · Críticas -> Crítica.
+  // A separação entre Baixa e Média é granularidade operacional, não doutrina.
   'Baixa': [
     'Sem armas envolvidas ou reportadas',
-    'Sujeito contactável e em diálogo',
-    'Nenhuma pessoa em perigo imediato',
-    'Evolução estável da situação',
-    'Meios locais habituais suficientes'
+    'Sujeito contactável e em diálogo continuado',
+    'Nenhuma pessoa em perigo além do próprio sujeito',
+    'Situação estática e circunscrita a um único local',
+    'Meios locais habituais suficientes, sem necessidade de reforço',
+    'Resolução pacífica provável — situação comum (7.59)'
   ],
   'Média': [
-    'Possível arma branca ou contundente, sem uso direto',
-    'Sujeito agitado, com diálogo intermitente',
-    'Pessoas no local sem ameaça direta',
+    'Arma branca ou objeto contundente presente, sem uso',
+    'Diálogo intermitente ou sujeito agitado',
+    'Terceiros no local sem ameaça direta',
     'Dinâmica com risco de escalar',
-    'Requer acompanhamento ativo e reavaliação frequente'
+    'Exige acompanhamento ativo e reavaliação frequente',
+    'Resolúvel com meios locais, mas com reforço em prontidão'
   ],
   'Alta': [
-    'Arma de fogo ou meio letal confirmado ou provável',
-    'Ameaças explícitas de dano a si ou a terceiros',
+    'Arma de fogo ou outro meio letal confirmado ou provável',
+    'Ameaça explícita de dano a si próprio ou a terceiros',
     'Sujeito barricado ou a recusar contacto',
+    'Pessoa com liberdade constrangida ou refém sob ameaça',
+    'Tentativa de suicídio em curso (parapeito, varanda, meio letal acessível)',
     'Presença de pessoas vulneráveis (crianças, idosos, feridos)',
-    'Pessoa com liberdade constrangida',
-    'Dinâmica em escalada'
+    'Capacidade local excedida — requerido apoio especializado da UI/GIOE (ITP)',
+    'Desfecho tático ou não pacífico provável — situação intermédia (7.59)'
   ],
   'Crítica': [
-    'Uso ativo de meio letal / disparos',
-    'Ferimentos já infligidos',
-    'Pessoa em risco físico imediato (parapeito, varanda, etc.)',
-    'Refém sob ameaça explícita',
-    'Perda de diálogo viável',
-    'Ultimato com horizonte temporal curto'
+    'Elevado número de vítimas, provável ou já verificado (7.70)',
+    'Foco em múltiplos locais em simultâneo, exigindo distribuição das EN (7.73)',
+    'Número de agressores ou de vítimas acima da capacidade de resposta — possível declaração de ITPG ao abrigo do PCCCOFSS (7.73)',
+    'Active Shooter ou Active Killer — crimes contra a vida praticados de modo continuado (7.71)',
+    'Ataque terrorista com armas de fogo, explosivos ou incêndio (7.70)',
+    'Agressor em movimento ou em deslocação entre locais (7.73)',
+    'Impacto sobre população não envolvida ou infraestrutura crítica',
+    'Resolução pacífica muito improvável — exige resposta imediata, robusta e transacional (7.61, 7.62)'
   ]
 };
 function renderGravCriterios(level, containerId, selected){
@@ -1776,7 +1785,7 @@ async function sgiRegistarAlteracao(formulario, alteracoes, motivo){
   }catch(e){ console.warn('histórico', e); }
 }
 
-// ===== EQUIPA DE NEGOCIAÇÃO (EN) — PDGNR 1-04-18, cap. 5 =====
+// ===== EQUIPA DE NEGOCIAÇÃO (EN) — PDGNR M 1-08-02, cap. 5 =====
 const EN_POSICOES = [
   {k:'n1', nome:'Negociador n.º 1', desc:'Comunica com a contraparte'},
   {k:'n2', nome:'Negociador n.º 2', desc:'Apoio ao n.º 1 e blindagem da informação'},
@@ -1923,7 +1932,7 @@ function enAvaliar(){
       iso.style.display='';
       iso.innerHTML='<div style="background:var(--redl);border:1px solid var(--red);border-radius:var(--r);padding:10px 12px;font-size:12.5px;color:var(--red);line-height:1.55;margin-top:8px">'
         +'<i class="fas fa-triangle-exclamation" style="margin-right:5px"></i><strong>Negociador isolado — ação contrária à doutrina.</strong><br>'
-        +'O PDGNR 1-04-18, 5.28, estabelece que a Equipa de Negociação não funciona com menos de 2 negociadores. '
+        +'O PDGNR M 1-08-02, 5.28, estabelece que a Equipa de Negociação não funciona com menos de 2 negociadores. '
         +'O registo é permitido para refletir a situação real no terreno, mas a não conformidade com o 5.28 fica assinalada no caso, no histórico e no relatório.</div>';
     } else { iso.innerHTML=''; iso.style.display='none'; }
   }
@@ -1948,7 +1957,7 @@ async function guardarEquipa(){
   if(conf.estado==='nao-conforme'){
     if(!confirm('ATENÇÃO — constituição NÃO CONFORME com o manual (5.28).\n\n'+conf.msg+'\n\nO registo vai ser guardado com esta não conformidade assinalada no caso. Confirma?')) return;
   }
-  if(_enWork.isolado && !confirm('NEGOCIADOR ISOLADO — ação contrária à doutrina.\n\nO PDGNR 1-04-18, 5.28, estabelece que a Equipa de Negociação não funciona com menos de 2 negociadores.\n\nO registo é permitido, mas a não conformidade com o 5.28 fica assinalada no caso, no histórico e no relatório. Confirma?')) return;
+  if(_enWork.isolado && !confirm('NEGOCIADOR ISOLADO — ação contrária à doutrina.\n\nO PDGNR M 1-08-02, 5.28, estabelece que a Equipa de Negociação não funciona com menos de 2 negociadores.\n\nO registo é permitido, mas a não conformidade com o 5.28 fica assinalada no caso, no histórico e no relatório. Confirma?')) return;
   eq.conformidade = conf.estado;
   eq.isolado = !!_enWork.isolado;
   const ids=enPreenchidos(eq).map(k=>eq[k].id);
@@ -2378,7 +2387,7 @@ async function exportQuadroCoordenadorPDF(){
   kv('SARI — risco de violência', sari ? ((sari.risk_level!=null?sari.risk_level+'/10':'—')) : 'Não preenchido');
 
   sec('Equipa de Negociação');
-  if(eq.isolado) kv('Negociador isolado', 'SIM — ação contrária à doutrina (PDGNR 1-04-18, 5.28)');
+  if(eq.isolado) kv('Negociador isolado', 'SIM — ação contrária à doutrina (PDGNR M 1-08-02, 5.28)');
   EN_POSICOES.forEach(p => { if(eq[p.k] && eq[p.k].id) kv(p.nome, enNomeUtil(eq[p.k])); });
   kv('Conformidade (5.28)', eq.conformidade);
 
@@ -3158,7 +3167,7 @@ function renderResumo(){
     </div>`}
     ${`<div class="form-section">
       <h3><i class="fas fa-users-gear" style="color:var(--gl)"></i> Equipa de Negociação (EN)</h3>
-      <p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px;line-height:1.5">Manual PDGNR 1-04-18 (5.28): ITP — preferencialmente 5, mínimo 4. Incidente — 3, excecionalmente 2. As funções acumulam-se em sentido decrescente; o n.º 1 nunca acumula.</p>
+      <p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px;line-height:1.5">Manual PDGNR M 1-08-02 (5.28): ITP — preferencialmente 5, mínimo 4. Incidente — 3, excecionalmente 2. As funções acumulam-se em sentido decrescente; o n.º 1 nunca acumula.</p>
       <div id="en-estado" style="margin-bottom:10px"></div>
       <div class="field form-full" style="margin-bottom:8px"><label>CTer / Unidade a consultar</label><select id="en-cter-filtro" onchange="enSetCterFiltro(this.value)"></select></div>
       <div id="en-ambito" style="font-size:11.5px;color:var(--gray600);margin-bottom:10px;line-height:1.6"></div>
@@ -3465,7 +3474,7 @@ function _relatorioPDF(r, type, iris, sari, plano, contactos, hist){
   const eq = r.equipa || {};
   if(eq.isolado){
     kv('Negociador isolado', 'SIM — negociador sozinho, sem restante EN constituída');
-    kv('Nota doutrinária', 'Ação contrária à doutrina: o PDGNR 1-04-18, 5.28, estabelece que a EN não funciona com menos de 2 negociadores.');
+    kv('Nota doutrinária', 'Ação contrária à doutrina: o PDGNR M 1-08-02, 5.28, estabelece que a EN não funciona com menos de 2 negociadores.');
   }
   let algum = false;
   EN_POSICOES.forEach(p => { if(eq[p.k] && eq[p.k].id){ algum = true; kv(p.nome, enNomeUtil(eq[p.k]) + (eq[p.k].cter ? ' · ' + eq[p.k].cter : '')); } });
