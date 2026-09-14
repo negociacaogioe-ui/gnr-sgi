@@ -2093,6 +2093,11 @@ function enAcumulacao(eq, k){
 
 // A Coordenação sobe para a posição mais alta que estiver escalada.
 // Com Coordenador escalado, é partilhada com o n.º 4.
+// Caso encerrado: deixa de fazer sentido declarar posição na equipa.
+function casoEncerrado(){
+  const e = currentDetail && currentDetail.record && currentDetail.record.estado;
+  return e === 'Resolvido' || e === 'Arquivado';
+}
 function enQuemVeCoordenacao(eq){
   const tem = k => !!(eq && eq[k] && eq[k].id);
   if(tem('nc')) return ['nc','n4'];
@@ -2136,7 +2141,7 @@ function aplicarFiltroPosto(){
   const f = enFuncoesAtuais();
   const isAdmin = currentProfile && (currentProfile.role === 'admin' || currentProfile.role === 'suporte');
   // Sem EN escalada ainda, ou admin/suporte, ou escape ligado -> mostra tudo.
-  const mostrarTudo = enVerTodosTabs || isAdmin || !enAlguemEscalado();
+  const mostrarTudo = enVerTodosTabs || isAdmin || casoEncerrado() || !enAlguemEscalado();
 
   let permitidos = null;
   if(!mostrarTudo && !_postoEscolhido){
@@ -2165,6 +2170,8 @@ function aplicarFiltroPosto(){
   }
   if(!f.length && !isAdmin && enAlguemEscalado()){
     aviso.innerHTML = '<span><i class="fas fa-user-slash" style="color:var(--gray400);margin-right:5px"></i>Não está escalado na EN deste caso — vê todos os separadores, mas o separador Posto não tem conteúdo para si.</span>';
+  } else if(casoEncerrado()){
+    aviso.innerHTML = '<span><i class="fas fa-lock" style="color:var(--gray400);margin-right:5px"></i>Caso encerrado — todos os separadores em consulta.</span>';
   } else if(mostrarTudo){
     aviso.innerHTML = '<span><i class="fas fa-eye" style="color:var(--gl);margin-right:5px"></i>'
       + (isAdmin ? 'Perfil de administração — vê todos os separadores.'
@@ -2523,6 +2530,19 @@ function renderPosto(){
   if(!el||!currentDetail) return;
   const r=currentDetail.record;
   const eq=r.equipa||{};
+  if(casoEncerrado()){
+    el.innerHTML = '<div class="form-section">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+      + '<h3 style="margin:0"><i class="fas fa-lock" style="color:var(--gray400)"></i> Caso ' + (r.estado||'').toLowerCase() + '</h3>'
+      + '<button class="btn btn-gold btn-sm" onclick="exportQuadroCoordenadorPDF()"><i class="fas fa-file-pdf"></i> PDF para briefing</button></div>'
+      + '<p style="font-size:12px;color:var(--gray600);margin:8px 0 0">O caso está encerrado. A posição na equipa já não se declara — fica a consulta do ponto de situação.</p>'
+      + '</div>'
+      + '<div id="coord-cab" style="margin-bottom:14px"></div>'
+      + '<div class="form-section"><h3><i class="fas fa-star" style="color:var(--gold)"></i> Quadro do Coordenador</h3><div id="qc-content"></div></div>';
+    renderCabecalhoCoordenacao();
+    renderQuadroCoordenador();
+    return;
+  }
   if(!_postoEscolhido){ el.innerHTML = _seletorPostoHTML(); return; }
   const f = enFuncoesAtuais();
   if(!f.length){
