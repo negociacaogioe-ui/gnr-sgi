@@ -1071,7 +1071,7 @@ function renderVisado(){
 async function saveVisado(){
   if(!currentDetail) return;
   if(currentDetail.isTreino){ _sgiLastError='A Descrição do Visado aplica-se apenas a situações reais.'; showAlert('visado-alert','error',_sgiLastError); return; }
-  var table = currentDetail.type==='itp' ? 'itps' : 'incidentes';
+  var table = 'incidentes';
   function gv(id){ var e=document.getElementById(id); return e?e.value:''; }
   var deps = [];
   var b = document.querySelectorAll('.visado-dep');
@@ -1448,7 +1448,7 @@ async function deleteCurrentDetail() {
   const { type, record } = currentDetail;
   const label = type === 'inc' ? 'incidente' : 'ITP';
   if (!confirm(`Eliminar este ${label} permanentemente? Esta ação não pode ser desfeita.`)) return;
-  const tabela = type === 'inc' ? 'incidentes' : 'itps';
+  const tabela = 'incidentes';
   await sb.from('historico').insert({ tabela, registo_id: record.id, acao: 'eliminado', autor_id: currentUser.id, autor_nome: currentProfile.nome }).catch(()=>{});
   const { error } = await sb.from(tabela).delete().eq('id', record.id);
   if (error) { alert('Erro ao eliminar: ' + error.message); return; }
@@ -1693,7 +1693,7 @@ async function sgiAutosaveExec(key, forcar){
 function sgiTabelaHist(){
   if(!currentDetail) return 'incidentes';
   if(currentDetail.isTreino) return 'treino_incidentes';
-  return currentDetail.type === 'itp' ? 'itps' : 'incidentes';
+  return 'incidentes';
 }
 async function sgiRegistarAlteracao(formulario, alteracoes, motivo){
   if(!currentDetail) return;
@@ -2139,8 +2139,8 @@ function aplicarFiltroPosto(){
   const nav = document.getElementById('tabs-nav');
   if(!nav) return;
   const f = enFuncoesAtuais();
-  const isAdmin = currentProfile && (currentProfile.role === 'admin' || currentProfile.role === 'suporte');
-  // Sem EN escalada ainda, ou admin/suporte, ou escape ligado -> mostra tudo.
+  const isAdmin = currentProfile && currentProfile.role === 'admin';
+  // Sem EN escalada ainda, ou admin, ou escape ligado -> mostra tudo.
   const mostrarTudo = enVerTodosTabs || isAdmin || casoEncerrado() || !enAlguemEscalado();
 
   let permitidos = null;
@@ -3876,7 +3876,7 @@ function toggleContactosSidebarEdit(show, target) {
 
 async function saveContactosSidebar() {
   const {type, record:r, isTreino} = currentDetail;
-  const tabela = isTreino ? (type==='inc'?'treino_incidentes':'treino_itps') : (type==='inc'?'incidentes':'itps');
+  const tabela = isTreino ? 'treino_incidentes' : 'incidentes';
   const vitima = document.getElementById('sidebar-vitima-input')?.value.trim() ?? r.contacto_vitima ?? '';
   const agressor = document.getElementById('sidebar-agressor-input')?.value.trim() ?? r.contacto_agressor ?? '';
   const {error} = await sb.from(tabela).update({contacto_vitima:vitima,contacto_agressor:agressor}).eq('id',r.id);
@@ -6305,7 +6305,7 @@ async function updateITP() {
   const { error } = await sb.from('incidentes').update({ tipo, local, cter, data_hora: new Date(data).toISOString(), negociador:neg, num_suspeitos:sus, num_refens:ref, gravidade:'', gravidade_criterios: collectGravCriterios('edit-itp-grav-criterios'), estado, descricao:desc }).eq('id', id);
   btn.innerHTML='Guardar Alterações'; btn.disabled=false;
   if (error) { showAlert('edit-itp-alert','error','Erro: '+error.message); return; }
-  await sb.from('historico').insert({ tabela:'itps', registo_id:id, acao:'editado', campos_alterados: { antes:{tipo:old.tipo,estado:old.estado}, depois:{tipo,estado} }, autor_id:currentUser.id, autor_nome:currentProfile.nome });
+  await sb.from('historico').insert({ tabela:'incidentes', registo_id:id, acao:'editado', campos_alterados: { antes:{tipo:old.tipo,estado:old.estado}, depois:{tipo,estado} }, autor_id:currentUser.id, autor_nome:currentProfile.nome });
   closeModal('modal-edit-itp');
   await loadData(); renderTableITP();
 }
@@ -6313,7 +6313,7 @@ async function updateITP() {
 async function deleteITP() {
   const id = document.getElementById('edit-itp-id').value;
   if (!confirm('Eliminar este ITP permanentemente?')) return;
-  await sb.from('historico').insert({ tabela:'itps', registo_id:id, acao:'eliminado', autor_id:currentUser.id, autor_nome:currentProfile.nome });
+  await sb.from('historico').insert({ tabela:'incidentes', registo_id:id, acao:'eliminado', autor_id:currentUser.id, autor_nome:currentProfile.nome });
   await sb.from('incidentes').delete().eq('id', id);
   closeModal('modal-edit-itp');
   await loadData(); renderTableITP();
@@ -6321,7 +6321,7 @@ async function deleteITP() {
 
 // ===== QUICK STATUS =====
 async function quickStatusChange(type, id, newStatus, selectEl) {
-  const table = type === 'inc' ? 'incidentes' : 'itps';
+  const table = 'incidentes';
   selectEl.disabled = true;
   const { error } = await sb.from(table).update({ estado: newStatus }).eq('id', id);
   selectEl.disabled = false;
@@ -7073,13 +7073,13 @@ function editTreinoITP(id) {
 
 async function deleteTreino(type, id) {
   if (!confirm('Eliminar este registo de treino?')) return;
-  const table = type === 'inc' ? 'treino_incidentes' : 'treino_itps';
+  const table = 'treino_incidentes';
   await sb.from(table).delete().eq('id', id);
   renderTreino();
 }
 
 async function quickTreinoStatus(type, id, newStatus) {
-  const table = type === 'inc' ? 'treino_incidentes' : 'treino_itps';
+  const table = 'treino_incidentes';
   await sb.from(table).update({ estado: newStatus }).eq('id', id);
   if (type === 'inc') { const r=treinoIncidentes.find(x=>x.id===id); if(r) r.estado=newStatus; }
   else { const r=treinoITPs.find(x=>x.id===id); if(r) r.estado=newStatus; }
@@ -7092,8 +7092,7 @@ async function quickTreinoStatus(type, id, newStatus) {
 async function limparTreino() {
   if (!confirm('Apagar TODOS os registos de treino? Esta ação não pode ser desfeita.')) return;
   await Promise.all([
-    sb.from('treino_incidentes').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-    sb.from('treino_itps').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    sb.from('treino_incidentes').delete().neq('id', '00000000-0000-0000-0000-000000000000')
   ]);
   renderTreino();
 }
@@ -8173,7 +8172,7 @@ async function abrirLiveNotif(notifId, registoId, registoTipo, sessionId) {
   document.getElementById('notif-panel')?.classList.add('hidden');
 
   // Find the record
-  const table = registoTipo === 'inc' ? 'incidentes' : 'itps';
+  const table = 'incidentes';
   const { data: record } = await sb.from(table).select('*').eq('id', registoId).single();
   if (!record) { alert('Registo não encontrado.'); return; }
 
@@ -9257,7 +9256,7 @@ function mobRenderDetalhe() {
 async function mobSaveContacto(target) {
   if (!mobDetail) return;
   const { type, record:r, isTreino } = mobDetail;
-  const tabela = isTreino ? (type==='inc'?'treino_incidentes':'treino_itps') : (type==='inc'?'incidentes':'itps');
+  const tabela = isTreino ? 'treino_incidentes' : 'incidentes';
   const val = document.getElementById(target==='vitima'?'mob-v-input':'mob-a-input')?.value.trim()||'';
   const payload = target==='vitima' ? {contacto_vitima:val} : {contacto_agressor:val};
   const {error} = await sb.from(tabela).update(payload).eq('id', r.id);
@@ -9624,7 +9623,7 @@ async function mobGuardarELigar(target, inputId) {
   // Save directly
   if (mobDetail) {
     const {type, record:r, isTreino} = mobDetail;
-    const tabela = isTreino ? (type==='inc'?'treino_incidentes':'treino_itps') : (type==='inc'?'incidentes':'itps');
+    const tabela = isTreino ? 'treino_incidentes' : 'incidentes';
     const payload = target === 'vitima' ? {contacto_vitima: numero} : {contacto_agressor: numero};
     await sb.from(tabela).update(payload).eq('id', r.id);
     if (target === 'vitima') r.contacto_vitima = numero;
