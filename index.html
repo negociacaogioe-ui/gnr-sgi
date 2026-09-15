@@ -341,8 +341,14 @@ body.is-mobile .btn{padding:12px 18px;font-size:14px}
 body.is-mobile .btn-sm{padding:10px 14px;font-size:13px}
 body.is-mobile .form-grid{grid-template-columns:1fr!important}
 body.is-mobile .form-full{grid-column:1/-1}
-body.is-mobile .modal{max-width:100vw;border-radius:var(--rl) var(--rl) 0 0;position:fixed;bottom:0;max-height:92vh}
-body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
+body.is-mobile .modal{max-width:100vw;border-radius:var(--rl) var(--rl) 0 0;position:fixed;bottom:0;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;padding-bottom:env(safe-area-inset-bottom,0px)}
+/* o corpo passa a ser o unico a rolar, para o rodape com o botao Guardar
+   ficar sempre visivel; sem isto ficava escondido por tras do #mob-tabbar */
+body.is-mobile .modal .modal-header{flex:0 0 auto}
+body.is-mobile .modal .modal-body{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch}
+body.is-mobile .modal .modal-footer{flex:0 0 auto;position:sticky;bottom:0;z-index:2;box-shadow:0 -2px 8px rgba(0,0,0,.07)}
+body.is-mobile .modal .modal-footer .btn{flex:1;justify-content:center;padding:13px}
+body.is-mobile .modal-overlay{align-items:flex-end;padding:0;z-index:210}
 </style>
 </head>
 <body>
@@ -887,13 +893,6 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
         <div class="field form-full"><label>Tipo de Situação</label>
           <select id="inc-tipo" onchange="sgiTipoOutro('inc-tipo')"><option value="">Selecionar...</option><option>Violência Doméstica</option><option>Sequestro</option><option>Tentativa de Suicídio</option><option>Atirador Ativo</option><option>Outro</option></select><div id="inc-tipo-outro-wrap" class="hidden" style="margin-top:6px"><input type="text" id="inc-tipo-outro" maxlength="60" placeholder="ESPECIFIQUE O TIPO DE SITUAÇÃO" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase"></div>
         </div>
-        <div class="field form-full"><label>Tipo de Crime</label>
-          <select id="inc-crime" onchange="document.getElementById('inc-crime-outro-wrap').classList.toggle('hidden',this.value!=='Outro')">
-            <option value="">Selecionar...</option>
-            <option>Violência doméstica</option><option>Homicídio</option><option>Sequestro</option><option>Outro</option>
-          </select>
-          <div id="inc-crime-outro-wrap" class="hidden" style="margin-top:6px"><input type="text" id="inc-crime-outro" placeholder="Especifique o tipo de crime..."></div>
-        </div>
         <div class="field form-full"><label>Localização</label><input type="text" id="inc-local" placeholder="Morada ou localidade"></div>
         <div class="field form-full"><label>Comando Territorial (CTer)</label><select id="inc-cter"><option value="">Selecionar CTer...</option>
           <option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option>
@@ -903,8 +902,6 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0}
           <option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option>
         </select></div>
         <div class="field"><label>Data e hora</label><input type="datetime-local" id="inc-data"></div>
-        <div class="field"><label>Nº de Vítimas</label><input type="number" id="inc-vitimas" min="0" value="0"></div>
-        <div class="field"><label>Nº de Reféns</label><input type="number" id="inc-refens" min="0" value="0"></div>
         <div class="field"><label>Estado</label><select id="inc-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
         <div class="field"><label><i class="fas fa-user" style="color:var(--gm)"></i> Contacto Vítima</label><input type="text" id="inc-contacto-vitima" placeholder="Nº telefone ou contacto..."></div>
         <div class="field"><label><i class="fas fa-user-slash" style="color:var(--red)"></i> Contacto Agressor</label><input type="text" id="inc-contacto-agressor" placeholder="Nº telefone ou contacto..."></div>
@@ -3204,11 +3201,11 @@ async function saveIncidente(){
   showAlert('inc-alert','','');
   btn.innerHTML='<span class="spinner"></span>';btn.disabled=true;
   const cter=document.getElementById('inc-cter').value;
-  const{error}=await sb.from('incidentes').insert({tipo,local,cter,data_hora:new Date(data).toISOString(),gravidade:grav,gravidade_criterios:collectGravCriterios('inc-grav-criterios'),estado,descricao:desc,contacto_vitima:contactoVitima,contacto_agressor:contactoAgressor,autor_id:currentUser.id,autor_nome:currentProfile.nome,participantes:[currentUser.id]});
+  const{error}=await sb.from('incidentes').insert({tipo,local,cter,data_hora:new Date(data).toISOString(),gravidade:grav,gravidade_criterios:[],estado,descricao:desc,contacto_vitima:contactoVitima,contacto_agressor:contactoAgressor,autor_id:currentUser.id,autor_nome:currentProfile.nome,participantes:[currentUser.id]});
   btn.innerHTML='Guardar';btn.disabled=false;
   if(error){showAlert('inc-alert','error','Erro: '+error.message);return;}
   closeModal('modal-inc');
-  ['inc-tipo','inc-local','inc-cter','inc-grav','inc-desc','inc-contacto-vitima','inc-contacto-agressor'].forEach(id=>document.getElementById(id).value='');
+  ['inc-tipo','inc-tipo-outro','inc-local','inc-cter','inc-desc','inc-contacto-vitima','inc-contacto-agressor'].forEach(function(id){var e=document.getElementById(id); if(e) e.value='';});
   await sb.from('historico').insert({tabela:'incidentes',registo_id:(await sb.from('incidentes').select('id').order('created_at',{ascending:false}).limit(1)).data?.[0]?.id,acao:'criado',autor_id:currentUser.id,autor_nome:currentProfile.nome}).catch(()=>{});
   await notificarListaIncidente(tipo, local, 'inc', cter);
   await loadData();showSection('dashboard');
@@ -6240,7 +6237,7 @@ async function openEditIncidente(id) {
 
 async function updateIncidente() {
   const id = document.getElementById('edit-inc-id').value;
-  const tipo = sgiTipoValor('edit-inc-tipo');const crime = document.getElementById('edit-inc-crime')?.value==='Outro'?(document.getElementById('edit-inc-crime-outro')?.value.trim()||'Outro'):(document.getElementById('edit-inc-crime')?.value||'');
+  const tipo = sgiTipoValor('edit-inc-tipo');
   const local = document.getElementById('edit-inc-local').value.trim();
   const cter = document.getElementById('edit-inc-cter').value;
   const data = document.getElementById('edit-inc-data').value;
@@ -6251,7 +6248,7 @@ async function updateIncidente() {
   showAlert('edit-inc-alert','','');
   btn.innerHTML='<span class="spinner"></span>'; btn.disabled=true;
   const old = allIncidentes.find(x => x.id === id);
-  const { error } = await sb.from('incidentes').update({ tipo, local, cter, data_hora: new Date(data).toISOString(), gravidade: grav, gravidade_criterios: collectGravCriterios('edit-inc-grav-criterios'), estado, descricao: desc }).eq('id', id);
+  const { error } = await sb.from('incidentes').update({ tipo, local, cter, data_hora: new Date(data).toISOString(), gravidade: grav, gravidade_criterios: [], estado, descricao: desc }).eq('id', id);
   btn.innerHTML='Guardar Alterações'; btn.disabled=false;
   if (error) { showAlert('edit-inc-alert','error','Erro: '+error.message); return; }
   await sb.from('historico').insert({ tabela:'incidentes', registo_id:id, acao:'editado', campos_alterados: { antes:{tipo:old.tipo,estado:old.estado}, depois:{tipo,estado} }, autor_id:currentUser.id, autor_nome:currentProfile.nome });
@@ -8593,11 +8590,6 @@ setImages();
       <div id="edit-inc-alert" class="hidden"></div>
       <div class="form-grid">
         <div class="field form-full"><label>Tipo de Situação</label><select id="edit-inc-tipo" onchange="sgiTipoOutro('edit-inc-tipo')"><option value="">Selecionar...</option><option>Violência Doméstica</option><option>Sequestro</option><option>Tentativa de Suicídio</option><option>Atirador Ativo</option><option>Outro</option></select><div id="edit-inc-tipo-outro-wrap" class="hidden" style="margin-top:6px"><input type="text" id="edit-inc-tipo-outro" maxlength="60" placeholder="ESPECIFIQUE O TIPO DE SITUAÇÃO" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase"></div></div>
-        <div class="field form-full"><label>Tipo de Crime</label>
-          <select id="edit-inc-crime" onchange="document.getElementById('edit-inc-crime-outro-wrap').classList.toggle('hidden',this.value!=='Outro')"><option value="">Selecionar...</option>
-            <option>Violência doméstica</option><option>Homicídio</option><option>Sequestro</option><option>Outro</option></select>
-          <div id="edit-inc-crime-outro-wrap" class="hidden" style="margin-top:6px"><input type="text" id="edit-inc-crime-outro" placeholder="Especifique o tipo de crime..."></div>
-        </div>
         <div class="field form-full"><label>Localização</label><input type="text" id="edit-inc-local"></div>
         <div class="field form-full"><label>CTer</label><select id="edit-inc-cter"><option value="">Selecionar CTer...</option>
             <option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option>
@@ -8608,8 +8600,6 @@ setImages();
             <option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option>
             <option>CTer Açores</option><option>CTer Madeira</option></select></div>
         <div class="field"><label>Data e hora</label><input type="datetime-local" id="edit-inc-data"></div>
-        <div class="field"><label>Nº de Vítimas</label><input type="number" id="edit-inc-vitimas" min="0" value="0"></div>
-        <div class="field"><label>Nº de Reféns</label><input type="number" id="edit-inc-refens" min="0" value="0"></div>
         <div class="field"><label>Estado</label><select id="edit-inc-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
         <div class="field form-full"><label>Descrição</label><textarea id="edit-inc-desc"></textarea></div>
       </div>
@@ -10125,8 +10115,6 @@ function mobBuildForms(){
     <div id="mob-inc-alert" style="display:none;padding:10px;border-radius:var(--r);margin-bottom:12px;font-size:13px"></div>
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Tipo de Situação</label>
       <select id="mob-inc-tipo" onchange="sgiTipoOutro('mob-inc-tipo')"><option value="">Selecionar...</option><option>Violência Doméstica</option><option>Sequestro</option><option>Tentativa de Suicídio</option><option>Atirador Ativo</option><option>Outro</option></select><div id="mob-inc-tipo-outro-wrap" class="hidden" style="margin-top:6px"><input type="text" id="mob-inc-tipo-outro" maxlength="60" placeholder="ESPECIFIQUE O TIPO DE SITUAÇÃO" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase"></div></div>
-    <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Tipo de Crime</label>
-      <select id="mob-inc-crime"><option value="">Selecionar...</option><option>Violência doméstica</option><option>Homicídio</option><option>Sequestro</option><option>Outro</option></select></div>
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Localização</label><input type="text" id="mob-inc-local" placeholder="Morada ou localidade"></div>
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">CTer *</label>
       <select id="mob-inc-cter"><option value="">Selecionar...</option><option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option><option>CTer Castelo Branco</option><option>CTer Coimbra</option><option>CTer Évora</option><option>CTer Faro</option><option>CTer Guarda</option><option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option><option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option><option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option></select></div>
