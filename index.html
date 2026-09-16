@@ -1788,7 +1788,7 @@ async function enCarregarEmpenhados(){
   _enEmpenhados = new Set();
   if(!(currentDetail && currentDetail.isTreino)) return;
   try{
-    const{data}=await sb.rpc('formandos_empenhados');
+    const{data}=await sb.rpc('formandos_empenhados', { p_excluir: currentDetail.record?.id || null });
     (data||[]).forEach(id=>_enEmpenhados.add(typeof id==='string'?id:id.formandos_empenhados));
   }catch(e){ console.warn('formandos_empenhados', e); }
 }
