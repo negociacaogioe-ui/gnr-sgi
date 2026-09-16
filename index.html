@@ -1494,8 +1494,40 @@ function showTab(tabId){
   if(tabId==='tab-hist')renderHistorico();
 }
 
+function sgiModaisAbertos(){
+  return Array.prototype.slice.call(document.querySelectorAll('.modal-overlay:not(.hidden)')).map(function(m){return m.id;});
+}
+
+// ===== Guardião do botão "voltar" (evita sair da app / logout) =====
+(function(){
+  function _overlayForm(){ var o=document.getElementById('mob-form-fullscreen'); return (o && o.style.display!=='none' && o.style.display!=='') ? o : null; }
+  window.addEventListener('popstate', function(ev){
+    // 1) modal aberto -> fechá-lo
+    var abertos = (typeof sgiModaisAbertos==='function') ? sgiModaisAbertos() : [];
+    if(abertos.length){ closeModal(abertos[abertos.length-1], true); history.pushState({sgiGuard:1}, ''); return; }
+    // 2) overlay de formulários mobile aberto -> fechá-lo
+    var of=document.getElementById('mob-form-fullscreen');
+    if(of && of.style.display==='block'){ of.style.display='none'; history.pushState({sgiGuard:1}, ''); if(typeof mobGoBack==='function'){} return; }
+    // 3) navegação mobile com pilha -> recuar um passo
+    if(typeof isMobile!=='undefined' && isMobile && typeof mobNavStack!=='undefined' && mobNavStack.length){
+      if(typeof mobGoBack==='function') mobGoBack();
+      history.pushState({sgiGuard:1}, '');
+      return;
+    }
+    // 4) em ecrã que não a lista -> ir para a lista em vez de sair
+    if(typeof isMobile!=='undefined' && isMobile && typeof mobCurrentTab!=='undefined' && mobCurrentTab!=='lista' && mobCurrentTab!=='dashboard'){
+      if(typeof mobShowTab==='function') mobShowTab('dashboard', true);
+      history.pushState({sgiGuard:1}, '');
+      return;
+    }
+    // caso contrário deixa sair (comportamento normal)
+  });
+  // semente inicial: garante que há sempre um estado no histórico para consumir
+  try{ history.pushState({sgiGuard:1}, ''); }catch(e){}
+})();
 function openModal(id){
   document.getElementById(id).classList.remove('hidden');
+  try{ history.pushState({sgiModal:id}, ''); }catch(e){}
   const now=new Date();now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
   const local=now.toISOString().slice(0,16);
   // Pre-select CTer for non-admin users
@@ -1518,7 +1550,10 @@ function openModal(id){
     }
   }
 }
-function closeModal(id){document.getElementById(id).classList.add('hidden');}
+function closeModal(id, _fromPop){
+  document.getElementById(id).classList.add('hidden');
+  if(!_fromPop){ try{ if(history.state && history.state.sgiModal===id) history.back(); }catch(e){} }
+}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal('modal-inc');closeModal('modal-itp');}});
 
 function showAlert(id,type,msg){
@@ -1757,6 +1792,8 @@ function enCterDe(id){
   const u=(allNegociadores||[]).find(x=>x.id===id);
   return u ? (u.cter||'') : '';
 }
+function _enPfx(){ return (typeof isMobile!=='undefined' && isMobile) ? 'mob-' : ''; }
+function enEl(id){ return document.getElementById(_enPfx()+id) || document.getElementById(id); }
 function enSetCterFiltro(v){ _enCterFiltro = v; _enPintaSelects(); enAvaliar(); }
 function enSetIsolado(v){ _enWork.isolado = !!v; enAvaliar(); }
 function enSetPos(k, id){
@@ -1770,7 +1807,7 @@ function enSetPos(k, id){
 }
 function _enPintaSelects(){
   EN_POSICOES.forEach(p=>{
-    const sel=document.getElementById('en-'+p.k);
+    const sel=enEl('en-'+p.k);
     if(!sel) return;
     const atual=_enWork[p.k];
     const doFiltro=enNegociadoresDe(_enCterFiltro);
@@ -1794,7 +1831,7 @@ function renderEquipaSelects(){
   delete _enWork.justificacao;
   const _itpAmb = enPodeUI() && r.cter;
   _enCterFiltro = _itpAmb ? '__itp__' : (r.cter || '');
-  const fs=document.getElementById('en-cter-filtro');
+  const fs=enEl('en-cter-filtro');
   if(fs){
     const ctrs=enCtersDisponiveis();
     let html='<option value="">— escolher CTer —</option>';
@@ -1808,7 +1845,7 @@ function renderEquipaSelects(){
     fs.innerHTML=html;
     if(_enCterFiltro && _enCterFiltro!=='__itp__' && !ctrs.includes(_enCterFiltro)) fs.value='';
   }
-  const ic=document.getElementById('en-isolado');
+  const ic=enEl('en-isolado');
   if(ic) ic.checked = !!_enWork.isolado;
   _enPintaSelects();
   enAvaliar();
@@ -1820,7 +1857,7 @@ function enAvaliar(){
   const r=currentDetail?.record||{};
   const eq=_enLerForm();
   const conf=enConformidade(eq, !!r.is_itp);
-  const box=document.getElementById('en-estado');
+  const box=enEl('en-estado');
   if(box){
     const cores={conforme:['var(--gp)','var(--gl)','var(--gm)','fa-circle-check'],
                  excecao:['var(--amberl)','var(--amber)','#7a4a00','fa-triangle-exclamation'],
@@ -1829,7 +1866,7 @@ function enAvaliar(){
     const [bg,bd,fg,ic]=cores[conf.estado];
     box.innerHTML='<div style="background:'+bg+';border:1px solid '+bd+';border-radius:var(--r);padding:9px 11px;font-size:12.5px;color:'+fg+';line-height:1.5"><i class="fas '+ic+'" style="margin-right:5px"></i><strong>'+conf.n+' negociador(es)</strong> — '+conf.msg+'</div>';
   }
-  const amb=document.getElementById('en-ambito');
+  const amb=enEl('en-ambito');
   if(amb){
     const ctrs=[...new Set(EN_POSICOES.filter(p=>_enWork[p.k]).map(p=>_enWork[p.k].cter||'?'))];
     amb.innerHTML='<i class="fas fa-filter" style="margin-right:5px;color:var(--gl)"></i>'
@@ -1839,7 +1876,7 @@ function enAvaliar(){
       + (enPodeUI() ? ' <span style="color:var(--gm)">UI/GIOE disponível (ITP declarado).</span>' : ' <span style="color:var(--gray400)">UI/GIOE só após declaração de ITP.</span>')
       + (ctrs.length>1 ? '<br><i class="fas fa-users" style="margin-right:5px;color:var(--amber)"></i>EN mista: '+ctrs.join(', ') : '');
   }
-  const iso=document.getElementById('en-isolado-nota');
+  const iso=enEl('en-isolado-nota');
   if(iso){
     if(_enWork.isolado){
       iso.style.display='';
@@ -1849,7 +1886,7 @@ function enAvaliar(){
         +'O registo é permitido para refletir a situação real no terreno, mas a não conformidade com o 5.28 fica assinalada no caso, no histórico e no relatório.</div>';
     } else { iso.innerHTML=''; iso.style.display='none'; }
   }
-  const ac=document.getElementById('en-acumulacao');
+  const ac=enEl('en-acumulacao');
   if(ac){
     const acu=enAcumulacao(eq);
     const ks=Object.keys(acu);
@@ -1875,7 +1912,7 @@ async function guardarEquipa(){
   eq.isolado = !!_enWork.isolado;
   const ids=enPreenchidos(eq).map(k=>eq[k].id);
   if(new Set(ids).size!==ids.length){ alert('O mesmo negociador não pode ocupar duas posições. A acumulação de funções é automática (5.29), não se atribui a mesma pessoa a dois postos.'); return; }
-  const btn=document.getElementById('en-save-btn'); if(btn) btn.disabled=true;
+  const btn=enEl('en-save-btn'); if(btn) btn.disabled=true;
   const _parts = Array.from(new Set([r.autor_id, ...ids].filter(Boolean)));
   const{error}=await sb.from(_tbl).update({equipa:eq, participantes:_parts}).eq('id',r.id);
   if(btn) btn.disabled=false;
@@ -2234,7 +2271,7 @@ function aplicarFiltroPosto(){
   });
 
   // aviso + botão de escape
-  let aviso = document.getElementById('en-filtro-aviso');
+  let aviso = enEl('en-filtro-aviso');
   if(!aviso){
     aviso = document.createElement('div');
     aviso.id = 'en-filtro-aviso';
@@ -9472,6 +9509,18 @@ function mobRenderDetalhe() {
       </div>
 
       <!-- Ações -->
+      <!-- Equipa de Negociação (mobile) -->
+      <div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);margin-bottom:16px;padding:14px">
+        <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px"><i class="fas fa-users-gear" style="color:var(--gl)"></i> Equipa de Negociação</div>
+        <p style="font-size:11.5px;color:var(--gray600);margin:0 0 10px;line-height:1.5">ITP: mín. 4 (pref. 5). Incidente: 3, excecionalmente 2. As funções acumulam-se; o n.º 1 nunca acumula.</p>
+        <div id="mob-en-estado" style="margin-bottom:10px"></div>
+        <div style="margin-bottom:8px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">CTer / Unidade a consultar</label><select id="mob-en-cter-filtro" onchange="enSetCterFiltro(this.value)" style="width:100%;padding:11px;font-size:16px;border:1px solid var(--border);border-radius:var(--r)"></select></div>
+        <div id="mob-en-ambito" style="font-size:11px;color:var(--gray600);margin-bottom:10px;line-height:1.55"></div>
+        ${EN_POSICOES.map(p=>`<div style="margin-bottom:10px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gn);margin-bottom:4px">${p.nome}</label><select id="mob-en-${p.k}" onchange="enSetPos('${p.k}',this.value)" style="width:100%;padding:11px;font-size:16px;border:1px solid var(--border);border-radius:var(--r)"></select><div style="font-size:10.5px;color:var(--gray400);margin-top:2px">${p.desc}</div></div>`).join('')}
+        <div id="mob-en-acumulacao"></div>
+        <button class="btn btn-primary" id="mob-en-save-btn" onclick="guardarEquipa()" style="width:100%;margin-top:10px;justify-content:center"><i class="fas fa-save"></i> Guardar Equipa</button>
+      </div>
+
       <div style="font-size:11px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px"><i class="fas fa-bolt" style="color:var(--amber)"></i> Formulários Operacionais</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
         <button onclick="mobAbrirForm('iris')" style="padding:14px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif">
@@ -9499,6 +9548,8 @@ function mobRenderDetalhe() {
       <!-- Editar / Eliminar -->
       <button onclick="mobAbrirEditar()" style="width:100%;padding:13px;background:#fff;border:1px solid var(--border);border-radius:var(--r);font-size:14px;color:var(--gray600);cursor:pointer;font-family:'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px"><i class="fas fa-pencil-alt"></i> Editar Registo</button>
     </div>`;
+  // A EN usa currentDetail; sincroniza com o detalhe mobile antes de preencher
+  try{ currentDetail = { type: mobDetail.type, record: mobDetail.record, isTreino: mobDetail.isTreino }; renderEquipaSelects(); }catch(e){ console.warn('EN mobile', e); }
 }
 
 // ===== SAVE CONTACTO =====
