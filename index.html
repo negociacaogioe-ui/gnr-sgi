@@ -714,7 +714,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0;z-index:210}
         <button class="tab-btn" id="tab-visado-btn" onclick="showTab('tab-visado')"><i class="fas fa-user-tag"></i> Descrição do Visado</button>
         <button class="tab-btn" id="tab-posto-btn" onclick="showTab('tab-posto')"><i class="fas fa-user-shield"></i> Coordenação</button>
         <button class="tab-btn" id="tab-pd-btn" onclick="showTab('tab-pd')"><i class="fas fa-comments"></i> Plano de Diálogo</button>
-        <button class="tab-btn" onclick="showTab('tab-sari')"><i class="fas fa-shield-alt"></i> SARI</button>
+        <button class="tab-btn" onclick="showTab('tab-sari')"><i class="fas fa-shield-alt"></i> Aval. Risco/Coop.</button>
         <button class="tab-btn" onclick="showTab('tab-plano')"><i class="fas fa-clipboard-list"></i> Plano</button>
         <button class="tab-btn" onclick="showTab('tab-rnrv')"><i class="fas fa-phone-alt"></i> Contactos</button>
         <button class="tab-btn" onclick="showTab('tab-hist')"><i class="fas fa-history"></i> Histórico</button>
@@ -1081,7 +1081,7 @@ async function saveVisado(){
   if(!_sgiSilent) showAlert('visado-alert','success','Descrição do visado guardada.');
   await loadData();
 }
-const SGI_I18N = {"Estatísticas": "Statistics", "Gestão de Utilizadores": "User Management", "Incidentes": "Incidents", "Incidentes Tático-Policiais": "Tactical-Police Incidents (ITP)", "Administração": "Administration", "Formação": "Training", "Área de Treino Operacional": "Operational Training Area", "Resumo": "Summary", "Informações": "Information", "Descrição do Visado": "Subject Description", "Contactos": "Contacts", "Histórico": "History", "Plano": "Plan", "Em curso": "Ongoing", "Resolvido": "Resolved", "Arquivado": "Archived", "Baixa": "Low", "Média": "Medium", "Alta": "High", "Crítica": "Critical", "Novo": "New", "Novo Incidente": "New Incident", "Novo ITP": "New ITP", "Guardar": "Save", "Guardar Incidente": "Save Incident", "Guardar ITP": "Save ITP", "Guardar IRIS": "Save IRIS", "Guardar SARI": "Save SARI", "Guardar Plano de Negociação": "Save Negotiation Plan", "Guardar Descrição": "Save Description", "Guardar Guião": "Save Script", "Editar": "Edit", "Editar Perfil": "Edit Profile", "Editar Registo": "Edit Record", "Eliminar": "Delete", "Enviar": "Send", "Cancelar": "Cancel", "Confirmar": "Confirm", "Responder": "Reply", "Limpar": "Clear", "Limpar Treino": "Clear Training", "Exportar PDF": "Export PDF", "Partilhar": "Share", "Sair": "Log out", "Terminar Sessão": "Log out", "Adicionar": "Add", "Adicionar contacto": "Add contact", "Registar Contacto": "Log Contact", "Registar Informação": "Log Information", "Nova Sinalização": "New Report", "Sinalizar VD": "Report DV", "Analisar Conteúdo": "Analyze Content", "Atualizar lista": "Refresh list", "Adicionar Vídeo": "Add Video", "Chamada / Gravador": "Call / Recorder", "Ligar e Gravar": "Call and Record", "Gravar": "Record", "Só Gravar": "Record Only", "Parar": "Stop", "Pausar": "Pause", "Terminar": "End", "Transmitir": "Transmit", "Ouvir em Direto": "Listen Live", "Parar Tx": "Stop Tx", "Migrar para Formação": "Migrate to Training", "Reordenar": "Reorder", "Registos de Informação": "Information Records", "Inv. Criminal": "Criminal Inv.", "Guião Anx. B": "Script Anx. B", "Acesso": "Access", "Alcunha / Apelido": "Nickname / Alias", "Arma Envolvida": "Weapon Involved", "Arma foi utilizada?": "Was the weapon used?", "Armas Presentes": "Weapons Present", "Armas Utilizadas": "Weapons Used", "CTer / Unidade": "Territorial Command (CTer)", "CTer / Unidade *": "Territorial Command (CTer) *", "Categoria": "Category", "Comando Territorial (CTer)": "Territorial Command (CTer)", "Comunicação": "Communication", "Concelho": "Municipality", "Cuidados Médicos": "Medical Care", "Data": "Date", "Data da avaliação": "Assessment date", "Data de Nascimento": "Date of Birth", "Data e Hora": "Date and Time", "Data e hora": "Date and time", "Descrição": "Description", "Descrição (opcional)": "Description (optional)", "Descrição Armas": "Weapons Description", "Descrição Física": "Physical Description", "Descrição das Outras Pessoas": "Description of Other People", "Descrição tática": "Tactical description", "Distrito / Região": "District / Region", "Documento de Identificação": "Identification Document", "Doenças / Problemas de Saúde": "Illnesses / Health Problems", "Doenças Mentais Diagnosticadas": "Diagnosed Mental Illnesses", "Duração (min)": "Duration (min)", "Duração do Incidente": "Incident Duration", "Email institucional": "Institutional email", "Estado": "Status", "Estado Emocional": "Emotional State", "Exigências / Reivindicações": "Demands / Claims", "Faixa etária": "Age range", "Fatores de Stress Recentes": "Recent Stress Factors", "Ferimentos Visíveis": "Visible Injuries", "Fiabilidade da Fonte": "Source Reliability", "Fonte": "Source", "Gravidade": "Severity", "Género": "Gender", "Histórico Criminal": "Criminal History", "Histórico Psiquiátrico": "Psychiatric History", "Histórico de Ameaças": "Threat History", "Idade": "Age", "Impacto na Negociação": "Impact on Negotiation", "Informação": "Information", "Informações adicionais": "Additional information", "Interesses (necessidades reais)": "Interests (real needs)", "Localização": "Location", "Medicação em Uso": "Current Medication", "Meios de Comunicação": "Means of Communication", "Mensagem": "Message", "Motivação aparente": "Apparent motivation", "Nacionalidade": "Nationality", "Negociador": "Negotiator", "Nome": "Name", "Nome Completo": "Full Name", "Nome completo": "Full name", "Nome do visado": "Subject name", "Notas Operacionais": "Operational Notes", "Nº Identificação": "ID No.", "Nº Ocorrências Anteriores": "No. of Prior Occurrences", "Nº de Pisos": "No. of Floors", "Nº de Reféns": "No. of Hostages", "Nº de Vítimas": "No. of Victims", "Nº reféns": "No. hostages", "Nº suspeitos": "No. suspects", "Nível de Risco *": "Risk Level *", "Nível de Acesso": "Access Level", "Objetivo Principal": "Main Objective", "Objetivos Intermédios": "Intermediate Objectives", "Observações": "Remarks", "Palavra-passe": "Password", "Pessoas Presentes": "People Present", "Posição (o que diz que quer)": "Position (what they say they want)", "Posto": "Rank", "Posto / Categoria": "Rank / Category", "Posto / Função": "Rank / Role", "Presença de arma": "Weapon present", "Reféns": "Hostages", "Relação com a vítima": "Relationship to victim", "Relações Pessoais / Conflitos": "Personal Relationships / Conflicts", "Religiosidade": "Religiosity", "Risco de Suicídio": "Suicide Risk", "Sexo": "Sex", "Substâncias": "Substances", "Tempo Estimado": "Estimated Time", "Tentativas de Suicídio Anteriores": "Previous Suicide Attempts", "Tipo": "Type", "Tipo *": "Type *", "Tipo de Crime": "Crime Type", "Tipo de Residência": "Type of Residence", "Tipo de Situação": "Type of Situation", "Tipo de crime / ocorrência": "Crime / occurrence type", "Tipos de Ocorrência": "Occurrence Types", "Toda a informação recolhida": "All information gathered", "Título": "Title", "Unidade": "Unit", "Violência Doméstica": "Domestic Violence", "Visibilidade Interior": "Interior Visibility", "Zona / Localidade": "Zone / Locality", "Armas": "Weapons", "Ativação": "Activation", "Ações": "Actions", "Data/Hora": "Date/Time", "Dur.": "Dur.", "Influência": "Influence", "Neg.": "Neg.", "Notas": "Notes", "Ocorrências": "Occurrences", "Papel": "Role", "Ref.": "Hostages", "Risco": "Risk", "Sus.": "Suspects", "Zona": "Zone", "Selecionar...": "Select...", "Todas as gravidades": "All severities", "Masculino": "Male", "Feminino": "Female", "Outro / Não especificado": "Other / Unspecified", "Nenhuma": "None", "Desconhecida": "Unknown", "Arma branca": "Bladed weapon", "Arma de fogo": "Firearm", "Objeto contundente": "Blunt object", "Álcool": "Alcohol", "Estupefacientes": "Narcotics", "Medicação / Psicofármacos": "Medication / Psychotropics", "Jogo": "Gambling", "Cônjuge / companheiro(a)": "Spouse / partner", "Ex-cônjuge / ex-companheiro(a)": "Ex-spouse / ex-partner", "Familiar": "Family member", "Conhecido": "Acquaintance", "Desconhecido": "Stranger", "Não aplicável": "Not applicable", "Violência doméstica": "Domestic violence", "Tentativa de suicídio": "Suicide attempt", "Sequestro / Reféns": "Kidnapping / Hostages", "Ameaça / Coação": "Threat / Coercion", "Homicídio / Tentativa": "Homicide / Attempt", "Roubo": "Robbery", "Distúrbio / Perturbação da ordem": "Disturbance / Public disorder", "Indivíduo barricado": "Barricaded individual", "Outro": "Other", "Filtrar por:": "Filter by:", "Ano": "Year", "Intervalo": "Range", "Todos os registos": "All records", "até": "to"};
+const SGI_I18N = {"Estatísticas": "Statistics", "Gestão de Utilizadores": "User Management", "Incidentes": "Incidents", "Incidentes Tático-Policiais": "Tactical-Police Incidents (ITP)", "Administração": "Administration", "Formação": "Training", "Área de Treino Operacional": "Operational Training Area", "Resumo": "Summary", "Informações": "Information", "Descrição do Visado": "Subject Description", "Contactos": "Contacts", "Histórico": "History", "Plano": "Plan", "Em curso": "Ongoing", "Resolvido": "Resolved", "Arquivado": "Archived", "Baixa": "Low", "Média": "Medium", "Alta": "High", "Crítica": "Critical", "Novo": "New", "Novo Incidente": "New Incident", "Novo ITP": "New ITP", "Guardar": "Save", "Guardar Incidente": "Save Incident", "Guardar ITP": "Save ITP", "Guardar IRIS": "Save IRIS", "Avaliação": "Save Assessment", "Guardar Plano de Negociação": "Save Negotiation Plan", "Guardar Descrição": "Save Description", "Guardar Guião": "Save Script", "Editar": "Edit", "Editar Perfil": "Edit Profile", "Editar Registo": "Edit Record", "Eliminar": "Delete", "Enviar": "Send", "Cancelar": "Cancel", "Confirmar": "Confirm", "Responder": "Reply", "Limpar": "Clear", "Limpar Treino": "Clear Training", "Exportar PDF": "Export PDF", "Partilhar": "Share", "Sair": "Log out", "Terminar Sessão": "Log out", "Adicionar": "Add", "Adicionar contacto": "Add contact", "Registar Contacto": "Log Contact", "Registar Informação": "Log Information", "Nova Sinalização": "New Report", "Sinalizar VD": "Report DV", "Analisar Conteúdo": "Analyze Content", "Atualizar lista": "Refresh list", "Adicionar Vídeo": "Add Video", "Chamada / Gravador": "Call / Recorder", "Ligar e Gravar": "Call and Record", "Gravar": "Record", "Só Gravar": "Record Only", "Parar": "Stop", "Pausar": "Pause", "Terminar": "End", "Transmitir": "Transmit", "Ouvir em Direto": "Listen Live", "Parar Tx": "Stop Tx", "Migrar para Formação": "Migrate to Training", "Reordenar": "Reorder", "Registos de Informação": "Information Records", "Inv. Criminal": "Criminal Inv.", "Guião Anx. B": "Script Anx. B", "Acesso": "Access", "Alcunha / Apelido": "Nickname / Alias", "Arma Envolvida": "Weapon Involved", "Arma foi utilizada?": "Was the weapon used?", "Armas Presentes": "Weapons Present", "Armas Utilizadas": "Weapons Used", "CTer / Unidade": "Territorial Command (CTer)", "CTer / Unidade *": "Territorial Command (CTer) *", "Categoria": "Category", "Comando Territorial (CTer)": "Territorial Command (CTer)", "Comunicação": "Communication", "Concelho": "Municipality", "Cuidados Médicos": "Medical Care", "Data": "Date", "Data da avaliação": "Assessment date", "Data de Nascimento": "Date of Birth", "Data e Hora": "Date and Time", "Data e hora": "Date and time", "Descrição": "Description", "Descrição (opcional)": "Description (optional)", "Descrição Armas": "Weapons Description", "Descrição Física": "Physical Description", "Descrição das Outras Pessoas": "Description of Other People", "Descrição tática": "Tactical description", "Distrito / Região": "District / Region", "Documento de Identificação": "Identification Document", "Doenças / Problemas de Saúde": "Illnesses / Health Problems", "Doenças Mentais Diagnosticadas": "Diagnosed Mental Illnesses", "Duração (min)": "Duration (min)", "Duração do Incidente": "Incident Duration", "Email institucional": "Institutional email", "Estado": "Status", "Estado Emocional": "Emotional State", "Exigências / Reivindicações": "Demands / Claims", "Faixa etária": "Age range", "Fatores de Stress Recentes": "Recent Stress Factors", "Ferimentos Visíveis": "Visible Injuries", "Fiabilidade da Fonte": "Source Reliability", "Fonte": "Source", "Gravidade": "Severity", "Género": "Gender", "Histórico Criminal": "Criminal History", "Histórico Psiquiátrico": "Psychiatric History", "Histórico de Ameaças": "Threat History", "Idade": "Age", "Impacto na Negociação": "Impact on Negotiation", "Informação": "Information", "Informações adicionais": "Additional information", "Interesses (necessidades reais)": "Interests (real needs)", "Localização": "Location", "Medicação em Uso": "Current Medication", "Meios de Comunicação": "Means of Communication", "Mensagem": "Message", "Motivação aparente": "Apparent motivation", "Nacionalidade": "Nationality", "Negociador": "Negotiator", "Nome": "Name", "Nome Completo": "Full Name", "Nome completo": "Full name", "Nome do visado": "Subject name", "Notas Operacionais": "Operational Notes", "Nº Identificação": "ID No.", "Nº Ocorrências Anteriores": "No. of Prior Occurrences", "Nº de Pisos": "No. of Floors", "Nº de Reféns": "No. of Hostages", "Nº de Vítimas": "No. of Victims", "Nº reféns": "No. hostages", "Nº suspeitos": "No. suspects", "Nível de Risco *": "Risk Level *", "Nível de Acesso": "Access Level", "Objetivo Principal": "Main Objective", "Objetivos Intermédios": "Intermediate Objectives", "Observações": "Remarks", "Palavra-passe": "Password", "Pessoas Presentes": "People Present", "Posição (o que diz que quer)": "Position (what they say they want)", "Posto": "Rank", "Posto / Categoria": "Rank / Category", "Posto / Função": "Rank / Role", "Presença de arma": "Weapon present", "Reféns": "Hostages", "Relação com a vítima": "Relationship to victim", "Relações Pessoais / Conflitos": "Personal Relationships / Conflicts", "Religiosidade": "Religiosity", "Risco de Suicídio": "Suicide Risk", "Sexo": "Sex", "Substâncias": "Substances", "Tempo Estimado": "Estimated Time", "Tentativas de Suicídio Anteriores": "Previous Suicide Attempts", "Tipo": "Type", "Tipo *": "Type *", "Tipo de Crime": "Crime Type", "Tipo de Residência": "Type of Residence", "Tipo de Situação": "Type of Situation", "Tipo de crime / ocorrência": "Crime / occurrence type", "Tipos de Ocorrência": "Occurrence Types", "Toda a informação recolhida": "All information gathered", "Título": "Title", "Unidade": "Unit", "Violência Doméstica": "Domestic Violence", "Visibilidade Interior": "Interior Visibility", "Zona / Localidade": "Zone / Locality", "Armas": "Weapons", "Ativação": "Activation", "Ações": "Actions", "Data/Hora": "Date/Time", "Dur.": "Dur.", "Influência": "Influence", "Neg.": "Neg.", "Notas": "Notes", "Ocorrências": "Occurrences", "Papel": "Role", "Ref.": "Hostages", "Risco": "Risk", "Sus.": "Suspects", "Zona": "Zone", "Selecionar...": "Select...", "Todas as gravidades": "All severities", "Masculino": "Male", "Feminino": "Female", "Outro / Não especificado": "Other / Unspecified", "Nenhuma": "None", "Desconhecida": "Unknown", "Arma branca": "Bladed weapon", "Arma de fogo": "Firearm", "Objeto contundente": "Blunt object", "Álcool": "Alcohol", "Estupefacientes": "Narcotics", "Medicação / Psicofármacos": "Medication / Psychotropics", "Jogo": "Gambling", "Cônjuge / companheiro(a)": "Spouse / partner", "Ex-cônjuge / ex-companheiro(a)": "Ex-spouse / ex-partner", "Familiar": "Family member", "Conhecido": "Acquaintance", "Desconhecido": "Stranger", "Não aplicável": "Not applicable", "Violência doméstica": "Domestic violence", "Tentativa de suicídio": "Suicide attempt", "Sequestro / Reféns": "Kidnapping / Hostages", "Ameaça / Coação": "Threat / Coercion", "Homicídio / Tentativa": "Homicide / Attempt", "Roubo": "Robbery", "Distúrbio / Perturbação da ordem": "Disturbance / Public disorder", "Indivíduo barricado": "Barricaded individual", "Outro": "Other", "Filtrar por:": "Filter by:", "Ano": "Year", "Intervalo": "Range", "Todos os registos": "All records", "até": "to"};
 Object.assign(SGI_I18N, {"Este mês": "This month", "Registar Incidente Tático-Policial": "Register Tactical-Police Incident", "Incidente tático-policial": "Tactical-police incident", "Registos recentes": "Recent records", "Ver todos →": "View all →", "Ver todos": "View all", "Sem registos ainda.": "No records yet.", "Sem registos": "No records", "Registar Incidente": "Register Incident", "Treino": "Op. Training", "Dashboard": "Dashboard", "Bom dia": "Good morning", "Boa tarde": "Good afternoon", "Boa noite": "Good evening"});
 Object.assign(SGI_I18N, {"Guarda": "Guard", "Guarda-Principal": "Principal Guard", "Cabo": "Corporal", "Cabo-Chefe": "Chief Corporal", "Cabo-Mor": "Master Corporal", "Furriel": "Sergeant (Furriel)", "Segundo-Sargento": "Second Sergeant", "Primeiro-Sargento": "First Sergeant", "Sargento": "Sergeant", "Sargento-Ajudante": "Staff Sergeant", "Sargento-Chefe": "Chief Sergeant", "Sargento-Mor": "Sergeant Major", "Alferes": "Second Lieutenant", "Tenente": "Lieutenant", "Capitão": "Captain", "Major": "Major", "Tenente-Coronel": "Lieutenant Colonel", "Coronel": "Colonel", "Major-General": "Major General", "Tenente-General": "Lieutenant General", "General": "General"});
 Object.assign(SGI_I18N, {"Por definir": "To be defined", "Barricado": "Barricaded", "Barricado Armado": "Armed Barricade", "Tentativa de Suicídio": "Suicide Attempt", "Atirador Ativo": "Active Shooter", "Atirador ativo": "Active shooter", "Esfaqueador Ativo": "Active Stabber", "Esfaqueador ativo": "Active stabber", "Ameaça de Bomba": "Bomb Threat", "Ameaça de bomba": "Bomb threat", "Homicídio": "Homicide", "Sequestro": "Kidnapping", "Desordem pública": "Public disorder", "Violência entre pessoas": "Interpersonal violence", "Sequestro sem reféns": "Kidnapping without hostages", "Sequestro com reféns": "Kidnapping with hostages", "Tiroteio ativo": "Active shooting", "Atentado terrorista": "Terrorist attack"});
@@ -1572,7 +1572,7 @@ const SGI_LABELS = {
 
 const SGI_FORMS = {
   iris:  {panel:'iris-content',  titulo:'IRIS',                save:()=>saveIRIS()},
-  sari:  {panel:'sari-content',  titulo:'SARI',                save:()=>saveSARI()},
+  sari:  {panel:'sari-content',  titulo:'Aval. Risco/Cooperação',                save:()=>saveSARI()},
   plano: {panel:'plano-content', titulo:'Plano de Negociação', save:()=>savePlano()},
   visado:{panel:'tab-visado',    titulo:'Descrição do Visado', save:()=>saveVisado()},
   pd:    {panel:'pd-content',    titulo:'Plano de Diálogo',    save:()=>guardarPD()}
@@ -2386,7 +2386,7 @@ async function renderQuadroCoordenador(){
   box.innerHTML =
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin-bottom:10px">'
     + cartao('IRIS', iris ? (iris.score != null ? iris.score + ' pts' : '—') : 'Não preenchido', iris ? (iris.risk_level||'') : '', irisCor)
-    + cartao('SARI', sari ? (sari.negotiation_probability != null ? sari.negotiation_probability + '%' : '—') : 'Não preenchido', sari ? ('Cooperação · risco ' + (sari.risk_level != null ? sari.risk_level + '/10' : '—')) : '', sariCor)
+    + cartao('Risco/Cooperação', sari ? (sari.negotiation_probability != null ? sari.negotiation_probability + '%' : '—') : 'Não preenchido', sari ? ('Cooperação · risco ' + (sari.risk_level != null ? sari.risk_level + '/10' : '—')) : '', sariCor)
     + cartao('Contactos', String(cts.length), ult ? ('Último: ' + fmtDateTime(ult.contact_datetime)) : 'Sem contactos')
     + '</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-bottom:10px">'
@@ -2462,8 +2462,8 @@ async function exportQuadroCoordenadorPDF(){
 
   sec('Avaliação de risco');
   kv('IRIS', iris ? ((iris.score!=null?iris.score+' pts':'—') + ' · ' + (iris.risk_level||'—')) : 'Não preenchido');
-  kv('SARI — cooperação', sari ? ((sari.negotiation_probability!=null?sari.negotiation_probability+'%':'—')) : 'Não preenchido');
-  kv('SARI — risco de violência', sari ? ((sari.risk_level!=null?sari.risk_level+'/10':'—')) : 'Não preenchido');
+  kv('Cooperação esperada', sari ? ((sari.negotiation_probability!=null?sari.negotiation_probability+'%':'—')) : 'Não preenchido');
+  kv('Risco de violência', sari ? ((sari.risk_level!=null?sari.risk_level+'/10':'—')) : 'Não preenchido');
 
   sec('Equipa de Negociação');
   if(eq.isolado) kv('Negociador isolado', 'SIM — ação contrária à doutrina (PDGNR M 1-08-02, 5.28)');
@@ -2525,7 +2525,7 @@ async function renderCabecalhoCoordenacao(){
 
   box.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px">'
     + cartao('IRIS', iris?(iris.score!=null?iris.score+' pts':'—'):'Não preenchido', iris?(iris.risk_level||''):'', irisCor)
-    + cartao('SARI', sari?(sari.negotiation_probability!=null?sari.negotiation_probability+'%':'—'):'Não preenchido', sari?('Risco '+(sari.risk_level!=null?sari.risk_level+'/10':'—')):'', sariCor)
+    + cartao('Risco/Cooperação', sari?(sari.negotiation_probability!=null?sari.negotiation_probability+'%':'—'):'Não preenchido', sari?('Risco '+(sari.risk_level!=null?sari.risk_level+'/10':'—')):'', sariCor)
     + cartao('Contactos', String(cts.length), cts[0]?('Último: '+fmtDateTime(cts[0].contact_datetime)):'Sem contactos')
     + cartao('Decorrido', decorrido, (r.estado||'—'))
     + '</div>';
@@ -3728,7 +3728,7 @@ function _relatorioPDF(r, type, iris, sari, plano, contactos, hist){
   } else { vazio('IRIS não preenchido.'); }
 
   // ---------------- 6. SARI
-  sec('6. Anexo B — SARI (cooperação e risco de violência)');
+  sec('6. Avaliação de Risco de Violência e Cooperação');
   if(sari){
     kv('Cooperação esperada', (sari.negotiation_probability != null ? sari.negotiation_probability : '—') + '%');
     kv('Risco de violência', (sari.risk_level != null ? sari.risk_level : '—') + '/10');
@@ -3739,7 +3739,7 @@ function _relatorioPDF(r, type, iris, sari, plano, contactos, hist){
     kv('Comunicação', sari.communication); kv('Violência doméstica', sari.violence_history);
     kv('Substâncias', sari.substance_use); kv('Duração', sari.duration);
     if(sari.additional_info){ kv('Informações adicionais', ''); par(sari.additional_info); }
-  } else { vazio('SARI não preenchido.'); }
+  } else { vazio('Avaliação de risco e cooperação não preenchida.'); }
 
   // ---------------- 7. Plano de Negociação
   sec('7. Anexo C — Plano de Negociação');
@@ -4546,9 +4546,13 @@ async function renderSARI(){
 
   el.innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-      <h3 style="font-size:16px;font-weight:600;color:var(--gn)"><i class="fas fa-shield-alt" style="color:var(--gm)"></i> SARI — Cooperação e Risco</h3>
-      <button class="btn btn-gold btn-sm" onclick="exportSARIPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+      <h3 style="font-size:16px;font-weight:600;color:var(--gn)"><i class="fas fa-shield-alt" style="color:var(--gm)"></i> Avaliação de Risco de Violência e Cooperação</h3>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline btn-sm" onclick="toggleSariEscala()"><i class="fas fa-circle-question"></i> Como pontua?</button>
+        <button class="btn btn-gold btn-sm" onclick="exportSARIPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+      </div>
     </div>
+    <div id="sari-escala-painel" class="hidden" style="margin-bottom:1rem"></div>
     <div class="form-section"><h3>Perfil do Indivíduo</h3>
       <div class="form-grid">
         <div class="field"><label>Idade</label>${sel('sari-age',[{v:'18-25',n:4,r:6,l:'18-25 anos'},{v:'26-35',n:5,r:5,l:'26-35 anos'},{v:'36-45',n:6,r:4,l:'36-45 anos'},{v:'46-55',n:5,r:5,l:'46-55 anos'},{v:'56+',n:3,r:7,l:'56+ anos'}],v.age_group||'36-45')}</div>
@@ -4574,7 +4578,7 @@ async function renderSARI(){
       <div class="result-card"><div class="result-title">Cooperação Esperada</div><div class="result-value"><span id="sari-neg-val">0</span>%</div><div class="prob-bar-wrap"><div class="prob-bar green-bar" id="sari-neg-bar" style="width:0%"></div></div><div class="result-desc" id="sari-neg-desc"></div></div>
       <div class="result-card red-card"><div class="result-title">Risco de Violência (RVD-1L)</div><div class="result-value"><span id="sari-risk-val">0</span>/10</div><div class="prob-bar-wrap"><div class="prob-bar red-bar" id="sari-risk-bar" style="width:0%"></div></div><div class="result-desc" id="sari-risk-desc"></div></div>
     </div>
-    ${sgiBarraHTML('sari','Guardar SARI')}
+    ${sgiBarraHTML('sari','Guardar Avaliação')}
   `;
   calcSARI();
   sgiAutosaveLigar('sari');
@@ -4611,6 +4615,47 @@ function calcSARI(){
   if(rd)rd.textContent=riskLvl<=3?'Risco Baixo — situação controlável':riskLvl<=5?'Risco Moderado — precauções padrão':riskLvl<=7?'Risco Elevado — reforço recomendado':'Risco Muito Elevado — intervenção especializada';
 }
 
+function toggleSariEscala(){
+  const el=document.getElementById('sari-escala-painel');
+  if(!el) return;
+  const aberto=!el.classList.contains('hidden');
+  if(aberto){ el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  el.innerHTML=renderSariEscalaHTML();
+}
+function renderSariEscalaHTML(){
+  // lê as opções REAIS do formulário para nunca dessincronizar dos números usados no cálculo
+  const CAMPOS=[
+    ['sari-age','Idade'],['sari-mental','Estado emocional'],['sari-crim','Histórico criminal'],
+    ['sari-threat','Histórico de ameaças'],['sari-sit','Tipo de situação'],['sari-wep','Arma envolvida'],
+    ['sari-wepused','Arma utilizada'],['sari-host','Reféns'],['sari-comm','Comunicação'],
+    ['sari-viol','Violência doméstica'],['sari-subs','Substâncias'],['sari-dur','Duração']
+  ];
+  let linhas='';
+  CAMPOS.forEach(([id,nome])=>{
+    const sel=document.getElementById(id);
+    if(!sel) return;
+    const ops=Array.prototype.slice.call(sel.options).map(o=>{
+      const nn=o.getAttribute('data-neg'), rr=o.getAttribute('data-risk');
+      if(nn===null||rr===null) return '';
+      return '<span style="display:inline-block;background:#fff;border:1px solid var(--border);border-radius:4px;padding:2px 6px;margin:2px 3px 2px 0;font-size:11px;white-space:nowrap">'+o.text+' <span style="color:var(--gm);font-weight:600">C'+nn+'</span> <span style="color:var(--red);font-weight:600">R'+rr+'</span></span>';
+    }).join('');
+    linhas+='<div style="padding:7px 0;border-bottom:1px dashed var(--border)"><div style="font-size:12px;font-weight:600;color:var(--gn);margin-bottom:3px">'+nome+'</div><div>'+ops+'</div></div>';
+  });
+  return '<div style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:14px">'
+    +'<div style="font-size:13px;font-weight:700;color:var(--gn);margin-bottom:6px">Como se pontua a Avaliação de Risco e Cooperação</div>'
+    +'<p style="font-size:12px;color:var(--gray600);line-height:1.6;margin:0 0 10px">Cada resposta contribui com duas notas: <strong style="color:var(--gm)">C = Cooperação</strong> (1 a 8 — quanto <em>mais alta</em>, maior a probabilidade de resolução pacífica) e <strong style="color:var(--red)">R = Risco de violência</strong> (1 a 9 — quanto <em>mais alta</em>, maior o perigo). A app faz a média dos itens preenchidos e converte em <strong>Cooperação Esperada (%)</strong> e <strong>Nível de Risco (/10)</strong>.</p>'
+    +'<div style="background:var(--amberl);border:1px solid var(--amber);border-radius:6px;padding:8px 10px;font-size:11.5px;color:#7a4a00;line-height:1.5;margin-bottom:10px"><i class="fas fa-plus-minus" style="margin-right:5px"></i><strong>Modificadores:</strong> violência doméstica e sequestro descem a cooperação e sobem o risco; arma utilizada (−3 C / +3 R) e disparos efetuados (−5 C / +5 R) agravam ainda mais.</div>'
+    +'<div style="font-size:12px;font-weight:600;color:var(--gn);margin-bottom:4px">Leitura dos resultados</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;font-size:11.5px">'
+      +'<div style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px"><strong style="color:var(--gm)">Cooperação Esperada</strong><br>≥75% alta · 50-74% moderada · 25-49% baixa · &lt;25% muito baixa</div>'
+      +'<div style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px"><strong style="color:var(--red)">Risco de Violência</strong><br>1-3 baixo · 4-5 moderado · 6-7 elevado · 8-10 muito elevado</div>'
+    +'</div>'
+    +'<div style="font-size:12px;font-weight:600;color:var(--gn);margin-bottom:4px">Pontuação de cada resposta</div>'
+    +linhas
+    +'<p style="font-size:11px;color:var(--gray400);margin:10px 0 0;line-height:1.5"><i class="fas fa-circle-info" style="margin-right:4px"></i>Modelo de apoio à decisão próprio do SGI, inspirado na avaliação de risco RVD-1L. Não substitui a cotação oficial do RVD-1L nem o juízo do negociador.</p>'
+    +'</div>';
+}
 async function saveSARI(){
   const{type,record:r}=currentDetail;
   const get=id=>document.getElementById(id)?.value||'';
@@ -4630,12 +4675,12 @@ async function saveSARI(){
   if(ex){const res=await sb.from('sari').update(payload).eq('id',ex.id);err=res.error;}
   else{const res=await sb.from('sari').insert(payload);err=res.error;}
   if(err){_sgiFalhou('Erro: '+err.message);return;}
-  _sgiGuardou('SARI guardado!');
+  _sgiGuardou('Avaliação guardada!');
 }
 
 function exportSARIPDF(){
   const{jsPDF}=window.jspdf;const doc=new jsPDF();
-  let y=addPDFHeader(doc,'SARI — Cooperação Esperada e Risco de Violência','Baseado na Escala RVD-1L (MAI 2025)');
+  let y=addPDFHeader(doc,'Avaliação de Risco de Violência e Cooperação','Baseado na Escala RVD-1L (MAI 2025)');
   const negProb=document.getElementById('sari-neg-val')?.textContent||'0';
   const riskLvl=parseInt(document.getElementById('sari-risk-val')?.textContent||'0');
   const negDesc=document.getElementById('sari-neg-desc')?.textContent||'';
@@ -4674,7 +4719,7 @@ function exportSARIPDF(){
   ];
   doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(0,0,0);
   fields.forEach(([label,val],i)=>{
-    if(y>272){doc.addPage();y=addPDFHeader(doc,'SARI','(continuação)')+10;}
+    if(y>272){doc.addPage();y=addPDFHeader(doc,'Avaliação de Risco e Cooperação','(continuação)')+10;}
     if(i%2===0){doc.setFillColor(248,252,248);doc.rect(15,y-5,180,9,'F');}
     doc.setTextColor(80,80,80);doc.text(label+':',17,y);
     doc.setTextColor(0,0,0);doc.text(val||'—',90,y);y+=9;
@@ -7825,8 +7870,8 @@ function buildContactosSummary(iris, sari, plano, record) {
     const riskColor = risk <= 3 ? 'var(--gm)' : risk <= 6 ? '#b45309' : 'var(--red)';
     const sariBorder = risk <= 3 ? 'var(--gl)' : risk <= 6 ? 'var(--amber)' : 'var(--red)';
     const sariBg = risk <= 3 ? 'var(--gp)' : risk <= 6 ? 'var(--amberl)' : 'var(--redl)';
-    sariHtml = '<div style="background:' + sariBg + ';border:2px solid ' + sariBorder + ';border-radius:var(--r);padding:12px 16px;cursor:pointer" onclick="showTab(\'tab-sari\')" title="Ver SARI">'
-      + '<div style="font-size:10px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px"><i class="fas fa-shield-alt" style="color:var(--gm);margin-right:4px"></i>SARI</div>'
+    sariHtml = '<div style="background:' + sariBg + ';border:2px solid ' + sariBorder + ';border-radius:var(--r);padding:12px 16px;cursor:pointer" onclick="showTab(\'tab-sari\')" title="Ver Avaliação de Risco e Cooperação">'
+      + '<div style="font-size:10px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px"><i class="fas fa-shield-alt" style="color:var(--gm);margin-right:4px"></i>Risco/Coop.</div>'
       + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
       + '<div><div style="font-size:10px;color:var(--gray500);margin-bottom:2px">Cooperação</div><div style="font-size:22px;font-weight:700;color:' + negColor + ';line-height:1">' + neg + '<span style="font-size:11px">%</span></div></div>'
       + '<div style="text-align:right"><div style="font-size:10px;color:var(--gray500);margin-bottom:2px">Risco Violência</div><div style="font-size:22px;font-weight:700;color:' + riskColor + ';line-height:1">' + risk + '<span style="font-size:11px">/10</span></div></div>'
@@ -7834,7 +7879,7 @@ function buildContactosSummary(iris, sari, plano, record) {
       + '</div>';
   } else {
     sariHtml = '<div style="background:var(--gray50);border:1px dashed var(--border);border-radius:var(--r);padding:12px 16px;cursor:pointer;text-align:center" onclick="showTab(\'tab-sari\')">'
-      + '<div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;margin-bottom:6px"><i class="fas fa-shield-alt" style="margin-right:4px"></i>SARI</div>'
+      + '<div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;margin-bottom:6px"><i class="fas fa-shield-alt" style="margin-right:4px"></i>Risco/Coop.</div>'
       + '<div style="font-size:12px;color:var(--gray400)">Não preenchido</div>'
       + '<div style="font-size:11px;color:var(--gl);margin-top:4px">Clica para preencher →</div>'
       + '</div>';
@@ -9436,7 +9481,7 @@ function mobRenderDetalhe() {
         </button>
         <button onclick="mobAbrirForm('sari')" style="padding:14px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif">
           <i class="fas fa-shield-alt" style="font-size:24px;color:var(--amber);display:block;margin-bottom:6px"></i>
-          <div style="font-size:13px;font-weight:600;color:var(--gn)">SARI</div>
+          <div style="font-size:13px;font-weight:600;color:var(--gn)">Risco e Cooperação</div>
           <div style="font-size:11px;color:var(--gray600)">Avaliação Risco</div>
         </button>
         <button onclick="mobAbrirForm('plano')" style="padding:14px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif">
@@ -9550,7 +9595,7 @@ function mobMostrarSeletorFormularios() {
       </button>
       <button onclick="mobAbrirForm('sari')" style="padding:22px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.08)">
         <i class="fas fa-shield-alt" style="font-size:32px;color:var(--amber);display:block;margin-bottom:10px"></i>
-        <div style="font-size:15px;font-weight:600;color:var(--gn)">SARI</div>
+        <div style="font-size:15px;font-weight:600;color:var(--gn)">Risco e Cooperação</div>
         <div style="font-size:11px;color:var(--gray600);margin-top:4px">Avaliação de Risco</div>
       </button>
       <button onclick="mobAbrirForm('plano')" style="padding:22px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.08)">
@@ -9586,7 +9631,7 @@ async function mobAbrirForm(form) {
   overlay.scrollTop = 0;
 
   // Header back button
-  const titles = {iris:'IRIS',sari:'SARI',plano:'Plano de Negociação',rnrv:'Registar Contacto'};
+  const titles = {iris:'IRIS',sari:'Risco e Cooperação',plano:'Plano de Negociação',rnrv:'Registar Contacto'};
   document.getElementById('mob-header-title').textContent = titles[form]||'Formulário';
   document.getElementById('mob-header-sub').textContent = mobDetail?.record?.tipo||'';
   const backBtn = document.getElementById('mob-back-btn');
@@ -9663,7 +9708,7 @@ async function mobAbrirForm(form) {
     overlay.innerHTML = `<div style="padding:.875rem">
       <div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);overflow:hidden;margin-bottom:12px">
         <div style="padding:14px;background:var(--amberl);display:flex;align-items:center;justify-content:space-between">
-          <span style="font-size:15px;font-weight:600;color:var(--amber)"><i class="fas fa-shield-alt"></i> SARI</span>
+          <span style="font-size:15px;font-weight:600;color:var(--amber)"><i class="fas fa-shield-alt"></i> Risco/Cooperação</span>
           <div id="mob-sari-badge" style="font-size:13px;font-weight:700;padding:4px 12px;border-radius:20px;background:var(--gray100);color:var(--gray600)">0 fatores</div>
         </div>
         <div style="padding:16px">
@@ -9683,7 +9728,7 @@ async function mobAbrirForm(form) {
             <div id="mob-sari-level" style="font-size:26px;font-weight:700;color:var(--gray600)">—</div>
             <div id="mob-sari-pts" style="font-size:13px;color:var(--gray400)">assinala fatores acima</div>
           </div>
-          ${saveBtn('Guardar SARI','var(--amber)','mobSaveSARI()')}
+          ${saveBtn('Guardar Avaliação','var(--amber)','mobSaveSARI()')}
           ${msg('mob-sari-msg')}
         </div>
       </div>
@@ -9990,7 +10035,7 @@ async function mobSaveSARI() {
   const{error}=ex ? await sb.from('sari').update(payload).eq('id',ex.id) : await sb.from('sari').insert(payload);
   const msg=document.getElementById('mob-sari-msg');
   if(error){if(msg){msg.textContent='Erro: '+error.message;msg.style.background='var(--redl)';msg.style.color='var(--red)';msg.style.display='block';}return;}
-  if(msg){msg.textContent='✓ SARI guardado!';msg.style.background='var(--amberl)';msg.style.color='var(--amber)';msg.style.display='block';setTimeout(()=>msg.style.display='none',2500);}
+  if(msg){msg.textContent='✓ Avaliação guardada!';msg.style.background='var(--amberl)';msg.style.color='var(--amber)';msg.style.display='block';setTimeout(()=>msg.style.display='none',2500);}
 }
 
 async function mobSavePlano() {
@@ -10090,7 +10135,7 @@ function mobRenderChamada() {
     <!-- Resumo IRIS / SARI / Plano -->
     <div style="font-size:11px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px"><i class="fas fa-clipboard-check" style="color:var(--gl)"></i> Resumo dos formulários</div>
     <div id="mob-chamada-resumo" style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:16px">
-      <div style="background:#fff;border:1px dashed var(--border);border-radius:var(--r);padding:12px;text-align:center;font-size:12px;color:var(--gray400)"><i class="fas fa-spinner fa-spin"></i> A carregar IRIS, SARI e Plano...</div>
+      <div style="background:#fff;border:1px dashed var(--border);border-radius:var(--r);padding:12px;text-align:center;font-size:12px;color:var(--gray400)"><i class="fas fa-spinner fa-spin"></i> A carregar avaliações...</div>
     </div>
 
     <!-- Contactos -->
