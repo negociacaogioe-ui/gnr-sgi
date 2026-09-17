@@ -10787,11 +10787,63 @@ if(isMobile){
     window.addEventListener('focus', sgiRevalidarPerfil);
   }
 
+  // --- 4. Guardas na navegacao do telemovel -------------------------
+  //     O ecra real no telemovel nao passa pelo showSection: passa pelo
+  //     mobShowTab. Sem esta guarda, o separador Inicio/Registos e o
+  //     formulario de novo incidente continuam acessiveis.
+  var TABS_REAIS = ['dashboard', 'lista', 'novo-inc', 'novo-itp'];
+  var _mobShowTab = window.mobShowTab;
+  if (typeof _mobShowTab === 'function') {
+    window.mobShowTab = function(tab, resetStack){
+      if (TABS_REAIS.indexOf(tab) >= 0 && !ehOperacional()) {
+        if (tab === 'novo-inc' || tab === 'novo-itp') alert(AVISO);
+        return _mobShowTab.call(window, 'treino', true);
+      }
+      return _mobShowTab.apply(this, arguments);
+    };
+  }
+
+  // --- 5. Esconder os controlos do ambiente real no telemovel -------
+  function sgiEsconderControlosReais(){
+    if (ehOperacional()) return;
+    ['mob-btn-novo', 'mobtab-dashboard', 'mobtab-lista'].forEach(function(id){
+      var el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    ['#mob-app', '#mob-menu', '#mob-header'].forEach(function(sel){
+      var raiz = document.querySelector(sel);
+      if (!raiz) return;
+      Array.prototype.forEach.call(raiz.querySelectorAll('[onclick]'), function(b){
+        var oc = b.getAttribute('onclick') || '';
+        if (oc.indexOf('novo-inc') >= 0 || oc.indexOf('novo-itp') >= 0) {
+          b.style.display = 'none';
+        }
+      });
+    });
+  }
+  window.sgiEsconderControlosReais = sgiEsconderControlosReais;
+
+  var _mobToggleMenu = window.mobToggleMenu;
+  if (typeof _mobToggleMenu === 'function') {
+    window.mobToggleMenu = function(){
+      var r = _mobToggleMenu.apply(this, arguments);
+      try { sgiEsconderControlosReais(); } catch(e){ console.warn('menu', e); }
+      return r;
+    };
+  }
+
   var _enter = window.enterApp;
   if (typeof _enter === 'function') {
     window.enterApp = async function(){
       var r = await _enter.apply(this, arguments);
       try { sgiVigiarPerfil(); } catch(e){ console.warn('vigilancia perfil', e); }
+      try { sgiEsconderControlosReais(); } catch(e){ console.warn('controlos', e); }
+      try {
+        if (typeof isMobile !== 'undefined' && isMobile && !ehOperacional()) {
+          mobShowTab('treino', true);
+          if (typeof mobRenderTreino === 'function') mobRenderTreino();
+        }
+      } catch(e){ console.warn('arranque treino', e); }
       return r;
     };
   }
