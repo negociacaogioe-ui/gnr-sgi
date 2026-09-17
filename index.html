@@ -10597,6 +10597,114 @@ if(isMobile){
     document.getElementById('mob-tabbar').style.display='flex';
   });
 }
+// ===================================================================
+// PATCH SGI — níveis de acesso (mobile) + detalhe que não renderiza
+// Guardas acrescentadas no fim do script mobile. Não altera o código
+// existente: apenas envolve enterApp, saveIncidente, saveITP,
+// openModal, mobShowTab e mobOpenDetail.
+// ===================================================================
+(function(){
+
+  // --- Quem pode trabalhar no ambiente real -------------------------
+  function sgiEhOperacional(){
+    try{
+      return !!currentProfile && (
+        currentProfile.role === 'admin' ||
+        currentProfile.role === 'investigacao_criminal' ||
+        currentProfile.nivel_acesso === 'operacional'
+      );
+    }catch(e){ return false; }
+  }
+  window.sgiEhOperacional = sgiEhOperacional;
+
+  var AVISO = 'O teu perfil tem acesso apenas à área de treino. ' +
+              'Utiliza a Área de Treino para registar exercícios.';
+
+  // --- 1. Esconder o ambiente real no telemóvel ---------------------
+  function sgiAplicarRestricoesMobile(){
+    if (typeof isMobile === 'undefined' || !isMobile) return;
+    if (sgiEhOperacional()) return;
+
+    // botão "+" dourado do cabeçalho
+    var btnNovo = document.getElementById('mob-btn-novo');
+    if (btnNovo) btnNovo.style.display = 'none';
+
+    // itens do menu que abrem registos reais
+    Array.prototype.forEach.call(
+      document.querySelectorAll('#mob-menu button'),
+      function(b){
+        var oc = b.getAttribute('onclick') || '';
+        if (oc.indexOf('novo-inc') >= 0 || oc.indexOf('novo-itp') >= 0) {
+          b.style.display = 'none';
+        }
+      }
+    );
+
+    // tabs do ambiente real (Detalhe/Chamada/Formulários ficam,
+    // porque são precisos para os casos de treino)
+    ['dashboard','lista'].forEach(function(id){
+      var t = document.getElementById('mobtab-' + id);
+      if (t) t.style.display = 'none';
+    });
+
+    // arrancar na área de treino em vez do dashboard
+    try { mobShowTab('treino', true); mobRenderTreino(); } catch(e){ console.warn('restr. mobile', e); }
+  }
+  window.sgiAplicarRestricoesMobile = sgiAplicarRestricoesMobile;
+
+  var _enter = window.enterApp;
+  if (typeof _enter === 'function') {
+    window.enterApp = async function(){
+      var r = await _enter.apply(this, arguments);
+      try { sgiAplicarRestricoesMobile(); } catch(e){ console.warn('restr.', e); }
+      return r;
+    };
+  }
+
+  // --- 2. Guardas nas funções de escrita do ambiente real -----------
+  ['saveIncidente','saveITP'].forEach(function(fn){
+    var orig = window[fn];
+    if (typeof orig !== 'function') return;
+    window[fn] = async function(){
+      if (!sgiEhOperacional()) { alert(AVISO); return; }
+      return orig.apply(this, arguments);
+    };
+  });
+
+  var _openModal = window.openModal;
+  if (typeof _openModal === 'function') {
+    window.openModal = function(id){
+      if ((id === 'modal-inc' || id === 'modal-itp') && !sgiEhOperacional()) {
+        alert(AVISO); return;
+      }
+      return _openModal.apply(this, arguments);
+    };
+  }
+
+  // --- 3. Detalhe: voltar a desenhar sempre que o ecrã é mostrado ---
+  //     (mesmo padrão já usado pelo separador 'chamada')
+  var _showTab = window.mobShowTab;
+  if (typeof _showTab === 'function') {
+    window.mobShowTab = function(tab, resetStack){
+      var r = _showTab.apply(this, arguments);
+      if (tab === 'detalhe' && typeof mobDetail !== 'undefined' && mobDetail) {
+        try { mobRenderDetalhe(); } catch(e){ console.warn('detalhe', e); }
+      }
+      return r;
+    };
+  }
+
+  // --- 4. Voltar de um caso de treino regressa ao treino ------------
+  var _openDetail = window.mobOpenDetail;
+  if (typeof _openDetail === 'function') {
+    window.mobOpenDetail = async function(type, id, isTreino){
+      var r = await _openDetail.apply(this, arguments);
+      if (isTreino) { try { mobNavStack = ['treino']; } catch(e){} }
+      return r;
+    };
+  }
+
+})();
 </script>
 </body>
 </html>
