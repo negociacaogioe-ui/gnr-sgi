@@ -1273,6 +1273,10 @@ async function enterApp(){
     document.getElementById('nav-admin').classList.remove('hidden');
     document.getElementById('nav-admin-badge').classList.remove('hidden');
     document.getElementById('lang-toggle-btn')?.classList.remove('hidden');
+  } else {
+    document.getElementById('nav-admin')?.classList.add('hidden');
+    document.getElementById('nav-admin-badge')?.classList.add('hidden');
+    document.getElementById('lang-toggle-btn')?.classList.add('hidden');
   }
   // Mostrar/ocultar itens de navegação conforme nível de acesso
   ['dashboard','incidentes','itp','sinalizacoes','stats'].forEach(id => {
@@ -10700,6 +10704,94 @@ if(isMobile){
     window.mobOpenDetail = async function(type, id, isTreino){
       var r = await _openDetail.apply(this, arguments);
       if (isTreino) { try { mobNavStack = ['treino']; } catch(e){} }
+      return r;
+    };
+  }
+
+})();
+
+// ===================================================================
+// PATCH SGI — nivel de acesso: reforco das guardas
+// Envolve showSection / openRecord / abrirLiveNotif e revalida o perfil
+// para que uma revogacao feita pelo administrador tenha efeito na hora.
+// Nao altera o codigo existente: apenas o envolve.
+// ===================================================================
+(function(){
+
+  function ehOperacional(){
+    return (typeof window.sgiEhOperacional === 'function') ? window.sgiEhOperacional() : true;
+  }
+
+  var AVISO = 'O teu perfil tem acesso apenas a area de treino. ' +
+              'Utiliza a Area de Treino para registar exercicios.';
+
+  // --- 1. Guarda no proprio showSection -----------------------------
+  var SECOES_REAIS = ['dashboard','incidentes','itp','sinalizacoes','stats'];
+  var _showSection = window.showSection;
+  if (typeof _showSection === 'function') {
+    window.showSection = function(s){
+      if (SECOES_REAIS.indexOf(s) >= 0 && !ehOperacional()) {
+        alert(AVISO);
+        return _showSection.call(window, 'formacao');
+      }
+      return _showSection.apply(this, arguments);
+    };
+  }
+
+  // --- 2. Guarda na abertura de registos reais ----------------------
+  ['openRecord','mostrarBloqueioCaso','abrirLiveNotif'].forEach(function(fn){
+    var orig = window[fn];
+    if (typeof orig !== 'function') return;
+    window[fn] = async function(){
+      if (!ehOperacional()) { alert(AVISO); return; }
+      return orig.apply(this, arguments);
+    };
+  });
+
+  // --- 3. Revalidar o perfil (revogacao com efeito imediato) --------
+  var _aRevalidar = false;
+  async function sgiRevalidarPerfil(){
+    if (_aRevalidar) return;
+    if (!window.sb || !window.currentUser || !window.currentProfile) return;
+    _aRevalidar = true;
+    try{
+      var r = await sb.from('profiles').select('role,nivel_acesso,approved').eq('id', currentUser.id).maybeSingle();
+      var p = r && r.data;
+      if (!p) return;
+      var mudou = (p.role !== currentProfile.role) ||
+                  (p.nivel_acesso !== currentProfile.nivel_acesso) ||
+                  (p.approved !== currentProfile.approved);
+      if (!mudou) return;
+      currentProfile.role = p.role;
+      currentProfile.nivel_acesso = p.nivel_acesso;
+      currentProfile.approved = p.approved;
+      if (!p.approved) {
+        alert('A tua conta deixou de estar aprovada. A sessao vai ser terminada.');
+        try { await doLogout(); } catch(e){ location.reload(); }
+        return;
+      }
+      alert('O teu nivel de acesso foi alterado pelo administrador. A aplicacao vai recarregar.');
+      location.reload();
+    }catch(e){ console.warn('revalidar perfil', e); }
+    finally{ _aRevalidar = false; }
+  }
+  window.sgiRevalidarPerfil = sgiRevalidarPerfil;
+
+  var _timerPerfil = null;
+  function sgiVigiarPerfil(){
+    if (_timerPerfil) return;
+    _timerPerfil = setInterval(sgiRevalidarPerfil, 60000);
+    document.addEventListener('visibilitychange', function(){
+      if (document.visibilityState === 'visible') sgiRevalidarPerfil();
+    });
+    window.addEventListener('focus', sgiRevalidarPerfil);
+  }
+
+  var _enter = window.enterApp;
+  if (typeof _enter === 'function') {
+    window.enterApp = async function(){
+      var r = await _enter.apply(this, arguments);
+      try { sgiVigiarPerfil(); } catch(e){ console.warn('vigilancia perfil', e); }
       return r;
     };
   }
