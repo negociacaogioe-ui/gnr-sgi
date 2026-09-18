@@ -1595,7 +1595,7 @@ const SGI_LABELS = {
          'iris-suhist':'Comportamentos suicidários prévios','iris-suplan':'Plano suicida'},
   sari: {'sari-age':'Idade','sari-mental':'Estado emocional','sari-crim':'Histórico criminal',
          'sari-threat':'Histórico de ameaças','sari-sit':'Tipo de situação','sari-wep':'Arma envolvida',
-         'sari-wepused':'Arma utilizada','sari-host':'Reféns','sari-comm':'Comunicação',
+         'sari-wepused':'Arma utilizada','sari-host':'Reféns','sari-seqv':'Vítimas de sequestro','sari-comm':'Comunicação',
          'sari-viol':'Violência doméstica','sari-subs':'Substâncias','sari-dur':'Duração do incidente',
          'sari-info':'Informações adicionais'},
   plano:{'plano-desc':'Descrição','plano-prob':'Identificação do problema','plano-sit':'Tipo de situação',
@@ -3804,7 +3804,7 @@ function _relatorioPDF(r, type, iris, sari, plano, contactos, hist){
     kv('Idade', sari.age_group); kv('Estado emocional', sari.mental_state);
     kv('Histórico criminal', sari.criminal_history); kv('Histórico de ameaças', sari.threat_history);
     kv('Tipo de situação', sari.situation_type); kv('Arma envolvida', sari.weapons);
-    kv('Arma utilizada', sari.weapon_used); kv('Reféns', sari.hostages);
+    kv('Arma utilizada', sari.weapon_used); kv('Reféns', sari.hostages); kv('Vítimas de sequestro', sari.sequestro_victims);
     kv('Comunicação', sari.communication); kv('Violência doméstica', sari.violence_history);
     kv('Substâncias', sari.substance_use); kv('Duração', sari.duration);
     if(sari.additional_info){ kv('Informações adicionais', ''); par(sari.additional_info); }
@@ -4611,6 +4611,9 @@ async function renderSARI(){
   const{data:ex}=await sb.from('sari').select('*').eq('parent_type',type==='inc'?'incidente':'itp').eq('parent_id',r.id).maybeSingle();
   const v=ex||{};
 
+  const tag=t=>t==='rvd'
+    ?'<span title="Fator de risco correspondente à ficha RVD-1L" style="margin-left:6px;font-size:10px;font-weight:700;letter-spacing:.3px;padding:1px 6px;border-radius:3px;background:var(--redl);color:var(--red);border:1px solid var(--red);vertical-align:middle">RVD-1L</span>'
+    :'<span title="Fator operacional de negociação" style="margin-left:6px;font-size:10px;font-weight:700;letter-spacing:.3px;padding:1px 6px;border-radius:3px;background:var(--gp);color:var(--gm);border:1px solid var(--gm);vertical-align:middle">NEGOCIAÇÃO</span>';
   function sel(id,opts,val){return`<select id="${id}" onchange="calcSARI()">${opts.map(o=>`<option value="${o.v}" data-neg="${o.n}" data-risk="${o.r}" ${val===o.v?'selected':''}>${o.l}</option>`).join('')}</select>`;}
 
   el.innerHTML=`
@@ -4622,29 +4625,31 @@ async function renderSARI(){
       </div>
     </div>
     <div id="sari-escala-painel" class="hidden" style="margin-bottom:1rem"></div>
+    <div style="font-size:11.5px;color:var(--gray600);margin-bottom:10px">${tag('rvd')} fator de risco da ficha RVD-1L &nbsp; ${tag('neg')} fator operacional de negociação</div>
     <div class="form-section"><h3>Perfil do Indivíduo</h3>
       <div class="form-grid">
-        <div class="field"><label>Idade</label>${sel('sari-age',[{v:'18-25',n:4,r:6,l:'18-25 anos'},{v:'26-35',n:5,r:5,l:'26-35 anos'},{v:'36-45',n:6,r:4,l:'36-45 anos'},{v:'46-55',n:5,r:5,l:'46-55 anos'},{v:'56+',n:3,r:7,l:'56+ anos'}],v.age_group||'36-45')}</div>
-        <div class="field"><label>Estado Emocional</label>${sel('sari-mental',[{v:'Calmo',n:7,r:2,l:'Calmo'},{v:'Agitado',n:5,r:4,l:'Agitado'},{v:'Muito Agitado',n:4,r:6,l:'Muito Agitado'},{v:'Desconhecido',n:5,r:4,l:'Desconhecido'}],v.mental_state||'Calmo')}</div>
-        <div class="field"><label>Histórico Criminal</label>${sel('sari-crim',[{v:'nenhum',n:7,r:2,l:'Nenhum'},{v:'pequenos',n:6,r:3,l:'Pequenos crimes'},{v:'violencia',n:3,r:6,l:'Crimes violentos'},{v:'violencia-domestica',n:2,r:7,l:'Violência doméstica'},{v:'homicidio',n:1,r:9,l:'Homicídio'},{v:'sequestro',n:1,r:8,l:'Sequestro'}],v.criminal_history||'nenhum')}</div>
-        <div class="field"><label>Histórico de Ameaças</label>${sel('sari-threat',[{v:'nenhum',n:7,r:2,l:'Nenhum'},{v:'verbais',n:5,r:4,l:'Ameaças verbais'},{v:'escritas',n:4,r:5,l:'Ameaças escritas'},{v:'repetidas',n:2,r:7,l:'Ameaças repetidas'}],v.threat_history||'nenhum')}</div>
+        <div class="field"><label>Idade${tag('neg')}</label>${sel('sari-age',[{v:'18-25',n:4,r:6,l:'18-25 anos'},{v:'26-35',n:5,r:5,l:'26-35 anos'},{v:'36-45',n:6,r:4,l:'36-45 anos'},{v:'46-55',n:5,r:5,l:'46-55 anos'},{v:'56+',n:3,r:7,l:'56+ anos'}],v.age_group||'36-45')}</div>
+        <div class="field"><label>Estado Emocional${tag('neg')}</label>${sel('sari-mental',[{v:'Calmo',n:7,r:2,l:'Calmo'},{v:'Agitado',n:5,r:4,l:'Agitado'},{v:'Muito Agitado',n:4,r:6,l:'Muito Agitado'},{v:'Desconhecido',n:5,r:4,l:'Desconhecido'}],v.mental_state||'Calmo')}</div>
+        <div class="field"><label>Histórico Criminal${tag('rvd')}</label>${sel('sari-crim',[{v:'nenhum',n:7,r:2,l:'Nenhum'},{v:'pequenos',n:6,r:3,l:'Pequenos crimes'},{v:'violencia',n:3,r:6,l:'Crimes violentos'},{v:'violencia-domestica',n:2,r:7,l:'Violência doméstica'},{v:'homicidio',n:1,r:9,l:'Homicídio'},{v:'sequestro',n:1,r:8,l:'Sequestro'}],v.criminal_history||'nenhum')}</div>
+        <div class="field"><label>Histórico de Ameaças${tag('rvd')}</label>${sel('sari-threat',[{v:'nenhum',n:7,r:2,l:'Nenhum'},{v:'verbais',n:5,r:4,l:'Ameaças verbais'},{v:'escritas',n:4,r:5,l:'Ameaças escritas'},{v:'repetidas',n:2,r:7,l:'Ameaças repetidas'}],v.threat_history||'nenhum')}</div>
       </div>
     </div>
     <div class="form-section"><h3>Situação Operacional</h3>
       <div class="form-grid">
-        <div class="field"><label>Tipo de Situação</label>${sel('sari-sit',[{v:'barricado',n:5,r:4,l:'Barricado em habitação'},{v:'suicida',n:4,r:6,l:'Ameaça suicida'},{v:'refem',n:4,r:5,l:'Refém'},{v:'violencia-domestica',n:3,r:7,l:'Violência doméstica'},{v:'conflito',n:6,r:3,l:'Conflito interpessoal'},{v:'assalto',n:2,r:8,l:'Assalto'},{v:'sequestro',n:2,r:8,l:'Sequestro'}],v.situation_type||'barricado')}</div>
-        <div class="field"><label>Arma Envolvida</label>${sel('sari-wep',[{v:'nenhuma',n:8,r:1,l:'Nenhuma'},{v:'branca',n:5,r:5,l:'Arma branca'},{v:'fogo-curta',n:3,r:7,l:'Arma de fogo curta'},{v:'cacadeira',n:4,r:6,l:'Caçadeira'}],v.weapons||'nenhuma')}</div>
-        <div class="field"><label>Arma foi utilizada?</label>${sel('sari-wepused',[{v:'nao',n:7,r:2,l:'Não'},{v:'sim',n:2,r:8,l:'Sim'},{v:'disparada',n:1,r:9,l:'Sim (disparos efetuados)'}],v.weapon_used||'nao')}</div>
-        <div class="field"><label>Reféns</label>${sel('sari-host',[{v:'nao',n:8,r:1,l:'Não'},{v:'sim',n:4,r:6,l:'Sim'}],v.hostages||'nao')}</div>
-        <div class="field"><label>Comunicação</label>${sel('sari-comm',[{v:'direta',n:8,r:2,l:'Direta e cooperativa'},{v:'hostil',n:4,r:6,l:'Hostil'},{v:'intermitente',n:3,r:5,l:'Intermitente'},{v:'nenhuma',n:2,r:7,l:'Nenhuma'}],v.communication||'direta')}</div>
-        <div class="field"><label>Violência Doméstica</label>${sel('sari-viol',[{v:'nenhum',n:7,r:2,l:'Nenhum'},{v:'suspeita',n:5,r:5,l:'Suspeita'},{v:'confirmado',n:3,r:7,l:'Confirmado'},{v:'repetido',n:2,r:8,l:'Casos repetidos'}],v.violence_history||'nenhum')}</div>
-        <div class="field"><label>Substâncias</label>${sel('sari-subs',[{v:'nenhum',n:7,r:2,l:'Nenhum'},{v:'alcool',n:5,r:5,l:'Álcool'},{v:'drogas',n:4,r:6,l:'Drogas'},{v:'ambos',n:3,r:7,l:'Álcool e drogas'}],v.substance_use||'nenhum')}</div>
-        <div class="field"><label>Duração do Incidente</label>${sel('sari-dur',[{v:'menos1h',n:7,r:3,l:'< 1 hora'},{v:'1-3h',n:6,r:4,l:'1-3 horas'},{v:'3-6h',n:5,r:5,l:'3-6 horas'},{v:'6-12h',n:4,r:6,l:'6-12 horas'},{v:'mais12h',n:3,r:7,l:'> 12 horas'}],v.duration||'menos1h')}</div>
+        <div class="field"><label>Tipo de Situação${tag('neg')}</label>${sel('sari-sit',[{v:'barricado',n:5,r:4,l:'Barricado em habitação'},{v:'suicida',n:4,r:6,l:'Ameaça suicida'},{v:'refem',n:4,r:5,l:'Refém'},{v:'violencia-domestica',n:3,r:7,l:'Violência doméstica'},{v:'conflito',n:6,r:3,l:'Conflito interpessoal'},{v:'assalto',n:2,r:8,l:'Assalto'},{v:'sequestro',n:2,r:8,l:'Sequestro'}],v.situation_type||'barricado')}</div>
+        <div class="field"><label>Arma Envolvida${tag('rvd')}</label>${sel('sari-wep',[{v:'nenhuma',n:8,r:1,l:'Nenhuma'},{v:'branca',n:5,r:5,l:'Arma branca'},{v:'fogo-curta',n:3,r:7,l:'Arma de fogo curta'},{v:'cacadeira',n:4,r:6,l:'Caçadeira'}],v.weapons||'nenhuma')}</div>
+        <div class="field"><label>Arma foi utilizada?${tag('rvd')}</label>${sel('sari-wepused',[{v:'nao',n:7,r:2,l:'Não'},{v:'sim',n:2,r:8,l:'Sim'},{v:'disparada',n:1,r:9,l:'Sim (disparos efetuados)'}],v.weapon_used||'nao')}</div>
+        <div class="field"><label>Reféns${tag('neg')}</label>${sel('sari-host',[{v:'nao',n:8,r:1,l:'Não'},{v:'sim',n:4,r:6,l:'Sim'}],v.hostages||'nao')}</div>
+        <div class="field"><label>Vítimas de Sequestro${tag('neg')}</label>${sel('sari-seqv',[{v:'nao',n:8,r:1,l:'Não'},{v:'sim',n:2,r:8,l:'Sim'},{v:'prolongado',n:1,r:9,l:'Sequestro prolongado (>24h)'}],v.sequestro_victims||'nao')}</div>
+        <div class="field"><label>Comunicação${tag('neg')}</label>${sel('sari-comm',[{v:'direta',n:8,r:2,l:'Direta e cooperativa'},{v:'hostil',n:4,r:6,l:'Hostil'},{v:'intermitente',n:3,r:5,l:'Intermitente'},{v:'nenhuma',n:2,r:7,l:'Nenhuma'}],v.communication||'direta')}</div>
+        <div class="field"><label>Violência Doméstica${tag('rvd')}</label>${sel('sari-viol',[{v:'nenhum',n:7,r:2,l:'Nenhum'},{v:'suspeita',n:5,r:5,l:'Suspeita'},{v:'confirmado',n:3,r:7,l:'Confirmado'},{v:'repetido',n:2,r:8,l:'Casos repetidos'}],v.violence_history||'nenhum')}</div>
+        <div class="field"><label>Substâncias${tag('rvd')}</label>${sel('sari-subs',[{v:'nenhum',n:7,r:2,l:'Nenhum'},{v:'alcool',n:5,r:5,l:'Álcool'},{v:'drogas',n:4,r:6,l:'Drogas'},{v:'ambos',n:3,r:7,l:'Álcool e drogas'}],v.substance_use||'nenhum')}</div>
+        <div class="field"><label>Duração do Incidente${tag('neg')}</label>${sel('sari-dur',[{v:'menos1h',n:7,r:3,l:'< 1 hora'},{v:'1-3h',n:6,r:4,l:'1-3 horas'},{v:'3-6h',n:5,r:5,l:'3-6 horas'},{v:'6-12h',n:4,r:6,l:'6-12 horas'},{v:'mais12h',n:3,r:7,l:'> 12 horas'}],v.duration||'menos1h')}</div>
       </div>
       <div class="field"><label>Informações adicionais</label><textarea id="sari-info">${v.additional_info||''}</textarea></div>
     </div>
     <div class="results-grid" id="sari-results">
-      <div class="result-card"><div class="result-title">Cooperação Esperada</div><div class="result-value"><span id="sari-neg-val">0</span>%</div><div class="prob-bar-wrap"><div class="prob-bar green-bar" id="sari-neg-bar" style="width:0%"></div></div><div class="result-desc" id="sari-neg-desc"></div></div>
+      <div class="result-card"><div class="result-title">Cooperação Esperada</div><div class="result-value"><span id="sari-neg-val">0</span>%</div><div id="sari-sit-tipo" style="font-size:12px;font-weight:700;letter-spacing:.5px;text-align:center;margin:-4px 0 6px"></div><div class="prob-bar-wrap"><div class="prob-bar green-bar" id="sari-neg-bar" style="width:0%"></div></div><div class="result-desc" id="sari-neg-desc"></div></div>
       <div class="result-card red-card"><div class="result-title">Risco de Violência (RVD-1L)</div><div class="result-value"><span id="sari-risk-val">0</span>/10</div><div class="prob-bar-wrap"><div class="prob-bar red-bar" id="sari-risk-bar" style="width:0%"></div></div><div class="result-desc" id="sari-risk-desc"></div></div>
     </div>
     ${sgiBarraHTML('sari','Guardar Avaliação')}
@@ -4654,7 +4659,9 @@ async function renderSARI(){
 }
 
 function calcSARI(){
-  const ids=['sari-age','sari-mental','sari-crim','sari-threat','sari-sit','sari-wep','sari-wepused','sari-host','sari-comm','sari-viol','sari-subs','sari-dur'];
+  // Réplica do cálculo do formulário RNRV original (mesmas pontuações, ajustes e matriz de risco)
+  const ids=['sari-age','sari-mental','sari-crim','sari-threat','sari-sit','sari-wep','sari-wepused','sari-host','sari-seqv','sari-comm','sari-viol','sari-subs','sari-dur'];
+  const val=id=>document.getElementById(id)?.value;
   let negPts=0,riskPts=0,count=0;
   ids.forEach(id=>{
     const el=document.getElementById(id);if(!el)return;
@@ -4662,23 +4669,56 @@ function calcSARI(){
     const n=parseInt(opt.dataset.neg||0),r=parseInt(opt.dataset.risk||0);
     negPts+=n;riskPts+=r;count++;
   });
-  const isDV=document.getElementById('sari-sit')?.value==='violencia-domestica'||document.getElementById('sari-viol')?.value!=='nenhum';
-  if(isDV){negPts-=3;riskPts+=3;}
-  const isSeq=document.getElementById('sari-sit')?.value==='sequestro';
-  if(isSeq){negPts-=4;riskPts+=4;}
-  const wu=document.getElementById('sari-wepused')?.value;
+  if(!count) return;
+  const SIT_CRISE=['barricado','suicida','refem','violencia-domestica'];
+  const sitTipo=SIT_CRISE.includes(val('sari-sit'))?'crise':'conflito';
+  // Violência doméstica
+  if(val('sari-sit')==='violencia-domestica'||val('sari-viol')!=='nenhum'){negPts-=3;riskPts+=3;}
+  // Sequestro (+ agravamento pela duração)
+  if(val('sari-sit')==='sequestro'||(val('sari-seqv')||'nao')!=='nao'){
+    negPts-=4;riskPts+=4;
+    const d=val('sari-dur');
+    if(d==='3-6h'){negPts-=1;riskPts+=1;}
+    if(d==='6-12h'){negPts-=2;riskPts+=2;}
+    if(d==='mais12h'){negPts-=3;riskPts+=3;}
+  }
+  // Assalto
+  if(val('sari-sit')==='assalto'){negPts-=5;riskPts+=5;}
+  // Arma utilizada
+  const wu=val('sari-wepused');
   if(wu==='sim'){negPts-=3;riskPts+=3;}else if(wu==='disparada'){negPts-=5;riskPts+=5;}
+  // Crise vs conflito
+  if(sitTipo==='crise'){negPts+=2;riskPts-=1;}else{negPts-=3;riskPts+=2;}
 
   const avgN=Math.max(1,Math.min(10,Math.round(negPts/count)));
   const avgR=Math.max(1,Math.min(10,Math.round(riskPts/count)));
   const negProb=Math.round((avgN/10)*100);
-  const riskLvl=Math.min(10,Math.max(1,avgR));
+  // Matriz de avaliação do risco (probabilidade × severidade), igual ao original
+  const catN=avgN<=2?'FREQUENTE':avgN<=4?'PROVÁVEL':avgN<=6?'OCASIONAL':avgN<=8?'RARO':'IMPROVÁVEL';
+  const catR=avgR<=2?'NEGLIGENCIÁVEL':avgR<=4?'MARGINAL':avgR<=6?'CRÍTICO':'CATASTRÓFICO';
+  const MATRIZ={
+    'FREQUENTE':{'CATASTRÓFICO':10,'CRÍTICO':9,'MARGINAL':8,'NEGLIGENCIÁVEL':7},
+    'PROVÁVEL':{'CATASTRÓFICO':9,'CRÍTICO':8,'MARGINAL':7,'NEGLIGENCIÁVEL':6},
+    'OCASIONAL':{'CATASTRÓFICO':8,'CRÍTICO':7,'MARGINAL':6,'NEGLIGENCIÁVEL':5},
+    'RARO':{'CATASTRÓFICO':7,'CRÍTICO':6,'MARGINAL':5,'NEGLIGENCIÁVEL':4},
+    'IMPROVÁVEL':{'CATASTRÓFICO':6,'CRÍTICO':5,'MARGINAL':4,'NEGLIGENCIÁVEL':3}
+  };
+  const riskLvl=Math.min(10,Math.max(1,MATRIZ[catN][catR]||5));
+  const crise=sitTipo==='crise';
+  const st=document.getElementById('sari-sit-tipo');
+  if(st){st.textContent=crise?'SITUAÇÃO DE CRISE':'SITUAÇÃO DE CONFLITO';st.style.color=crise?'var(--gm)':'var(--red)';}
 
   const nv=document.getElementById('sari-neg-val'),nb=document.getElementById('sari-neg-bar'),nd=document.getElementById('sari-neg-desc');
   const rv=document.getElementById('sari-risk-val'),rb=document.getElementById('sari-risk-bar'),rd=document.getElementById('sari-risk-desc');
   if(nv)nv.textContent=negProb;
   if(nb)nb.style.width=negProb+'%';
-  if(nd)nd.textContent=negProb>=75?'Alta probabilidade de resolução pacífica':negProb>=50?'Probabilidade moderada':negProb>=25?'Baixa probabilidade — preparar alternativas':'Muito baixa — intervenção pode ser necessária';
+  if(nd)nd.textContent=negProb>=75
+    ?(crise?'Alta probabilidade de resolução pacífica através de negociação (situação de crise)':'Probabilidade moderada de resolução por negociação (situação de conflito)')
+    :negProb>=50
+    ?(crise?'Probabilidade moderada de resolução por negociação (situação de crise)':'Probabilidade reduzida de resolução por negociação (situação de conflito)')
+    :negProb>=25
+    ?(crise?'Baixa probabilidade de resolução por negociação — preparar alternativas (situação de crise)':'Baixa probabilidade de resolução por negociação — intervenção provável (situação de conflito)')
+    :(crise?'Muito baixa probabilidade de resolução por negociação — intervenção pode ser necessária (situação de crise)':'Muito baixa probabilidade de resolução por negociação — intervenção necessária (situação de conflito)');
   if(rv)rv.textContent=riskLvl;
   if(rb)rb.style.width=(riskLvl*10)+'%';
   if(rd)rd.textContent=riskLvl<=3?'Risco Baixo — situação controlável':riskLvl<=5?'Risco Moderado — precauções padrão':riskLvl<=7?'Risco Elevado — reforço recomendado':'Risco Muito Elevado — intervenção especializada';
@@ -4697,9 +4737,13 @@ function renderSariEscalaHTML(){
   const CAMPOS=[
     ['sari-age','Idade'],['sari-mental','Estado emocional'],['sari-crim','Histórico criminal'],
     ['sari-threat','Histórico de ameaças'],['sari-sit','Tipo de situação'],['sari-wep','Arma envolvida'],
-    ['sari-wepused','Arma utilizada'],['sari-host','Reféns'],['sari-comm','Comunicação'],
+    ['sari-wepused','Arma utilizada'],['sari-host','Reféns'],['sari-seqv','Vítimas de sequestro'],['sari-comm','Comunicação'],
     ['sari-viol','Violência doméstica'],['sari-subs','Substâncias'],['sari-dur','Duração']
   ];
+  const RVD=['sari-crim','sari-threat','sari-wep','sari-wepused','sari-viol','sari-subs'];
+  const etq=id=>RVD.includes(id)
+    ?' <span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:3px;background:var(--redl);color:var(--red);border:1px solid var(--red)">RVD-1L</span>'
+    :' <span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:3px;background:#fff;color:var(--gm);border:1px solid var(--gm)">NEGOCIAÇÃO</span>';
   let linhas='';
   CAMPOS.forEach(([id,nome])=>{
     const sel=document.getElementById(id);
@@ -4709,12 +4753,12 @@ function renderSariEscalaHTML(){
       if(nn===null||rr===null) return '';
       return '<span style="display:inline-block;background:#fff;border:1px solid var(--border);border-radius:4px;padding:2px 6px;margin:2px 3px 2px 0;font-size:11px;white-space:nowrap">'+o.text+' <span style="color:var(--gm);font-weight:600">C'+nn+'</span> <span style="color:var(--red);font-weight:600">R'+rr+'</span></span>';
     }).join('');
-    linhas+='<div style="padding:7px 0;border-bottom:1px dashed var(--border)"><div style="font-size:12px;font-weight:600;color:var(--gn);margin-bottom:3px">'+nome+'</div><div>'+ops+'</div></div>';
+    linhas+='<div style="padding:7px 0;border-bottom:1px dashed var(--border)"><div style="font-size:12px;font-weight:600;color:var(--gn);margin-bottom:3px">'+nome+etq(id)+'</div><div>'+ops+'</div></div>';
   });
   return '<div style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:14px">'
     +'<div style="font-size:13px;font-weight:700;color:var(--gn);margin-bottom:6px">Como se pontua a Avaliação de Risco e Cooperação</div>'
     +'<p style="font-size:12px;color:var(--gray600);line-height:1.6;margin:0 0 10px">Cada resposta contribui com duas notas: <strong style="color:var(--gm)">C = Cooperação</strong> (1 a 8 — quanto <em>mais alta</em>, maior a probabilidade de resolução pacífica) e <strong style="color:var(--red)">R = Risco de violência</strong> (1 a 9 — quanto <em>mais alta</em>, maior o perigo). A app faz a média dos itens preenchidos e converte em <strong>Cooperação Esperada (%)</strong> e <strong>Nível de Risco (/10)</strong>.</p>'
-    +'<div style="background:var(--amberl);border:1px solid var(--amber);border-radius:6px;padding:8px 10px;font-size:11.5px;color:#7a4a00;line-height:1.5;margin-bottom:10px"><i class="fas fa-plus-minus" style="margin-right:5px"></i><strong>Modificadores:</strong> violência doméstica e sequestro descem a cooperação e sobem o risco; arma utilizada (−3 C / +3 R) e disparos efetuados (−5 C / +5 R) agravam ainda mais.</div>'
+    +'<div style="background:var(--amberl);border:1px solid var(--amber);border-radius:6px;padding:8px 10px;font-size:11.5px;color:#7a4a00;line-height:1.5;margin-bottom:10px"><i class="fas fa-plus-minus" style="margin-right:5px"></i><strong>Modificadores:</strong> violência doméstica (−3 C / +3 R); sequestro (−4 C / +4 R, e ainda −1/−2/−3 C e +1/+2/+3 R se durar 3-6h / 6-12h / &gt;12h); assalto (−5 C / +5 R); arma utilizada (−3 C / +3 R) ou disparos efetuados (−5 C / +5 R); situação de crise (+2 C / −1 R) ou de conflito (−3 C / +2 R). O nível de risco final resulta da matriz probabilidade × severidade.</div>'
     +'<div style="font-size:12px;font-weight:600;color:var(--gn);margin-bottom:4px">Leitura dos resultados</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;font-size:11.5px">'
       +'<div style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px"><strong style="color:var(--gm)">Cooperação Esperada</strong><br>≥75% alta · 50-74% moderada · 25-49% baixa · &lt;25% muito baixa</div>'
@@ -4734,7 +4778,7 @@ async function saveSARI(){
     parent_type:type==='inc'?'incidente':'itp',parent_id:r.id,
     age_group:get('sari-age'),mental_state:get('sari-mental'),criminal_history:get('sari-crim'),
     threat_history:get('sari-threat'),situation_type:get('sari-sit'),weapons:get('sari-wep'),
-    weapon_used:get('sari-wepused'),hostages:get('sari-host'),communication:get('sari-comm'),
+    weapon_used:get('sari-wepused'),hostages:get('sari-host'),sequestro_victims:get('sari-seqv'),communication:get('sari-comm'),
     violence_history:get('sari-viol'),substance_use:get('sari-subs'),duration:get('sari-dur'),
     additional_info:get('sari-info'),negotiation_probability:negProb,risk_level:riskLvl,
     autor_id:currentUser.id,autor_nome:currentProfile.nome
@@ -4976,13 +5020,15 @@ async function renderPlano(){
         <div class="field"><label>Interesses (necessidades reais)</label><textarea id="plano-int" rows="4">${v.interesses_adversario||''}</textarea></div>
       </div>
       <div class="field"><label>Alinhamento entre Posição e Interesses</label>
-        <select id="plano-align" onchange="updateAlignBox()">
-          <option value="desalinhados" ${(v.alinhamento||'desalinhados')==='desalinhados'?'selected':''}>Não Alinhados</option>
-          <option value="alinhados" ${v.alinhamento==='alinhados'?'selected':''}>Alinhados</option>
-        </select>
-        <div id="plano-align-box" class="alignment-box" style="margin-top:.5rem">
-          <strong>✅ Favorável:</strong> Focar nos interesses subjacentes do adversário para encontrar soluções alternativas que satisfaçam as necessidades reais.
+        <div class="situation-type-btns">
+          <div class="sit-btn ${(v.alinhamento||'desalinhados')==='desalinhados'?'selected':''}" id="align-desalinhados" onclick="selectAlign('desalinhados')">
+            <h4>NÃO ALINHADOS</h4><p><strong>✅ Favorável:</strong> focar nos interesses subjacentes para encontrar soluções alternativas que satisfaçam as necessidades reais.</p>
+          </div>
+          <div class="sit-btn ${v.alinhamento==='alinhados'?'selected':''}" id="align-alinhados" onclick="selectAlign('alinhados')">
+            <h4>ALINHADOS</h4><p><strong>⚠️ Desfavorável:</strong> adversário tem objetivos claros e coerentes — procurar criar valor adicional ou explorar contradições.</p>
+          </div>
         </div>
+        <input type="hidden" id="plano-align" value="${v.alinhamento||'desalinhados'}">
       </div>
     </div>
     <div class="form-section"><h3>Objetivos</h3>
@@ -5019,16 +5065,16 @@ function selectSit(val){
   document.getElementById('sit-conflito').classList.toggle('selected',val==='conflito');
 }
 
+function selectAlign(val){
+  const inp=document.getElementById('plano-align'); if(!inp) return;
+  inp.value=val;
+  if(typeof sgiAutosaveAgendar==='function') sgiAutosaveAgendar('plano');
+  updateAlignBox();
+}
 function updateAlignBox(){
-  const v=document.getElementById('plano-align')?.value;
-  const box=document.getElementById('plano-align-box');if(!box)return;
-  if(v==='alinhados'){
-    box.className='alignment-box alinhados';
-    box.innerHTML='<strong>⚠️ Desfavorável:</strong> Adversário tem objetivos claros e coerentes — negociação mais difícil. Procurar criar valor adicional ou explorar contradições.';
-  } else {
-    box.className='alignment-box';
-    box.innerHTML='<strong>✅ Favorável:</strong> Posição e interesses não alinhados — focar nos interesses subjacentes para encontrar soluções alternativas que satisfaçam as necessidades reais.';
-  }
+  const v=document.getElementById('plano-align')?.value||'desalinhados';
+  document.getElementById('align-desalinhados')?.classList.toggle('selected',v!=='alinhados');
+  document.getElementById('align-alinhados')?.classList.toggle('selected',v==='alinhados');
 }
 
 async function savePlano(){
