@@ -1437,6 +1437,15 @@ function setupRealtimeSync() {
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notificacoes', filter: 'destinatario_id=eq.' + currentUser.id }, async () => {
       try{ await loadNotifications(); }catch(e){}
     })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'postit_rececoes' }, (payload) => {
+      try{
+        const x = payload.new;
+        if(!x || !currentDetail || !currentDetail.record || currentDetail.record.id !== x.caso_id) return;
+        const k = _recChave(x.item_tipo, x.item_ts);
+        (_rec.mapa[k] = _rec.mapa[k] || {})[x.posicao] = x.recebido_em;
+        _renderPostoPreservando();
+      }catch(e){}
+    })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'treino_incidentes' }, (payload) => {
       try{
         const nov = payload.new;
@@ -2193,6 +2202,61 @@ function _postitPriSeletorHTML(alvo){
       + '<span style="width:11px;height:11px;border-radius:2px;background:' + c.fundo + ';border:1px solid ' + c.borda + '"></span>' + c.nome + '</button>';
   }).join('') + '</div>';
 }
+// ---- Confirmação de receção dos post-its (notas ao n.º 1, pedidos ao n.º 3) ----
+// Quando um post-it aparece no ecrã de outra posição, fica registado em
+// postit_rececoes; quem enviou vê "✓ N.º 1" junto ao post-it.
+let _rec = {caso: null, mapa: {}, marcados: {}};
+function _recChave(tipo, ts){ return tipo + '|' + ts; }
+async function rececoesCarregar(){
+  if(!currentDetail || !currentDetail.record) return;
+  const id = currentDetail.record.id;
+  if(_rec.caso !== id){ _rec = {caso: id, mapa: {}, marcados: {}}; }
+  try{
+    const {data, error} = await sb.from('postit_rececoes').select('item_tipo,item_ts,posicao,recebido_em').eq('caso_id', id);
+    if(error || !currentDetail || currentDetail.record.id !== id) return;
+    const m = {};
+    (data || []).forEach(x => { const k = _recChave(x.item_tipo, x.item_ts); (m[k] = m[k] || {})[x.posicao] = x.recebido_em; });
+    const mudou = JSON.stringify(m) !== JSON.stringify(_rec.mapa);
+    _rec.mapa = m;
+    if(mudou) _renderPostoPreservando();
+  }catch(e){}
+}
+function rececoesMarcar(){
+  try{
+    if(!currentDetail || !currentDetail.record || casoEncerrado()) return;
+    const r = currentDetail.record, id = r.id;
+    if(_rec.caso !== id){ _rec = {caso: id, mapa: {}, marcados: {}}; }
+    const f = enFuncoesAtuais();
+    const linhas = [];
+    const ver = (tipo, lista, quemVe) => (Array.isArray(lista) ? lista : []).forEach(x => {
+      if(!x || !x.ts || x.s === _sgiSessaoId) return;           // o próprio aparelho não confirma
+      const origem = x.p || 'n2';
+      f.forEach(pos => {
+        if(pos === origem || quemVe.indexOf(pos) < 0) return;
+        const k = _recChave(tipo, x.ts) + '|' + pos;
+        if(_rec.marcados[k]) return;
+        const ja = _rec.mapa[_recChave(tipo, x.ts)];
+        if(ja && ja[pos]){ _rec.marcados[k] = 1; return; }
+        _rec.marcados[k] = 1;
+        linhas.push({caso_id: id, item_tipo: tipo, item_ts: x.ts, posicao: pos});
+      });
+    });
+    ver('nota', r.notas_n1, ['n1','n2']);
+    ver('pedido', r.pedidos_n3, ['n2','n3']);
+    if(!linhas.length) return;
+    sb.from('postit_rececoes').upsert(linhas, {onConflict: 'caso_id,item_tipo,item_ts,posicao', ignoreDuplicates: true})
+      .then(res => { if(res.error){ linhas.forEach(l => { delete _rec.marcados[_recChave(l.item_tipo, l.item_ts) + '|' + l.posicao]; }); console.warn('rececoes', res.error.message); } });
+  }catch(e){}
+}
+function _recHTML(tipo, x){
+  const m = _rec.mapa[_recChave(tipo, x && x.ts)];
+  if(!m) return '';
+  const ks = EN_ORDEM.filter(k => m[k]);
+  if(!ks.length) return '';
+  return '<div style="font-size:9.5px;font-weight:700;color:var(--gm);margin-top:4px;font-family:\'IBM Plex Mono\',monospace" title="Recebido">'
+    + ks.map(k => '<i class="fas fa-check-double" style="margin-right:3px"></i>' + BP_CURTO[k] + ' ' + new Date(m[k]).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})).join(' · ')
+    + '</div>';
+}
 // ---- Notas do Nº2 para o Nº1 ----
 async function notaEnviar(){
   const inp=document.getElementById('nota-in');
@@ -2200,7 +2264,7 @@ async function notaEnviar(){
   const r=currentDetail.record;
   const ns=JSON.parse(JSON.stringify(r.notas_n1||[]));
   const pri=_postitPriSel.nota||'';
-  ns.push({ t: inp.value.trim(), a: currentProfile.nome, ts: new Date().toISOString(), pri: pri, urgente: pri==='urgente', s: _sgiSessaoId });
+  ns.push({ t: inp.value.trim(), a: currentProfile.nome, ts: new Date().toISOString(), pri: pri, urgente: pri==='urgente', s: _sgiSessaoId, p: _postoEscolhido || 'n2' });
   inp.value='';
   _postitPriSel.nota='';
   if(await _postoUpdate({notas_n1:ns})) renderPosto();
@@ -2247,6 +2311,7 @@ function _notasHTML(podeEnviar){
             + '<div style="font-size:13px;line-height:1.45;color:#2b2b2b;flex:1;word-break:break-word">' + n.t + '</div>'
             + '<div style="font-size:9.5px;color:rgba(0,0,0,.45);margin-top:7px;font-family:\'IBM Plex Mono\',monospace;line-height:1.35">'
             + fmtDateTime(n.ts) + '<br>' + (n.a || '—') + '</div>'
+            + _recHTML('nota', n)
             + '</div>';
         }).reverse().join('')
       + '</div>';
@@ -2506,6 +2571,7 @@ function _pedidosHTML(podeEnviar, podeResponder){
           + '<div style="font-size:13.5px;line-height:1.5;color:var(--gray900)">' + (p.resp ? '<i class="fas fa-check" style="color:var(--gm);margin-right:5px"></i>' : '<i class="fas fa-clock" style="color:var(--gold);margin-right:5px"></i>') + p.t + '</div>'
           + (p.resp ? '<div style="font-size:12.5px;color:var(--gm);margin-top:4px;padding-left:16px">' + p.resp + '</div>' : '')
           + '<div style="font-size:10.5px;color:var(--gray400);margin-top:3px;font-family:\'IBM Plex Mono\',monospace">' + (p.a||'—') + ' · ' + fmtDateTime(p.ts) + '</div>'
+          + _recHTML('pedido', p)
           + (podeResponder && !p.resp ? '<div style="display:flex;gap:5px;margin-top:6px"><input id="ped-resp-' + i + '" placeholder="Responder..." onkeydown="if(event.key===\'Enter\')pedidoResponder(' + i + ')" style="font-size:12px;padding:5px 7px"><button class="btn btn-primary btn-sm" onclick="pedidoResponder(' + i + ')" style="padding:5px 9px"><i class="fas fa-reply"></i></button></div>' : '')
           + '</div>';
       }).join('')
@@ -2521,7 +2587,7 @@ async function pedidoEnviar(){
   const inp = document.getElementById('ped-in');
   if(!inp || !inp.value.trim()) return;
   const ps = JSON.parse(JSON.stringify(currentDetail.record.pedidos_n3 || []));
-  ps.push({ t: inp.value.trim(), a: currentProfile.nome, ts: new Date().toISOString(), resp: null, pri: _postitPriSel.ped || '', s: _sgiSessaoId });
+  ps.push({ t: inp.value.trim(), a: currentProfile.nome, ts: new Date().toISOString(), resp: null, pri: _postitPriSel.ped || '', s: _sgiSessaoId, p: _postoEscolhido || 'n2' });
   inp.value = '';
   _postitPriSel.ped = '';
   if(await _postoUpdate({pedidos_n3: ps})) renderPosto();
@@ -2920,6 +2986,8 @@ function renderPosto(){
   renderCabecalhoCoordenacao();
   if(eN1 || eN2) renderResumoPlanos();
   if(eNC) renderQuadroCoordenador();
+  if(_rec.caso !== r.id) rececoesCarregar();
+  rececoesMarcar();
 }
 // ---- Plano de Diálogo (4.88) ----
 const PD_CAMPOS=[
