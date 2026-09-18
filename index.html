@@ -2109,7 +2109,7 @@ async function notasLimpar(){
 // ---- Render dos quadros ----
 function _quadrosHTML(editavel){
   const r=currentDetail.record; const q=r.quadros||{};
-  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+QUADROS_CAB.map(h=>{
+  return '<div style="display:grid;grid-template-columns:'+((typeof isMobile!=='undefined' && isMobile)?'1fr':'1fr 1fr')+';gap:10px">'+QUADROS_CAB.map(h=>{
     const itens=Array.isArray(q[h.k])?q[h.k]:[];
     const cor = h.k==='evitar' ? 'var(--red)' : h.k==='acoes' ? 'var(--gl)' : 'var(--gn)';
     return '<div style="background:#fff;border:1px solid var(--border);border-top:3px solid '+cor+';border-radius:var(--r);padding:10px">'
@@ -2666,8 +2666,19 @@ function _seletorPostoHTML(){
   return h + '</div>';
 }
 
+// No mobile, os botões do posto abrem os formulários em ecrã inteiro (não há separadores).
+function _postoIrTab(t){
+  if(typeof isMobile!=='undefined' && isMobile){
+    const m = {'tab-info':'info','tab-plano':'plano'};
+    if(m[t]) mobAbrirForm(m[t]);
+    return;
+  }
+  showTab(t);
+}
 function renderPosto(){
-  const el=document.getElementById('posto-content');
+  const _mob = (typeof isMobile!=='undefined' && isMobile);
+  if(_mob){ const d=document.getElementById('posto-content'); if(d) d.innerHTML=''; }
+  const el=document.getElementById(_mob ? 'mob-posto-content' : 'posto-content');
   if(!el||!currentDetail) return;
   const r=currentDetail.record;
   const eq=r.equipa||{};
@@ -2726,7 +2737,7 @@ function renderPosto(){
   if(eN4){
     h+='<div class="form-section"><h3><i class="fas fa-filter" style="color:var(--gl)"></i> Posto n.º 4 — gestão da informação e doutrina</h3>'
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Gere a informação a introduzir na CN e garante o cumprimento da doutrina, do PN e do PD (5.25-5.27).</p>'
-      +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="showTab(\'tab-info\')"><i class="fas fa-inbox"></i> Registos de informação</button><button class="btn btn-outline btn-sm" onclick="showTab(\'tab-pd\')"><i class="fas fa-comments"></i> Plano de Diálogo</button></div></div>';
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="_postoIrTab(\'tab-info\')"><i class="fas fa-inbox"></i> Registos de informação</button>'+(_mob?'':'<button class="btn btn-outline btn-sm" onclick="showTab(\'tab-pd\')"><i class="fas fa-comments"></i> Plano de Diálogo</button>')+'</div></div>';
   }
   if(eNC || eN4){
     h+='<div class="form-section"><h3><i class="fas fa-star" style="color:var(--gold)"></i> Quadro do Coordenador</h3>'
@@ -2734,8 +2745,8 @@ function renderPosto(){
       +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'
       +'<button class="btn btn-outline btn-sm" onclick="renderQuadroCoordenador()"><i class="fas fa-rotate"></i> Atualizar</button>'
       +'<button class="btn btn-gold btn-sm" onclick="exportQuadroCoordenadorPDF()"><i class="fas fa-file-pdf"></i> PDF para briefing</button>'
-      +'<button class="btn btn-outline btn-sm" onclick="showTab(\'tab-plano\')"><i class="fas fa-clipboard-list"></i> Plano de Negociação</button>'
-      +'<button class="btn btn-outline btn-sm" onclick="showTab(\'tab-pd\')"><i class="fas fa-comments"></i> Plano de Diálogo</button></div>'
+      +'<button class="btn btn-outline btn-sm" onclick="_postoIrTab(\'tab-plano\')"><i class="fas fa-clipboard-list"></i> Plano de Negociação</button>'
+      +(_mob?'':'<button class="btn btn-outline btn-sm" onclick="showTab(\'tab-pd\')"><i class="fas fa-comments"></i> Plano de Diálogo</button>')+'</div>'
       +'<div id="qc-content"><div style="padding:1.2rem;text-align:center;color:var(--gray400);font-size:13px"><i class="fas fa-spinner fa-spin"></i> A compor o quadro...</div></div>'
       +'</div>';
   }
@@ -9546,6 +9557,7 @@ async function mobOpenDetail(type, id, isTreino) {
   if (!record) return;
   mobDetail = { type, record, isTreino: !!isTreino };
   currentDetail = { type, record, isTreino: !!isTreino };
+  _postoEscolhido = null;
   mobRenderDetalhe();
   mobNavStack = ['lista'];
   mobShowTab('detalhe');
@@ -9572,6 +9584,9 @@ function mobRenderDetalhe() {
 
     <div style="padding:.875rem">
       <button class="btn btn-gold btn-relatorio" onclick="produzirRelatorio()" style="width:100%;margin-bottom:12px;justify-content:center"><i class="fas fa-file-contract"></i> Produzir relatório</button>
+
+      <!-- Posição na EN (mobile) -->
+      <div id="mob-posto-content" style="margin-bottom:12px"></div>
 
       <!-- Classificação ITP -->
       <div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);margin-bottom:12px;padding:14px">
@@ -9673,6 +9688,7 @@ function mobRenderDetalhe() {
     </div>`;
   // A EN usa currentDetail; sincroniza com o detalhe mobile antes de preencher
   try{ currentDetail = { type: mobDetail.type, record: mobDetail.record, isTreino: mobDetail.isTreino }; renderEquipaSelects(); }catch(e){ console.warn('EN mobile', e); }
+  try{ renderPosto(); }catch(e){ console.warn('Posto mobile', e); }
 }
 
 // ===== SAVE CONTACTO =====
