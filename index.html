@@ -4197,9 +4197,9 @@ function exportIRISPDF(){
 // ===== CONTACTOS SIDEBAR =====
 function buildContactosSidebarHTML(cvitima, cagressor) {
   const callBtnV = cvitima
-    ? `<button onclick="abrirPainelChamada('vitima','${cvitima.replace(/'/g,"\\'")}')" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:8px;background:linear-gradient(135deg,var(--gm),var(--gn));color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-size:12px;font-weight:600;margin-top:6px;transition:opacity .15s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'"><i class="fas fa-phone-alt"></i> Ligar e Gravar</button>` : '';
+    ? `<a href="tel:${cvitima.replace(/\s/g,'')}" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:8px;background:linear-gradient(135deg,var(--gm),var(--gn));color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-size:12px;font-weight:600;margin-top:6px;transition:opacity .15s;text-decoration:none" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'"><i class="fas fa-phone-alt"></i> Ligar</a>` : '';
   const callBtnA = cagressor
-    ? `<button onclick="abrirPainelChamada('agressor','${cagressor.replace(/'/g,"\\'")}')" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:8px;background:linear-gradient(135deg,var(--red),#6b1414);color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-size:12px;font-weight:600;margin-top:6px;transition:opacity .15s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'"><i class="fas fa-phone-alt"></i> Ligar e Gravar</button>` : '';
+    ? `<a href="tel:${cagressor.replace(/\s/g,'')}" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:8px;background:linear-gradient(135deg,var(--red),#6b1414);color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-size:12px;font-weight:600;margin-top:6px;transition:opacity .15s;text-decoration:none" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'"><i class="fas fa-phone-alt"></i> Ligar</a>` : '';
   return `
     <div style="width:230px;flex-shrink:0">
       <div style="background:#fff;border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;position:sticky;top:1rem">
@@ -4506,7 +4506,7 @@ async function renderRNRV(){
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
       <h3 style="font-size:16px;font-weight:600;color:var(--gn)"><i class="fas fa-phone-alt" style="color:var(--gl)"></i> Monitorização de Contactos</h3>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-outline btn-sm" onclick="toggleGravador()" id="btn-gravador"><i class="fas fa-phone-alt"></i> Chamada / Gravador</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleGravador()" id="btn-gravador"><i class="fas fa-broadcast-tower"></i> Transmissão</button>
         <button class="btn btn-gold btn-sm" onclick="exportRNRVPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
       </div>
     </div>
@@ -4515,8 +4515,8 @@ async function renderRNRV(){
 
     <!-- PAINEL DE CHAMADA + GRAVAÇÃO -->
     <div id="gravador-panel" class="hidden call-panel" style="margin-bottom:1.25rem">
-      <!-- Cabeçalho estado -->
-      <div class="call-panel-header">
+      <!-- Cabeçalho estado (gravação desativada) -->
+      <div class="call-panel-header" style="display:none">
         <div style="display:flex;align-items:center;gap:10px">
           <div id="call-state-dot" class="call-status-dot idle"></div>
           <span style="font-size:14px;font-weight:600" id="call-state-status">Pronto</span>
@@ -4559,17 +4559,16 @@ async function renderRNRV(){
 
       <!-- Botões gravador manual (sempre visíveis) -->
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:.75rem;padding-top:.75rem;border-top:1px solid rgba(255,255,255,.1)">
-        <span style="font-size:11px;color:rgba(255,255,255,.4);align-self:center;flex:1">Gravador manual:</span>
-        <button class="btn btn-sm" id="btn-rec-start" onclick="iniciarGravacao()" style="background:var(--red);color:#fff;border:none"><i class="fas fa-circle"></i> Gravar</button>
+        <span style="font-size:11px;color:rgba(255,255,255,.4);align-self:center;flex:1">Transmissão em direto:</span>
+        <button class="btn btn-sm" id="btn-rec-start" onclick="iniciarGravacao()" style="display:none;background:var(--red);color:#fff;border:none"><i class="fas fa-circle"></i> Gravar</button>
         <button class="btn btn-sm hidden" id="btn-rec-stop" onclick="pararGravacao()" style="background:var(--amber);color:#fff;border:none"><i class="fas fa-stop"></i> Parar</button>
         <button class="btn btn-sm hidden" id="btn-rec-pause" onclick="pausarGravacao()" style="background:#666;color:#fff;border:none"><i class="fas fa-pause"></i> Pausar</button>
-        <div style="width:1px;background:rgba(255,255,255,.15);margin:0 2px"></div>
         <button class="btn btn-sm" id="btn-live-start" onclick="iniciarTransmissao()" style="background:#7c3aed;color:#fff;border:none"><i class="fas fa-broadcast-tower"></i> Transmitir</button>
         <button class="btn btn-sm hidden" id="btn-live-stop" onclick="pararTransmissao()" style="background:#dc2626;color:#fff;border:none"><i class="fas fa-stop-circle"></i> Parar Tx</button>
       </div>
 
-      <!-- Status gravador manual -->
-      <div style="display:flex;align-items:center;gap:8px;margin-top:.5rem">
+      <!-- Status gravador manual (gravação desativada) -->
+      <div style="display:none;align-items:center;gap:8px;margin-top:.5rem">
         <div id="gravador-dot" style="width:10px;height:10px;border-radius:50%;background:#444;transition:all .3s;flex-shrink:0"></div>
         <span style="font-size:12px;color:rgba(255,255,255,.5)" id="gravador-status">Gravador manual inativo</span>
         <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--gold);margin-left:auto" id="gravador-timer">00:00</span>
@@ -4606,14 +4605,12 @@ async function renderRNRV(){
         </div>
       </div>
 
-      <!-- Gravações da chamada -->
-      <div id="call-gravacoes-list" class="call-recordings-list"></div>
-
-      <!-- Gravações manuais -->
-      <div id="gravacoes-lista">
+      <!-- Gravações (desativadas) -->
+      <div id="call-gravacoes-list" class="call-recordings-list" style="display:none"></div>
+      <div id="gravacoes-lista" style="display:none">
         <div style="font-size:11px;color:rgba(255,255,255,.5);text-align:center;padding:.5rem">Sem gravações nesta sessão</div>
       </div>
-      <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:.75rem;border-top:1px solid rgba(255,255,255,.1);padding-top:.75rem">
+      <div style="display:none;font-size:11px;color:rgba(255,255,255,.4);margin-top:.75rem;border-top:1px solid rgba(255,255,255,.1);padding-top:.75rem">
         <i class="fas fa-info-circle"></i> As gravações existem apenas durante esta sessão. Faz download antes de sair.
       </div>
     </div>
@@ -4625,17 +4622,11 @@ async function renderRNRV(){
         ${r.contacto_vitima?`
         <a href="tel:${r.contacto_vitima}" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--gp);border:1px solid #b8d4bb;border-radius:var(--r);text-decoration:none;color:var(--gn);font-size:13px;font-weight:500">
           <i class="fas fa-phone" style="color:var(--gm)"></i> Vítima: ${r.contacto_vitima}
-        </a>
-        <button onclick="abrirPainelChamada('vitima','${r.contacto_vitima.replace(/'/g,"\\'")}')" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--gm);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer">
-          <i class="fas fa-record-vinyl"></i> Ligar Vítima e Gravar
-        </button>`:''}
+        </a>`:''}
         ${r.contacto_agressor?`
         <a href="tel:${r.contacto_agressor}" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--redl);border:1px solid #f5c6c6;border-radius:var(--r);text-decoration:none;color:var(--red);font-size:13px;font-weight:500">
           <i class="fas fa-phone" style="color:var(--red)"></i> Agressor: ${r.contacto_agressor}
-        </a>
-        <button onclick="abrirPainelChamada('agressor','${r.contacto_agressor.replace(/'/g,"\\'")}')" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer">
-          <i class="fas fa-record-vinyl"></i> Ligar Agressor e Gravar
-        </button>`:''}
+        </a>`:''}
       </div>`:''}
       <div class="form-grid">
         <div class="field"><label>Data e Hora</label><input type="datetime-local" id="rnrv-dt" value="${localNow}"></div>
@@ -9864,7 +9855,7 @@ function mobRenderDetalhe() {
         <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px"><i class="fas fa-user" style="color:var(--gm)"></i> Vítima</div>
         <div id="mob-vitima-display">
           ${cv?`<a href="tel:${cv}" style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--gp);border-radius:var(--r);text-decoration:none;color:var(--gn);font-size:16px;font-weight:600;font-family:'IBM Plex Mono',monospace;margin-bottom:8px"><i class="fas fa-phone" style="color:var(--gm)"></i>${cv}</a>
-          <button onclick="mobPushTab('chamada');mobIniciarChamada('vitima','${cv.replace(/'/g,"\\'")}')" style="width:100%;padding:13px;background:var(--gm);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px"><i class="fas fa-record-vinyl"></i> Ligar e Gravar</button>`
+          <a href="tel:${cv.replace(/\s/g,'')}" style="width:100%;padding:13px;background:var(--gm);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px;text-decoration:none"><i class="fas fa-phone-alt"></i> Ligar</a>`
           :`<div style="font-size:13px;color:var(--gray400);font-style:italic;padding:4px 0 8px">Não registado</div>`}
         </div>
         <div id="mob-vitima-edit" style="display:none">
@@ -9882,7 +9873,7 @@ function mobRenderDetalhe() {
         <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px"><i class="fas fa-user-slash" style="color:var(--red)"></i> Agressor</div>
         <div id="mob-agressor-display">
           ${ca?`<a href="tel:${ca}" style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--redl);border-radius:var(--r);text-decoration:none;color:var(--red);font-size:16px;font-weight:600;font-family:'IBM Plex Mono',monospace;margin-bottom:8px"><i class="fas fa-phone" style="color:var(--red)"></i>${ca}</a>
-          <button onclick="mobPushTab('chamada');mobIniciarChamada('agressor','${ca.replace(/'/g,"\\'")}')" style="width:100%;padding:13px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px"><i class="fas fa-record-vinyl"></i> Ligar e Gravar</button>`
+          <a href="tel:${ca.replace(/\s/g,'')}" style="width:100%;padding:13px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px;text-decoration:none"><i class="fas fa-phone-alt"></i> Ligar</a>`
           :`<div style="font-size:13px;color:var(--gray400);font-style:italic;padding:4px 0 8px">Não registado</div>`}
         </div>
         <div id="mob-agressor-edit" style="display:none">
@@ -10192,14 +10183,14 @@ async function mobAbrirForm(form) {
         <div style="padding:14px;background:var(--gp)"><span style="font-size:15px;font-weight:600;color:var(--gn)"><i class="fas fa-phone-alt"></i> Registar Contacto</span></div>
         <div style="padding:16px">
           <div style="background:linear-gradient(135deg,#0f1a0f,#1a3a1f);border-radius:var(--r);padding:14px;margin-bottom:16px">
-            <div style="font-size:10px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px"><i class="fas fa-record-vinyl"></i> Ligar e Gravar</div>
+            <div style="font-size:10px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px"><i class="fas fa-phone-alt"></i> Ligar</div>
             <div style="margin-bottom:8px">
               <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:5px">VÍTIMA</div>
-              ${cv?`<div style="display:flex;gap:6px"><a href="tel:${cv}" style="flex:1;padding:10px;background:rgba(255,255,255,.1);border-radius:var(--r);text-decoration:none;color:#86efac;font-family:monospace;font-size:13px;display:flex;align-items:center;gap:6px"><i class="fas fa-phone"></i>${cv}</a><button onclick="mobIniciarChamadaENavega('vitima','${cv.replace(/'/g,"\\'")}');" style="padding:10px 14px;background:var(--gm);color:#fff;border:none;border-radius:var(--r);font-weight:600;cursor:pointer;font-size:13px">Gravar</button></div>`:`<div style="display:flex;gap:6px"><input type="tel" id="mob-rnrv-cv" placeholder="Nº vítima..." style="flex:1;padding:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:var(--r);color:#fff;font-size:14px"><button onclick="mobGuardarELigar('vitima','mob-rnrv-cv');" style="padding:10px 14px;background:var(--gm);color:#fff;border:none;border-radius:var(--r);font-weight:600;cursor:pointer;font-size:13px">Gravar</button></div>`}
+              ${cv?`<div style="display:flex;gap:6px"><a href="tel:${cv}" style="flex:1;padding:10px;background:rgba(255,255,255,.1);border-radius:var(--r);text-decoration:none;color:#86efac;font-family:monospace;font-size:13px;display:flex;align-items:center;gap:6px"><i class="fas fa-phone"></i>${cv}</a><a href="tel:${cv.replace(/\s/g,'')}" style="padding:10px 14px;background:var(--gm);color:#fff;border:none;border-radius:var(--r);font-weight:600;cursor:pointer;font-size:13px;text-decoration:none;display:flex;align-items:center">Ligar</a></div>`:`<div style="display:flex;gap:6px"><input type="tel" id="mob-rnrv-cv" placeholder="Nº vítima..." style="flex:1;padding:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:var(--r);color:#fff;font-size:14px"><button onclick="mobGuardarELigar('vitima','mob-rnrv-cv');" style="padding:10px 14px;background:var(--gm);color:#fff;border:none;border-radius:var(--r);font-weight:600;cursor:pointer;font-size:13px">Ligar</button></div>`}
             </div>
             <div>
               <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:5px">AGRESSOR</div>
-              ${ca?`<div style="display:flex;gap:6px"><a href="tel:${ca}" style="flex:1;padding:10px;background:rgba(255,255,255,.1);border-radius:var(--r);text-decoration:none;color:#fca5a5;font-family:monospace;font-size:13px;display:flex;align-items:center;gap:6px"><i class="fas fa-phone"></i>${ca}</a><button onclick="mobIniciarChamadaENavega('agressor','${ca.replace(/'/g,"\\'")}');" style="padding:10px 14px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-weight:600;cursor:pointer;font-size:13px">Gravar</button></div>`:`<div style="display:flex;gap:6px"><input type="tel" id="mob-rnrv-ca" placeholder="Nº agressor..." style="flex:1;padding:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:var(--r);color:#fff;font-size:14px"><button onclick="mobGuardarELigar('agressor','mob-rnrv-ca');" style="padding:10px 14px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-weight:600;cursor:pointer;font-size:13px">Gravar</button></div>`}
+              ${ca?`<div style="display:flex;gap:6px"><a href="tel:${ca}" style="flex:1;padding:10px;background:rgba(255,255,255,.1);border-radius:var(--r);text-decoration:none;color:#fca5a5;font-family:monospace;font-size:13px;display:flex;align-items:center;gap:6px"><i class="fas fa-phone"></i>${ca}</a><a href="tel:${ca.replace(/\s/g,'')}" style="padding:10px 14px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-weight:600;cursor:pointer;font-size:13px;text-decoration:none;display:flex;align-items:center">Ligar</a></div>`:`<div style="display:flex;gap:6px"><input type="tel" id="mob-rnrv-ca" placeholder="Nº agressor..." style="flex:1;padding:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:var(--r);color:#fff;font-size:14px"><button onclick="mobGuardarELigar('agressor','mob-rnrv-ca');" style="padding:10px 14px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-weight:600;cursor:pointer;font-size:13px">Ligar</button></div>`}
             </div>
           </div>
           <div style="height:1px;background:var(--border);margin-bottom:14px"></div>
@@ -10302,7 +10293,7 @@ async function mobGuardarELigar(target, inputId) {
     const idx = arr.findIndex(x=>x.id===r.id);
     if (idx>=0) arr[idx][target==='vitima'?'contacto_vitima':'contacto_agressor'] = numero;
   }
-  mobIniciarChamadaENavega(target, numero);
+  window.location.href = 'tel:' + numero.replace(/\s/g,'');
 }
 
 async function mobSaveInfo() {
@@ -10488,7 +10479,7 @@ function mobRenderChamada() {
     </div>
 
     <!-- Configuração -->
-    <div id="mob-call-config" style="${mobCallState.recording?'display:none':''}">
+    <div id="mob-call-config" style="display:none">
       <div style="font-size:11px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px"><i class="fas fa-microphone" style="color:var(--gl)"></i> Dispositivo de Áudio</div>
       <select id="mob-device-select" style="margin-bottom:8px;font-size:16px;padding:12px;background:#fff;border:1px solid var(--border);border-radius:var(--r);width:100%"><option>⏳ A carregar...</option></select>
       <div style="background:var(--amberl);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--amber);margin-bottom:12px;line-height:1.7">
@@ -10527,22 +10518,21 @@ function mobRenderChamada() {
     ${cv?`<div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px;margin-bottom:10px">
       <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px"><i class="fas fa-user" style="color:var(--gm)"></i> Vítima</div>
       <a href="tel:${cv}" style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--gp);border-radius:var(--r);text-decoration:none;color:var(--gn);font-size:16px;font-weight:600;font-family:'IBM Plex Mono',monospace;margin-bottom:8px"><i class="fas fa-phone" style="color:var(--gm)"></i>${cv}</a>
-      <button onclick="mobIniciarChamada('vitima','${cv.replace(/'/g,"\\'")}');" style="width:100%;padding:15px;background:var(--gm);color:#fff;border:none;border-radius:var(--r);font-size:15px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px"><i class="fas fa-record-vinyl"></i> Ligar para Vítima e Gravar</button>
+      <a href="tel:${cv.replace(/\s/g,'')}" style="width:100%;padding:15px;background:var(--gm);color:#fff;border:none;border-radius:var(--r);font-size:15px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none"><i class="fas fa-phone-alt"></i> Ligar para Vítima</a>
     </div>`:``}
 
     ${ca?`<div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px;margin-bottom:10px">
       <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px"><i class="fas fa-user-slash" style="color:var(--red)"></i> Agressor</div>
       <a href="tel:${ca}" style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--redl);border-radius:var(--r);text-decoration:none;color:var(--red);font-size:16px;font-weight:600;font-family:'IBM Plex Mono',monospace;margin-bottom:8px"><i class="fas fa-phone" style="color:var(--red)"></i>${ca}</a>
-      <button onclick="mobIniciarChamada('agressor','${ca.replace(/'/g,"\\'")}');" style="width:100%;padding:15px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-size:15px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px"><i class="fas fa-record-vinyl"></i> Ligar para Agressor e Gravar</button>
+      <a href="tel:${ca.replace(/\s/g,'')}" style="width:100%;padding:15px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-size:15px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none"><i class="fas fa-phone-alt"></i> Ligar para Agressor</a>
     </div>`:``}
 
     <!-- Número manual — sempre visível -->
     <div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px;margin-bottom:10px">
-      <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px"><i class="fas fa-keyboard" style="color:var(--gl)"></i> Outro Número / Gravação Manual</div>
-      <input type="tel" id="mob-manual-num" placeholder="Inserir número (opcional)..." style="margin-bottom:10px;font-size:16px;padding:12px;border:1px solid var(--border);border-radius:var(--r);width:100%">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <button onclick="mobIniciarChamada('manual', document.getElementById('mob-manual-num').value||'Manual');" style="padding:14px;background:var(--gn);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px"><i class="fas fa-phone-alt"></i> Ligar e Gravar</button>
-        <button onclick="mobIniciarChamada('manual','Gravação Manual');" style="padding:14px;background:var(--gray600);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px"><i class="fas fa-microphone"></i> Só Gravar</button>
+      <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px"><i class="fas fa-keyboard" style="color:var(--gl)"></i> Outro Número</div>
+      <input type="tel" id="mob-manual-num" placeholder="Inserir número..." style="margin-bottom:10px;font-size:16px;padding:12px;border:1px solid var(--border);border-radius:var(--r);width:100%">
+      <div style="display:grid;grid-template-columns:1fr;gap:8px">
+        <button onclick="const n=(document.getElementById('mob-manual-num').value||'').replace(/\s/g,'');if(!n){alert('Insere um número primeiro.');return;}window.location.href='tel:'+n;" style="padding:14px;background:var(--gn);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px"><i class="fas fa-phone-alt"></i> Ligar</button>
       </div>
     </div>
 
