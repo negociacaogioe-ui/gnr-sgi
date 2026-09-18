@@ -4614,7 +4614,7 @@ async function renderSARI(){
   const tag=t=>t==='rvd'
     ?'<span title="Fator de risco correspondente à ficha RVD-1L" style="margin-left:6px;font-size:10px;font-weight:700;letter-spacing:.3px;padding:1px 6px;border-radius:3px;background:var(--redl);color:var(--red);border:1px solid var(--red);vertical-align:middle">RVD-1L</span>'
     :'<span title="Fator operacional de negociação" style="margin-left:6px;font-size:10px;font-weight:700;letter-spacing:.3px;padding:1px 6px;border-radius:3px;background:var(--gp);color:var(--gm);border:1px solid var(--gm);vertical-align:middle">NEGOCIAÇÃO</span>';
-  function sel(id,opts,val){return`<select id="${id}" onchange="calcSARI()">${opts.map(o=>`<option value="${o.v}" data-neg="${o.n}" data-risk="${o.r}" ${val===o.v?'selected':''}>${o.l}</option>`).join('')}</select>`;}
+  function sel(id,opts,val){return`<select id="${id}" onchange="calcSARI()">${opts.map(o=>`<option value="${o.v}" data-neg="${o.n}" data-risk="${o.r}" ${val===o.v?'selected':''}>${o.l}</option>`).join('')}</select><div id="${id}-pts" class="sari-pts" style="font-size:11px;margin-top:4px;line-height:1.4;color:var(--gray600)"></div>`;}
 
   el.innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
@@ -4626,6 +4626,20 @@ async function renderSARI(){
     </div>
     <div id="sari-escala-painel" class="hidden" style="margin-bottom:1rem"></div>
     <div style="font-size:11.5px;color:var(--gray600);margin-bottom:10px">${tag('rvd')} fator de risco da ficha RVD-1L &nbsp; ${tag('neg')} fator operacional de negociação</div>
+    <details style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;margin-bottom:1rem">
+      <summary style="font-size:13px;font-weight:600;color:var(--gn);cursor:pointer"><i class="fas fa-book-open" style="color:var(--gm);margin-right:6px"></i>O que é o RVD e como foi construída a escala?</summary>
+      <div style="font-size:12px;color:var(--gray600);line-height:1.6;margin-top:10px">
+        <div style="font-weight:700;color:var(--gn);margin-bottom:3px">O que é o RVD-1L</div>
+        <p style="margin:0 0 10px">A ficha <strong>RVD-1L</strong> (Avaliação de Risco em Violência Doméstica — 1.º nível) é o instrumento utilizado pelas forças de segurança para avaliar o risco em ocorrências de violência doméstica, preenchido no primeiro contacto com a ocorrência. As reavaliações seguintes são feitas com a ficha <strong>RVD-2L</strong>. O resultado classifica o risco (baixo, médio ou elevado) e orienta as medidas de proteção da vítima.</p>
+        <p style="margin:0 0 10px">Neste formulário, os campos com a etiqueta ${tag('rvd')} correspondem a fatores de risco presentes na ficha RVD-1L (histórico criminal, ameaças, armas, utilização de armas, violência doméstica e consumo de substâncias).</p>
+        <div style="font-weight:700;color:var(--gn);margin-bottom:3px">Como foi construída a escala de negociação</div>
+        <p style="margin:0 0 10px">Os campos com a etiqueta ${tag('neg')} e as notas atribuídas a cada resposta assentam na <strong>base de dados de casos anteriores</strong> de negociação. Cada resposta tem duas notas: <strong style="color:var(--gm)">C — Cooperação</strong> (quanto mais alta, maior a probabilidade de resolução pacífica) e <strong style="color:var(--red)">R — Risco de violência</strong> (quanto mais alto, maior o perigo), ponderadas de acordo com a forma como esse fator se associou, nos casos anteriores, a desfechos negociados ou a escalada da situação.</p>
+        <div style="font-weight:700;color:var(--gn);margin-bottom:3px">Como se chega ao resultado</div>
+        <p style="margin:0 0 10px">A pontuação de cada campo aparece por baixo da respetiva resposta. A app faz a média das notas, aplica os modificadores (violência doméstica, sequestro, assalto, arma utilizada, crise/conflito) e converte o resultado em <strong>Cooperação Esperada (%)</strong> e <strong>Risco de Violência (/10)</strong>, este último através da matriz probabilidade × severidade. O detalhe completo está em <em>Como pontua?</em>.</p>
+        <div style="background:#fff;border:1px solid var(--gm);border-left:4px solid var(--gm);border-radius:6px;padding:8px 10px;margin:0 0 10px;color:var(--gn)"><i class="fas fa-user-shield" style="color:var(--gm);margin-right:5px"></i>A <strong>Cooperação Esperada</strong> e o <strong>Risco de Violência</strong> são ambos <strong>indicadores de apoio à decisão do Comandante Gestor do Incidente</strong>. Não são vinculativos: a decisão final cabe sempre ao Comandante Gestor do Incidente, que os pondera com a restante informação disponível no teatro de operações.</div>
+        <p style="font-size:11px;color:var(--gray400);margin:0"><i class="fas fa-circle-info" style="margin-right:4px"></i>Não substitui a cotação oficial da ficha RVD-1L nem o juízo do negociador.</p>
+      </div>
+    </details>
     <div class="form-section"><h3>Perfil do Indivíduo</h3>
       <div class="form-grid">
         <div class="field"><label>Idade${tag('neg')}</label>${sel('sari-age',[{v:'18-25',n:4,r:6,l:'18-25 anos'},{v:'26-35',n:5,r:5,l:'26-35 anos'},{v:'36-45',n:6,r:4,l:'36-45 anos'},{v:'46-55',n:5,r:5,l:'46-55 anos'},{v:'56+',n:3,r:7,l:'56+ anos'}],v.age_group||'36-45')}</div>
@@ -4672,6 +4686,7 @@ function calcSARI(){
   if(!count) return;
   const SIT_CRISE=['barricado','suicida','refem','violencia-domestica'];
   const sitTipo=SIT_CRISE.includes(val('sari-sit'))?'crise':'conflito';
+  sariPontosCampos(ids,val,sitTipo);
   // Violência doméstica
   if(val('sari-sit')==='violencia-domestica'||val('sari-viol')!=='nenhum'){negPts-=3;riskPts+=3;}
   // Sequestro (+ agravamento pela duração)
@@ -4722,6 +4737,35 @@ function calcSARI(){
   if(rv)rv.textContent=riskLvl;
   if(rb)rb.style.width=(riskLvl*10)+'%';
   if(rd)rd.textContent=riskLvl<=3?'Risco Baixo — situação controlável':riskLvl<=5?'Risco Moderado — precauções padrão':riskLvl<=7?'Risco Elevado — reforço recomendado':'Risco Muito Elevado — intervenção especializada';
+}
+
+// Mostra, por baixo de cada campo, a pontuação da resposta selecionada (C/R) e o modificador que essa resposta ativa
+function sariPontosCampos(ids,val,sitTipo){
+  const mods={};
+  const add=(id,txt)=>{(mods[id]=mods[id]||[]).push(txt);};
+  const seqAtivo=val('sari-sit')==='sequestro'||(val('sari-seqv')||'nao')!=='nao';
+  if(val('sari-viol')!=='nenhum') add('sari-viol','Violência doméstica −3 C / +3 R');
+  else if(val('sari-sit')==='violencia-domestica') add('sari-sit','Violência doméstica −3 C / +3 R');
+  if(seqAtivo){
+    add((val('sari-seqv')||'nao')!=='nao'?'sari-seqv':'sari-sit','Sequestro −4 C / +4 R');
+    const d=val('sari-dur');
+    if(d==='3-6h') add('sari-dur','Sequestro 3-6h −1 C / +1 R');
+    if(d==='6-12h') add('sari-dur','Sequestro 6-12h −2 C / +2 R');
+    if(d==='mais12h') add('sari-dur','Sequestro >12h −3 C / +3 R');
+  }
+  if(val('sari-sit')==='assalto') add('sari-sit','Assalto −5 C / +5 R');
+  add('sari-sit',sitTipo==='crise'?'Situação de crise +2 C / −1 R':'Situação de conflito −3 C / +2 R');
+  const wu=val('sari-wepused');
+  if(wu==='sim') add('sari-wepused','Arma utilizada −3 C / +3 R');
+  else if(wu==='disparada') add('sari-wepused','Disparos efetuados −5 C / +5 R');
+  ids.forEach(id=>{
+    const el=document.getElementById(id),out=document.getElementById(id+'-pts');
+    if(!el||!out) return;
+    const o=el.options[el.selectedIndex];
+    let h='<span style="color:var(--gm);font-weight:600">Cooperação C'+(o.dataset.neg||0)+'</span> · <span style="color:var(--red);font-weight:600">Risco R'+(o.dataset.risk||0)+'</span>';
+    if(mods[id]) h+='<br><span style="color:#7a4a00"><i class="fas fa-plus-minus" style="margin-right:3px"></i>Modificador: '+mods[id].join(' · ')+'</span>';
+    out.innerHTML=h;
+  });
 }
 
 function toggleSariEscala(){
