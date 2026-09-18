@@ -2778,8 +2778,7 @@ function renderPosto(){
   }
   const eN1=f.indexOf('n1')>-1, eN2=f.indexOf('n2')>-1, eN3=f.indexOf('n3')>-1, eN4=f.indexOf('n4')>-1, eNC=f.indexOf('nc')>-1;
   let h='<div class="form-section"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
-    +'<h3 style="margin:0"><i class="fas fa-user-shield" style="color:var(--gl)"></i> '+enNomePos(_postoEscolhido)+'</h3>'
-    +'<button class="btn btn-ghost btn-sm" onclick="trocarPosto()" style="font-size:11.5px"><i class="fas fa-rotate"></i> Trocar de posição</button></div>';
+    +'<h3 style="margin:0"><i class="fas fa-user-shield" style="color:var(--gl)"></i> '+enNomePos(_postoEscolhido)+'</h3></div>';
   if(f.length>1){
     h+='<p style="font-size:12px;color:var(--gray600);margin:8px 0 0;line-height:1.55"><i class="fas fa-layer-group" style="color:var(--gold);margin-right:5px"></i>'
       +'<strong>Acumulação de funções (5.29, 5.30).</strong> A célula está constituída a '+enPreenchidos(eq).length+' negociadores, pelo que acumula: '
@@ -6625,6 +6624,15 @@ async function notificarPush(tipo, local, kind, cter){
     });
   }catch(e){ console.warn('push falhou', e); }
 }
+// Os formulários (IRIS, Risco/Cooperação, PN, contactos, informações) ficam ligados
+// ao caso por parent_id + parent_type. Ao mudar a classificação, o parent_type
+// acompanha — senão os formulários já preenchidos deixam de ser encontrados.
+async function migrarParentType(id, isItp){
+  const novo = isItp ? 'itp' : 'incidente';
+  const tabs = ['iris','sari','plano_negociacao','rnrv_contactos','info_registos','info_anexob'];
+  const res = await Promise.all(tabs.map(t => sb.from(t).update({parent_type: novo}).eq('parent_id', id).neq('parent_type', novo)));
+  res.forEach((r, i) => { if(r.error) console.warn('parent_type '+tabs[i], r.error.message); });
+}
 async function declararITP(){
   if(!currentDetail) return;
   const _tbl = currentDetail.isTreino ? 'treino_incidentes' : 'incidentes';
@@ -6633,6 +6641,8 @@ async function declararITP(){
   const{error}=await sb.from(_tbl).update(patchObj).eq('id',r.id);
   if(error){ alert('Erro ao declarar ITP: '+error.message); return; }
   Object.assign(currentDetail.record, patchObj);
+  await migrarParentType(r.id, patchObj.is_itp);
+  currentDetail.type = patchObj.is_itp ? 'itp' : 'inc';
   if(currentDetail.isTreino){ await renderTreino(); } else { await loadData(); }
   renderDetailHeader(); renderResumo();
   if (typeof isMobile !== 'undefined' && isMobile && mobDetail) { mobDetail.type = (currentDetail.record.is_itp ? 'itp' : 'inc'); mobDetail.record = currentDetail.record; mobRenderDetalhe(); }
@@ -6646,6 +6656,8 @@ async function reverterITP(){
   const{error}=await sb.from(_tbl).update(patchObj).eq('id',r.id);
   if(error){ alert('Erro: '+error.message); return; }
   Object.assign(currentDetail.record, patchObj);
+  await migrarParentType(r.id, patchObj.is_itp);
+  currentDetail.type = patchObj.is_itp ? 'itp' : 'inc';
   if(currentDetail.isTreino){ await renderTreino(); } else { await loadData(); }
   renderDetailHeader(); renderResumo();
   if (typeof isMobile !== 'undefined' && isMobile && mobDetail) { mobDetail.type = (currentDetail.record.is_itp ? 'itp' : 'inc'); mobDetail.record = currentDetail.record; mobRenderDetalhe(); }
@@ -7444,6 +7456,7 @@ function renderTreinoTable() {
 
 
 function openTreinoRecord(type, record) {
+  if(record && typeof record.is_itp !== 'undefined') type = record.is_itp ? 'itp' : 'inc';
   prevSection = 'treino';
   currentDetail = { type, record, isTreino: true };
   document.getElementById('detail-back-btn').textContent = '← Voltar ao Treino';
