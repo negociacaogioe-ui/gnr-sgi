@@ -9725,7 +9725,13 @@ function mobAbrirEditar() {
 }
 
 // ===== FORMULÁRIOS =====
+// Devolve o #sari-content ao separador do desktop (o overlay mobile pede-o emprestado)
+function mobDevolverSari() {
+  const home = document.getElementById('tab-sari'), el = document.getElementById('sari-content');
+  if (home && el && !home.contains(el)) home.appendChild(el);
+}
 function mobMostrarSeletorFormularios() {
+  mobDevolverSari();
   // Use the same fullscreen overlay as the forms
   let overlay = document.getElementById('mob-form-fullscreen');
   if (!overlay) {
@@ -9792,6 +9798,7 @@ function mobMostrarSeletorFormularios() {
 }
 
 async function mobAbrirForm(form) {
+  mobDevolverSari();
   // Use a fullscreen overlay — completely independent of tab system
   let overlay = document.getElementById('mob-form-fullscreen');
   if (!overlay) {
@@ -9877,38 +9884,11 @@ async function mobAbrirForm(form) {
     mobCalcIRIS();
 
   } else if (form === 'sari') {
-    const {data:v} = await sb.from('sari').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle();
-    const d = v||{};
-    overlay.innerHTML = `<div style="padding:.875rem">
-      <div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);overflow:hidden;margin-bottom:12px">
-        <div style="padding:14px;background:var(--amberl);display:flex;align-items:center;justify-content:space-between">
-          <span style="font-size:15px;font-weight:600;color:var(--amber)"><i class="fas fa-shield-alt"></i> Risco/Cooperação</span>
-          <div id="mob-sari-badge" style="font-size:13px;font-weight:700;padding:4px 12px;border-radius:20px;background:var(--gray100);color:var(--gray600)">0 fatores</div>
-        </div>
-        <div style="padding:16px">
-          <p style="font-size:13px;color:var(--gray600);margin-bottom:12px">Assinala os fatores de risco presentes:</p>
-          ${chk('Historial de violência grave','mob-sari-viol',d.violence_history)}
-          ${chk('Ameaças verbais recentes','mob-sari-thrt',d.verbal_threats)}
-          ${chk('Armas disponíveis','mob-sari-weap',d.weapons_access)}
-          ${chk('Perturbação psiquiátrica','mob-sari-psyc',d.psychiatric_disorder)}
-          ${chk('Consumo de substâncias','mob-sari-subs',d.substance_use)}
-          ${chk('Instabilidade emocional','mob-sari-emot',d.emotional_instability)}
-          ${chk('Isolamento social','mob-sari-isol',d.social_isolation)}
-          ${chk('Recusa em negociar','mob-sari-nego',d.negotiation_refusal)}
-          ${chk('Reféns em risco imediato','mob-sari-host',d.hostages_at_risk)}
-          ${chk('Ameaça de suicídio','mob-sari-suic',d.suicide_threat)}
-          <div id="mob-sari-result" style="margin:14px 0;padding:14px;border-radius:var(--rl);text-align:center;background:var(--gray100)">
-            <div style="font-size:11px;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Nível de Risco</div>
-            <div id="mob-sari-level" style="font-size:26px;font-weight:700;color:var(--gray600)">—</div>
-            <div id="mob-sari-pts" style="font-size:13px;color:var(--gray400)">assinala fatores acima</div>
-          </div>
-          ${saveBtn('Guardar Avaliação','var(--amber)','mobSaveSARI()')}
-          ${msg('mob-sari-msg')}
-        </div>
-      </div>
-    </div>`;
-    overlay.querySelectorAll('input[type=checkbox]').forEach(i=>i.addEventListener('change',mobCalcSARI));
-    mobCalcSARI();
+    // Mesmo formulário do desktop (renderSARI/calcSARI/saveSARI): uma só versão, mesmos campos e cálculo
+    currentDetail = { type, record:r, isTreino: mobDetail.isTreino };
+    overlay.innerHTML = `<div style="padding:.875rem"><div id="mob-sari-wrap" style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px"></div></div>`;
+    const sariEl = document.getElementById('sari-content');
+    if (sariEl) { document.getElementById('mob-sari-wrap').appendChild(sariEl); await renderSARI(); }
 
   } else if (form === 'plano') {
     const {data:v} = await sb.from('plano_negociacao').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle();
@@ -10144,24 +10124,6 @@ function mobCalcIRIS() {
   if(pts)pts.textContent=score+' pontos';
 }
 
-function mobCalcSARI() {
-  const ids=['mob-sari-viol','mob-sari-thrt','mob-sari-weap','mob-sari-psyc','mob-sari-subs','mob-sari-emot','mob-sari-isol','mob-sari-nego','mob-sari-host','mob-sari-suic'];
-  const score=ids.filter(id=>document.getElementById(id)?.checked).length;
-  let riskLabel,riskColor,bgColor;
-  if(score<=2){riskLabel='RISCO BAIXO';riskColor='var(--gm)';bgColor='var(--gp)';}
-  else if(score<=5){riskLabel='RISCO MÉDIO';riskColor='var(--amber)';bgColor='var(--amberl)';}
-  else if(score<=7){riskLabel='RISCO ELEVADO';riskColor='#d2691e';bgColor='#fff3e0';}
-  else{riskLabel='RISCO CRÍTICO';riskColor='var(--red)';bgColor='var(--redl)';}
-  const badge=document.getElementById('mob-sari-badge');
-  const result=document.getElementById('mob-sari-result');
-  const level=document.getElementById('mob-sari-level');
-  const pts=document.getElementById('mob-sari-pts');
-  if(badge){badge.textContent=score+' fatores';badge.style.background=bgColor;badge.style.color=riskColor;}
-  if(result)result.style.background=bgColor;
-  if(level){level.textContent=riskLabel;level.style.color=riskColor;}
-  if(pts)pts.textContent=score+' fatores assinalados';
-}
-
 async function mobSaveIRIS() {
   if(!mobDetail)return;
   const{type,record:r}=mobDetail;
@@ -10192,24 +10154,6 @@ async function mobSaveIRIS() {
   const msg=document.getElementById('mob-iris-msg');
   if(error){if(msg){msg.textContent='Erro: '+error.message;msg.style.background='var(--redl)';msg.style.color='var(--red)';msg.style.display='block';} return;}
   if(msg){msg.textContent='✓ IRIS guardado!';msg.style.background='var(--gp)';msg.style.color='var(--gm)';msg.style.display='block';setTimeout(()=>msg.style.display='none',2500);}
-}
-
-async function mobSaveSARI() {
-  if(!mobDetail)return;
-  const{type,record:r}=mobDetail;
-  const c=v=>document.getElementById(v)?.checked||false;
-  const payload={
-    parent_type:type==='inc'?'incidente':'itp', parent_id:r.id,
-    violence_history:c('mob-sari-viol'), verbal_threats:c('mob-sari-thrt'), weapons_access:c('mob-sari-weap'),
-    psychiatric_disorder:c('mob-sari-psyc'), substance_use:c('mob-sari-subs'), emotional_instability:c('mob-sari-emot'),
-    social_isolation:c('mob-sari-isol'), negotiation_refusal:c('mob-sari-nego'), hostages_at_risk:c('mob-sari-host'),
-    suicide_threat:c('mob-sari-suic')
-  };
-  const{data:ex}=await sb.from('sari').select('id').eq('parent_type',payload.parent_type).eq('parent_id',r.id).maybeSingle();
-  const{error}=ex ? await sb.from('sari').update(payload).eq('id',ex.id) : await sb.from('sari').insert(payload);
-  const msg=document.getElementById('mob-sari-msg');
-  if(error){if(msg){msg.textContent='Erro: '+error.message;msg.style.background='var(--redl)';msg.style.color='var(--red)';msg.style.display='block';}return;}
-  if(msg){msg.textContent='✓ Avaliação guardada!';msg.style.background='var(--amberl)';msg.style.color='var(--amber)';msg.style.display='block';setTimeout(()=>msg.style.display='none',2500);}
 }
 
 async function mobSavePlano() {
