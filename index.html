@@ -1406,9 +1406,27 @@ function _postoRealtime(nov, treino){
     const f = enFuncoesAtuais();
     const urg = l => l.some(x => postitPri(x) === 'urgente' && x.s !== _sgiSessaoId);
     if((f.indexOf('n1') > -1 && urg(novasN)) || (f.indexOf('n3') > -1 && urg(novosP))) alertaUrgente();
+    // Contactos / nomes alterados noutro aparelho: redesenha onde aparecem
+    const CAMPOS_CONT = ['contacto_vitima','contacto_agressor','nome_vitima','nome_agressor','tipo','local','estado'];
+    const contMudou = CAMPOS_CONT.some(k => k in nov && (nov[k] || '') !== (ant[k] || ''));
+    const aEditar = el => { const a = document.activeElement; return !!(el && a && el.contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName)); };
     if(typeof isMobile !== 'undefined' && isMobile){
-      if(document.getElementById('mob-posto-content')) _renderPostoPreservando();
+      const det = document.getElementById('mob-detalhe-content');
+      const edicaoAberta = ['mob-vitima-edit','mob-agressor-edit'].some(id => { const e = document.getElementById(id); return e && e.style.display === 'block'; });
+      if(contMudou && det && !aEditar(det) && !edicaoAberta && typeof mobRenderDetalhe === 'function'){
+        mobRenderDetalhe();   // já inclui o posto
+      } else if(document.getElementById('mob-posto-content')) _renderPostoPreservando();
     } else {
+      if(contMudou){
+        const sb0 = document.querySelector('#sidebar-vitima-display')?.closest('[style*="width:230px"]');
+        const edicaoAberta = ['sidebar-vitima-edit','sidebar-agressor-edit'].some(id => { const e = document.getElementById(id); return e && !e.classList.contains('hidden'); });
+        if(sb0 && !edicaoAberta){
+          const tmp = document.createElement('div');
+          tmp.innerHTML = buildContactosSidebarHTML(currentDetail.record.contacto_vitima||'', currentDetail.record.contacto_agressor||'');
+          sb0.replaceWith(tmp.firstElementChild);
+        }
+        try{ renderDetailHeader(); }catch(e){}
+      }
       const pv = document.getElementById('tab-posto');
       if(pv && !pv.classList.contains('hidden')) _renderPostoPreservando();
     }
@@ -4194,8 +4212,15 @@ function exportIRISPDF(){
   doc.save('IRIS_GNR_'+new Date().getTime()+'.pdf');
 }
 
+// ===== NOMES DA VÍTIMA E DO AGRESSOR (colunas nome_vitima / nome_agressor) =====
+function _escHtml(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function _nomeContactoHTML(nome, cor){
+  return nome ? '<div style="font-size:14px;font-weight:600;color:' + (cor||'var(--gn)') + ';margin-bottom:6px;word-break:break-word"><i class="fas fa-id-card" style="margin-right:6px;opacity:.7"></i>' + _escHtml(nome) + '</div>' : '';
+}
 // ===== CONTACTOS SIDEBAR =====
 function buildContactosSidebarHTML(cvitima, cagressor) {
+  const _rc = (currentDetail && currentDetail.record) || {};
+  const nvitima = _rc.nome_vitima || '', nagressor = _rc.nome_agressor || '';
   const callBtnV = cvitima
     ? `<a href="tel:${cvitima.replace(/\s/g,'')}" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:8px;background:linear-gradient(135deg,var(--gm),var(--gn));color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-size:12px;font-weight:600;margin-top:6px;transition:opacity .15s;text-decoration:none" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'"><i class="fas fa-phone-alt"></i> Ligar</a>` : '';
   const callBtnA = cagressor
@@ -4210,36 +4235,40 @@ function buildContactosSidebarHTML(cvitima, cagressor) {
         <div style="padding:12px 14px;border-bottom:1px solid var(--border)">
           <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px"><i class="fas fa-user" style="color:var(--gm)"></i> Vítima</div>
           <div id="sidebar-vitima-display">
+            ${_nomeContactoHTML(nvitima,'var(--gn)')}
             ${cvitima
               ? `<a href="tel:${cvitima}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--gp);border-radius:var(--r);text-decoration:none;color:var(--gn);font-weight:500;font-size:13px;font-family:'IBM Plex Mono',monospace"><i class="fas fa-phone" style="color:var(--gm);font-size:12px"></i> ${cvitima}</a>`
               : `<span style="font-size:12px;color:var(--gray400);font-style:italic">Não registado</span>`}
           </div>
           <div id="sidebar-vitima-edit" class="hidden" style="margin-top:6px">
+            <input type="text" id="sidebar-vitima-nome" value="${_escHtml(nvitima)}" placeholder="Nome da vítima..." style="font-size:13px;margin-bottom:6px">
             <input type="text" id="sidebar-vitima-input" value="${cvitima}" placeholder="Nº telefone ou contacto..." style="font-size:13px;font-family:'IBM Plex Mono',monospace;margin-bottom:6px">
             <div style="display:flex;gap:6px">
               <button class="btn btn-primary btn-sm" style="flex:1" onclick="saveContactosSidebar()"><i class="fas fa-check"></i> Guardar</button>
               <button class="btn btn-outline btn-sm" onclick="toggleContactosSidebarEdit(false)"><i class="fas fa-times"></i></button>
             </div>
           </div>
-          <button class="btn btn-ghost btn-sm" style="margin-top:6px;width:100%;font-size:11px;color:var(--gray400)" onclick="toggleContactosSidebarEdit(true,'vitima')"><i class="fas fa-pencil-alt"></i> ${cvitima?'Editar':'Adicionar'}</button>
+          <button class="btn btn-ghost btn-sm" style="margin-top:6px;width:100%;font-size:11px;color:var(--gray400)" onclick="toggleContactosSidebarEdit(true,'vitima')"><i class="fas fa-pencil-alt"></i> ${(cvitima||nvitima)?'Editar':'Adicionar'}</button>
           ${callBtnV}
         </div>
         <!-- AGRESSOR -->
         <div style="padding:12px 14px">
           <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px"><i class="fas fa-user-slash" style="color:var(--red)"></i> Agressor</div>
           <div id="sidebar-agressor-display">
+            ${_nomeContactoHTML(nagressor,'var(--red)')}
             ${cagressor
               ? `<a href="tel:${cagressor}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--redl);border-radius:var(--r);text-decoration:none;color:var(--red);font-weight:500;font-size:13px;font-family:'IBM Plex Mono',monospace"><i class="fas fa-phone" style="color:var(--red);font-size:12px"></i> ${cagressor}</a>`
               : `<span style="font-size:12px;color:var(--gray400);font-style:italic">Não registado</span>`}
           </div>
           <div id="sidebar-agressor-edit" class="hidden" style="margin-top:6px">
+            <input type="text" id="sidebar-agressor-nome" value="${_escHtml(nagressor)}" placeholder="Nome do agressor..." style="font-size:13px;margin-bottom:6px">
             <input type="text" id="sidebar-agressor-input" value="${cagressor}" placeholder="Nº telefone ou contacto..." style="font-size:13px;font-family:'IBM Plex Mono',monospace;margin-bottom:6px">
             <div style="display:flex;gap:6px">
               <button class="btn btn-danger btn-sm" style="flex:1" onclick="saveContactosSidebar()"><i class="fas fa-check"></i> Guardar</button>
               <button class="btn btn-outline btn-sm" onclick="toggleContactosSidebarEdit(false)"><i class="fas fa-times"></i></button>
             </div>
           </div>
-          <button class="btn btn-ghost btn-sm" style="margin-top:6px;width:100%;font-size:11px;color:var(--gray400)" onclick="toggleContactosSidebarEdit(true,'agressor')"><i class="fas fa-pencil-alt"></i> ${cagressor?'Editar':'Adicionar'}</button>
+          <button class="btn btn-ghost btn-sm" style="margin-top:6px;width:100%;font-size:11px;color:var(--gray400)" onclick="toggleContactosSidebarEdit(true,'agressor')"><i class="fas fa-pencil-alt"></i> ${(cagressor||nagressor)?'Editar':'Adicionar'}</button>
           ${callBtnA}
         </div>
         <div id="sidebar-contactos-msg" class="hidden" style="padding:8px 14px;font-size:12px;text-align:center"></div>
@@ -4266,14 +4295,16 @@ async function saveContactosSidebar() {
   const tabela = isTreino ? 'treino_incidentes' : 'incidentes';
   const vitima = document.getElementById('sidebar-vitima-input')?.value.trim() ?? r.contacto_vitima ?? '';
   const agressor = document.getElementById('sidebar-agressor-input')?.value.trim() ?? r.contacto_agressor ?? '';
-  const {error} = await sb.from(tabela).update({contacto_vitima:vitima,contacto_agressor:agressor}).eq('id',r.id);
+  const nomeV = document.getElementById('sidebar-vitima-nome')?.value.trim() ?? r.nome_vitima ?? '';
+  const nomeA = document.getElementById('sidebar-agressor-nome')?.value.trim() ?? r.nome_agressor ?? '';
+  const {error} = await sb.from(tabela).update({contacto_vitima:vitima,contacto_agressor:agressor,nome_vitima:nomeV,nome_agressor:nomeA}).eq('id',r.id);
   const msgEl = document.getElementById('sidebar-contactos-msg');
   if (error) {
-    if (msgEl) { msgEl.textContent='Erro ao guardar.'; msgEl.style.color='var(--red)'; msgEl.classList.remove('hidden'); setTimeout(()=>msgEl.classList.add('hidden'),3000); }
+    if (msgEl) { msgEl.textContent='Erro ao guardar: '+error.message; msgEl.style.color='var(--red)'; msgEl.classList.remove('hidden'); setTimeout(()=>msgEl.classList.add('hidden'),3000); }
     return;
   }
-  r.contacto_vitima=vitima; r.contacto_agressor=agressor;
-  if (currentDetail.record) { currentDetail.record.contacto_vitima=vitima; currentDetail.record.contacto_agressor=agressor; }
+  r.contacto_vitima=vitima; r.contacto_agressor=agressor; r.nome_vitima=nomeV; r.nome_agressor=nomeA;
+  if (currentDetail.record) { Object.assign(currentDetail.record, {contacto_vitima:vitima, contacto_agressor:agressor, nome_vitima:nomeV, nome_agressor:nomeA}); }
   const arr = type==='inc' ? allIncidentes : allITPs;
   const idx = arr.findIndex(x=>x.id===r.id);
   if (idx>=0) { arr[idx].contacto_vitima=vitima; arr[idx].contacto_agressor=agressor; }
@@ -9810,6 +9841,7 @@ function mobRenderDetalhe() {
   const { type, record:r } = mobDetail;
   const isItp = type === 'itp';
   const cv = r.contacto_vitima||''; const ca = r.contacto_agressor||'';
+  const nv = r.nome_vitima||''; const na = r.nome_agressor||'';
 
   el.innerHTML = `
     <!-- Header card -->
@@ -9854,36 +9886,40 @@ function mobRenderDetalhe() {
       <div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px;margin-bottom:10px">
         <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px"><i class="fas fa-user" style="color:var(--gm)"></i> Vítima</div>
         <div id="mob-vitima-display">
+          ${_nomeContactoHTML(nv,'var(--gn)')}
           ${cv?`<a href="tel:${cv}" style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--gp);border-radius:var(--r);text-decoration:none;color:var(--gn);font-size:16px;font-weight:600;font-family:'IBM Plex Mono',monospace;margin-bottom:8px"><i class="fas fa-phone" style="color:var(--gm)"></i>${cv}</a>
           <a href="tel:${cv.replace(/\s/g,'')}" style="width:100%;padding:13px;background:var(--gm);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px;text-decoration:none"><i class="fas fa-phone-alt"></i> Ligar</a>`
           :`<div style="font-size:13px;color:var(--gray400);font-style:italic;padding:4px 0 8px">Não registado</div>`}
         </div>
         <div id="mob-vitima-edit" style="display:none">
+          <input type="text" id="mob-vn-input" placeholder="Nome da vítima..." style="margin-bottom:8px;font-size:16px;padding:12px">
           <input type="tel" id="mob-v-input" placeholder="Nº telefone..." style="margin-bottom:8px;font-size:16px;padding:12px">
           <div style="display:flex;gap:8px">
             <button onclick="mobSaveContacto('vitima')" style="flex:1;padding:12px;background:var(--gm);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer"><i class="fas fa-check"></i> Guardar</button>
             <button onclick="document.getElementById('mob-vitima-edit').style.display='none';document.getElementById('mob-vitima-display').style.display='block'" style="padding:12px 16px;background:var(--gray100);color:var(--gray900);border:none;border-radius:var(--r);font-size:14px;cursor:pointer"><i class="fas fa-times"></i></button>
           </div>
         </div>
-        <button onclick="document.getElementById('mob-vitima-display').style.display='none';document.getElementById('mob-vitima-edit').style.display='block';document.getElementById('mob-v-input').value='${cv}';document.getElementById('mob-v-input').focus()" style="width:100%;padding:9px;background:none;border:1px dashed var(--border);border-radius:var(--r);font-size:12px;color:var(--gray600);cursor:pointer;margin-top:4px"><i class="fas fa-pencil-alt"></i> ${cv?'Editar':'Adicionar contacto'}</button>
+        <button onclick="document.getElementById('mob-vitima-display').style.display='none';document.getElementById('mob-vitima-edit').style.display='block';document.getElementById('mob-v-input').value='${cv}';document.getElementById('mob-vn-input').value=${_escHtml(JSON.stringify(nv))};document.getElementById('mob-vn-input').focus()" style="width:100%;padding:9px;background:none;border:1px dashed var(--border);border-radius:var(--r);font-size:12px;color:var(--gray600);cursor:pointer;margin-top:4px"><i class="fas fa-pencil-alt"></i> ${(cv||nv)?'Editar':'Adicionar contacto'}</button>
       </div>
 
       <!-- Agressor -->
       <div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px;margin-bottom:16px">
         <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px"><i class="fas fa-user-slash" style="color:var(--red)"></i> Agressor</div>
         <div id="mob-agressor-display">
+          ${_nomeContactoHTML(na,'var(--red)')}
           ${ca?`<a href="tel:${ca}" style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--redl);border-radius:var(--r);text-decoration:none;color:var(--red);font-size:16px;font-weight:600;font-family:'IBM Plex Mono',monospace;margin-bottom:8px"><i class="fas fa-phone" style="color:var(--red)"></i>${ca}</a>
           <a href="tel:${ca.replace(/\s/g,'')}" style="width:100%;padding:13px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px;text-decoration:none"><i class="fas fa-phone-alt"></i> Ligar</a>`
           :`<div style="font-size:13px;color:var(--gray400);font-style:italic;padding:4px 0 8px">Não registado</div>`}
         </div>
         <div id="mob-agressor-edit" style="display:none">
+          <input type="text" id="mob-an-input" placeholder="Nome do agressor..." style="margin-bottom:8px;font-size:16px;padding:12px">
           <input type="tel" id="mob-a-input" placeholder="Nº telefone..." style="margin-bottom:8px;font-size:16px;padding:12px">
           <div style="display:flex;gap:8px">
             <button onclick="mobSaveContacto('agressor')" style="flex:1;padding:12px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer"><i class="fas fa-check"></i> Guardar</button>
             <button onclick="document.getElementById('mob-agressor-edit').style.display='none';document.getElementById('mob-agressor-display').style.display='block'" style="padding:12px 16px;background:var(--gray100);color:var(--gray900);border:none;border-radius:var(--r);font-size:14px;cursor:pointer"><i class="fas fa-times"></i></button>
           </div>
         </div>
-        <button onclick="document.getElementById('mob-agressor-display').style.display='none';document.getElementById('mob-agressor-edit').style.display='block';document.getElementById('mob-a-input').value='${ca}';document.getElementById('mob-a-input').focus()" style="width:100%;padding:9px;background:none;border:1px dashed var(--border);border-radius:var(--r);font-size:12px;color:var(--gray600);cursor:pointer;margin-top:4px"><i class="fas fa-pencil-alt"></i> ${ca?'Editar':'Adicionar contacto'}</button>
+        <button onclick="document.getElementById('mob-agressor-display').style.display='none';document.getElementById('mob-agressor-edit').style.display='block';document.getElementById('mob-a-input').value='${ca}';document.getElementById('mob-an-input').value=${_escHtml(JSON.stringify(na))};document.getElementById('mob-an-input').focus()" style="width:100%;padding:9px;background:none;border:1px dashed var(--border);border-radius:var(--r);font-size:12px;color:var(--gray600);cursor:pointer;margin-top:4px"><i class="fas fa-pencil-alt"></i> ${(ca||na)?'Editar':'Adicionar contacto'}</button>
       </div>
 
       <!-- Ações -->
@@ -9937,10 +9973,12 @@ async function mobSaveContacto(target) {
   const { type, record:r, isTreino } = mobDetail;
   const tabela = isTreino ? 'treino_incidentes' : 'incidentes';
   const val = document.getElementById(target==='vitima'?'mob-v-input':'mob-a-input')?.value.trim()||'';
+  const nomeEl = document.getElementById(target==='vitima'?'mob-vn-input':'mob-an-input');
   const payload = target==='vitima' ? {contacto_vitima:val} : {contacto_agressor:val};
+  if (nomeEl) payload[target==='vitima'?'nome_vitima':'nome_agressor'] = nomeEl.value.trim();
   const {error} = await sb.from(tabela).update(payload).eq('id', r.id);
   if (error) { alert('Erro: '+error.message); return; }
-  if (target==='vitima') r.contacto_vitima=val; else r.contacto_agressor=val;
+  Object.assign(r, payload);
   mobDetail.record = r; currentDetail.record = r;
   const arr = type==='inc' ? allIncidentes : allITPs;
   const idx = arr.findIndex(x=>x.id===r.id);
@@ -10185,11 +10223,11 @@ async function mobAbrirForm(form) {
           <div style="background:linear-gradient(135deg,#0f1a0f,#1a3a1f);border-radius:var(--r);padding:14px;margin-bottom:16px">
             <div style="font-size:10px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px"><i class="fas fa-phone-alt"></i> Ligar</div>
             <div style="margin-bottom:8px">
-              <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:5px">VÍTIMA</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:5px">VÍTIMA${mobDetail.record.nome_vitima?' — '+_escHtml(mobDetail.record.nome_vitima):''}</div>
               ${cv?`<div style="display:flex;gap:6px"><a href="tel:${cv}" style="flex:1;padding:10px;background:rgba(255,255,255,.1);border-radius:var(--r);text-decoration:none;color:#86efac;font-family:monospace;font-size:13px;display:flex;align-items:center;gap:6px"><i class="fas fa-phone"></i>${cv}</a><a href="tel:${cv.replace(/\s/g,'')}" style="padding:10px 14px;background:var(--gm);color:#fff;border:none;border-radius:var(--r);font-weight:600;cursor:pointer;font-size:13px;text-decoration:none;display:flex;align-items:center">Ligar</a></div>`:`<div style="display:flex;gap:6px"><input type="tel" id="mob-rnrv-cv" placeholder="Nº vítima..." style="flex:1;padding:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:var(--r);color:#fff;font-size:14px"><button onclick="mobGuardarELigar('vitima','mob-rnrv-cv');" style="padding:10px 14px;background:var(--gm);color:#fff;border:none;border-radius:var(--r);font-weight:600;cursor:pointer;font-size:13px">Ligar</button></div>`}
             </div>
             <div>
-              <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:5px">AGRESSOR</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:5px">AGRESSOR${mobDetail.record.nome_agressor?' — '+_escHtml(mobDetail.record.nome_agressor):''}</div>
               ${ca?`<div style="display:flex;gap:6px"><a href="tel:${ca}" style="flex:1;padding:10px;background:rgba(255,255,255,.1);border-radius:var(--r);text-decoration:none;color:#fca5a5;font-family:monospace;font-size:13px;display:flex;align-items:center;gap:6px"><i class="fas fa-phone"></i>${ca}</a><a href="tel:${ca.replace(/\s/g,'')}" style="padding:10px 14px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-weight:600;cursor:pointer;font-size:13px;text-decoration:none;display:flex;align-items:center">Ligar</a></div>`:`<div style="display:flex;gap:6px"><input type="tel" id="mob-rnrv-ca" placeholder="Nº agressor..." style="flex:1;padding:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:var(--r);color:#fff;font-size:14px"><button onclick="mobGuardarELigar('agressor','mob-rnrv-ca');" style="padding:10px 14px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-weight:600;cursor:pointer;font-size:13px">Ligar</button></div>`}
             </div>
           </div>
@@ -10275,8 +10313,6 @@ function mobIniciarChamadaENavega(target, numero) {
 async function mobGuardarELigar(target, inputId) {
   const numero = document.getElementById(inputId)?.value.trim();
   if (!numero) { alert('Insere um número primeiro.'); return; }
-  // Save contact to record
-  await mobSaveContacto(target === 'vitima' ? 'vitima' : 'agressor');
   // Temporarily set the value so mobSaveContacto can pick it up
   const fakeInput = document.getElementById(target === 'vitima' ? 'mob-v-input' : 'mob-a-input');
   // Save directly
@@ -10517,12 +10553,14 @@ function mobRenderChamada() {
 
     ${cv?`<div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px;margin-bottom:10px">
       <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px"><i class="fas fa-user" style="color:var(--gm)"></i> Vítima</div>
+      ${_nomeContactoHTML(r.nome_vitima,'var(--gn)')}
       <a href="tel:${cv}" style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--gp);border-radius:var(--r);text-decoration:none;color:var(--gn);font-size:16px;font-weight:600;font-family:'IBM Plex Mono',monospace;margin-bottom:8px"><i class="fas fa-phone" style="color:var(--gm)"></i>${cv}</a>
       <a href="tel:${cv.replace(/\s/g,'')}" style="width:100%;padding:15px;background:var(--gm);color:#fff;border:none;border-radius:var(--r);font-size:15px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none"><i class="fas fa-phone-alt"></i> Ligar para Vítima</a>
     </div>`:``}
 
     ${ca?`<div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px;margin-bottom:10px">
       <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px"><i class="fas fa-user-slash" style="color:var(--red)"></i> Agressor</div>
+      ${_nomeContactoHTML(r.nome_agressor,'var(--red)')}
       <a href="tel:${ca}" style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--redl);border-radius:var(--r);text-decoration:none;color:var(--red);font-size:16px;font-weight:600;font-family:'IBM Plex Mono',monospace;margin-bottom:8px"><i class="fas fa-phone" style="color:var(--red)"></i>${ca}</a>
       <a href="tel:${ca.replace(/\s/g,'')}" style="width:100%;padding:15px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-size:15px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none"><i class="fas fa-phone-alt"></i> Ligar para Agressor</a>
     </div>`:``}
