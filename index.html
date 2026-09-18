@@ -4763,7 +4763,7 @@ function sariPontosCampos(ids,val,sitTipo){
     const el=document.getElementById(id),out=document.getElementById(id+'-pts');
     if(!el||!out) return;
     const o=el.options[el.selectedIndex];
-    let h='<span style="color:var(--gm);font-weight:600">Cooperação C'+(o.dataset.neg||0)+'</span> · <span style="color:var(--red);font-weight:600">Risco R'+(o.dataset.risk||0)+'</span>';
+    let h='<span style="color:var(--gm);font-weight:600">Cooperação - '+(o.dataset.neg||0)+'</span>&nbsp;&nbsp;&nbsp;<span style="color:var(--red);font-weight:600">Risco - '+(o.dataset.risk||0)+'</span>';
     if(mods[id]) h+='<br><span style="color:#7a4a00"><i class="fas fa-plus-minus" style="margin-right:3px"></i>Modificador: '+mods[id].join(' · ')+'</span>';
     out.innerHTML=h;
   });
