@@ -1348,10 +1348,75 @@ async function loadData(){
   document.getElementById('side-itp').textContent=String(allITPs.length).padStart(3,'0');
 }
 
+// ===== ALERTA SONORO — post-it URGENTE do n.º 2 =====
+// Toca no n.º 1 (notas) e no n.º 3 (pedidos). O browser só deixa tocar som depois
+// de o utilizador ter tocado/clicado na página, por isso o áudio é desbloqueado
+// no primeiro toque.
+let _sgiAudioCtx = null;
+function _sgiAudioDesbloquear(){
+  try{
+    if(!_sgiAudioCtx){ const AC = window.AudioContext || window.webkitAudioContext; if(AC) _sgiAudioCtx = new AC(); }
+    if(_sgiAudioCtx && _sgiAudioCtx.state === 'suspended') _sgiAudioCtx.resume();
+  }catch(e){}
+}
+['pointerdown','keydown','touchstart'].forEach(ev => document.addEventListener(ev, _sgiAudioDesbloquear, {passive:true}));
+function alertaUrgente(){
+  try{
+    _sgiAudioDesbloquear();
+    const ctx = _sgiAudioCtx;
+    if(ctx){
+      const t0 = ctx.currentTime + 0.02;
+      [0, 0.22, 0.44].forEach((d, i) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'square';
+        o.frequency.setValueAtTime(i === 2 ? 1175 : 880, t0 + d);
+        g.gain.setValueAtTime(0.0001, t0 + d);
+        g.gain.exponentialRampToValueAtTime(0.25, t0 + d + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.18);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(t0 + d); o.stop(t0 + d + 0.2);
+      });
+    }
+  }catch(e){}
+  try{ if(navigator.vibrate) navigator.vibrate([300, 120, 300, 120, 300]); }catch(e){}
+}
+// Redesenha o posto sem perder o que estiver a ser escrito
+function _renderPostoPreservando(){
+  const box = document.getElementById((typeof isMobile!=='undefined' && isMobile) ? 'mob-posto-content' : 'posto-content');
+  const v = {}; let foco = null;
+  if(box) box.querySelectorAll('input[id],textarea[id]').forEach(e => { if(e.type !== 'checkbox') v[e.id] = e.value; });
+  if(document.activeElement && document.activeElement.id && v.hasOwnProperty(document.activeElement.id)) foco = document.activeElement.id;
+  renderPosto();
+  Object.keys(v).forEach(id => { const e = document.getElementById(id); if(e && v[id]) e.value = v[id]; });
+  if(foco){ const e = document.getElementById(foco); if(e) e.focus(); }
+}
+// Alteração em tempo real do caso aberto (notas ao n.º 1, pedidos ao n.º 3, quadros...)
+function _postoRealtime(nov, treino){
+  try{
+    if(!nov || !currentDetail || !currentDetail.record || currentDetail.record.id !== nov.id) return;
+    if(!!currentDetail.isTreino !== !!treino) return;
+    const ant = currentDetail.record;
+    const novasN = Array.isArray(nov.notas_n1) ? nov.notas_n1.slice((ant.notas_n1||[]).length) : [];
+    const novosP = Array.isArray(nov.pedidos_n3) ? nov.pedidos_n3.slice((ant.pedidos_n3||[]).length) : [];
+    currentDetail.record = Object.assign({}, ant, nov);
+    if(typeof mobDetail !== 'undefined' && mobDetail && mobDetail.record && mobDetail.record.id === nov.id) mobDetail.record = currentDetail.record;
+    const f = enFuncoesAtuais();
+    const eu = currentProfile && currentProfile.nome;
+    const urg = l => l.some(x => postitPri(x) === 'urgente' && x.a !== eu);
+    if((f.indexOf('n1') > -1 && urg(novasN)) || (f.indexOf('n3') > -1 && urg(novosP))) alertaUrgente();
+    if(typeof isMobile !== 'undefined' && isMobile){
+      if(document.getElementById('mob-posto-content')) _renderPostoPreservando();
+    } else {
+      const pv = document.getElementById('tab-posto');
+      if(pv && !pv.classList.contains('hidden')) _renderPostoPreservando();
+    }
+  }catch(e){ console.warn('posto realtime', e); }
+}
 function setupRealtimeSync() {
   // Listen for any changes to incidentes or itps and reload automatically
   sb.channel('db-sync')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'incidentes' }, async () => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'incidentes' }, async (payload) => {
+      _postoRealtime(payload && payload.new, false);
       await loadData();
       if (isMobile) mobRenderLista();
       else {
@@ -1374,11 +1439,7 @@ function setupRealtimeSync() {
       try{
         const nov = payload.new;
         if(!nov) return;
-        if(currentDetail && currentDetail.isTreino && currentDetail.record && currentDetail.record.id === nov.id){
-          currentDetail.record = Object.assign({}, currentDetail.record, nov);
-          const pv = document.getElementById('tab-posto');
-          if(pv && !pv.classList.contains('hidden')) renderPosto();
-        }
+        _postoRealtime(nov, true);
         const idx = (treinoTodos||[]).findIndex(x => x.id === nov.id);
         if(idx > -1) treinoTodos[idx] = Object.assign({}, treinoTodos[idx], nov);
       }catch(e){}
@@ -2166,11 +2227,11 @@ function _notasHTML(podeEnviar){
   let h = '<div style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:11px">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:9px">'
     + '<div style="font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.05em"><i class="fas fa-note-sticky" style="margin-right:5px"></i>Notas ao n.º 1</div>'
-    + (ns.length ? '<div style="font-size:10.5px;color:var(--gray400);font-family:\'IBM Plex Mono\',monospace">' + ns.length + ' nota' + (ns.length===1?'':'s') + ' · mais antiga à esquerda</div>' : '')
+    + (ns.length ? '<div style="font-size:10.5px;color:var(--gray400);font-family:\'IBM Plex Mono\',monospace">' + ns.length + ' nota' + (ns.length===1?'':'s') + ' · mais recente à esquerda</div>' : '')
     + '</div>';
 
   if(ns.length){
-    // fita de tempo horizontal: ordem cronológica, da esquerda para a direita
+    // fita de tempo horizontal: da mais recente (esquerda) para a mais antiga (direita)
     h += '<div style="display:flex;gap:10px;overflow-x:auto;padding:4px 2px 10px;align-items:flex-start">'
       + ns.map((n, i) => {
           const pk = postitPri(n), pc = POSTIT_PRI[pk];
@@ -2185,7 +2246,7 @@ function _notasHTML(podeEnviar){
             + '<div style="font-size:9.5px;color:rgba(0,0,0,.45);margin-top:7px;font-family:\'IBM Plex Mono\',monospace;line-height:1.35">'
             + fmtDateTime(n.ts) + '<br>' + (n.a || '—') + '</div>'
             + '</div>';
-        }).join('')
+        }).reverse().join('')
       + '</div>';
   } else {
     h += '<div style="font-size:12px;color:var(--gray400);font-style:italic">Sem notas.</div>';
