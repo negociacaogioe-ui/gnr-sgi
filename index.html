@@ -1353,6 +1353,9 @@ async function loadData(){
 // de o utilizador ter tocado/clicado na página, por isso o áudio é desbloqueado
 // no primeiro toque.
 let _sgiAudioCtx = null;
+// Identifica este aparelho/separador: quem envia o post-it não ouve o próprio alerta,
+// mas o mesmo utilizador noutro aparelho ouve.
+const _sgiSessaoId = Math.random().toString(36).slice(2) + Date.now().toString(36);
 function _sgiAudioDesbloquear(){
   try{
     if(!_sgiAudioCtx){ const AC = window.AudioContext || window.webkitAudioContext; if(AC) _sgiAudioCtx = new AC(); }
@@ -1401,8 +1404,7 @@ function _postoRealtime(nov, treino){
     currentDetail.record = Object.assign({}, ant, nov);
     if(typeof mobDetail !== 'undefined' && mobDetail && mobDetail.record && mobDetail.record.id === nov.id) mobDetail.record = currentDetail.record;
     const f = enFuncoesAtuais();
-    const eu = currentProfile && currentProfile.nome;
-    const urg = l => l.some(x => postitPri(x) === 'urgente' && x.a !== eu);
+    const urg = l => l.some(x => postitPri(x) === 'urgente' && x.s !== _sgiSessaoId);
     if((f.indexOf('n1') > -1 && urg(novasN)) || (f.indexOf('n3') > -1 && urg(novosP))) alertaUrgente();
     if(typeof isMobile !== 'undefined' && isMobile){
       if(document.getElementById('mob-posto-content')) _renderPostoPreservando();
@@ -2198,7 +2200,7 @@ async function notaEnviar(){
   const r=currentDetail.record;
   const ns=JSON.parse(JSON.stringify(r.notas_n1||[]));
   const pri=_postitPriSel.nota||'';
-  ns.push({ t: inp.value.trim(), a: currentProfile.nome, ts: new Date().toISOString(), pri: pri, urgente: pri==='urgente' });
+  ns.push({ t: inp.value.trim(), a: currentProfile.nome, ts: new Date().toISOString(), pri: pri, urgente: pri==='urgente', s: _sgiSessaoId });
   inp.value='';
   _postitPriSel.nota='';
   if(await _postoUpdate({notas_n1:ns})) renderPosto();
@@ -2519,7 +2521,7 @@ async function pedidoEnviar(){
   const inp = document.getElementById('ped-in');
   if(!inp || !inp.value.trim()) return;
   const ps = JSON.parse(JSON.stringify(currentDetail.record.pedidos_n3 || []));
-  ps.push({ t: inp.value.trim(), a: currentProfile.nome, ts: new Date().toISOString(), resp: null, pri: _postitPriSel.ped || '' });
+  ps.push({ t: inp.value.trim(), a: currentProfile.nome, ts: new Date().toISOString(), resp: null, pri: _postitPriSel.ped || '', s: _sgiSessaoId });
   inp.value = '';
   _postitPriSel.ped = '';
   if(await _postoUpdate({pedidos_n3: ps})) renderPosto();
