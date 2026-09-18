@@ -302,6 +302,20 @@ body.is-mobile .sgi-bar .btn{width:100%;justify-content:center}
 .notif-dot{width:8px;height:8px;border-radius:50%;background:var(--gl);flex-shrink:0;margin-top:5px}
 .notif-dot.read{background:var(--gray200)}
 
+/* ===== BARRA DE POSIÇÕES NA EN ===== */
+.barra-posto{display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:6px 8px;margin-bottom:10px}
+.bp-lbl{font-size:10.5px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.05em;margin-right:2px;white-space:nowrap}
+.bp-chip{position:relative;border:1px solid var(--border);background:#fff;border-radius:16px;padding:4px 11px;font-size:12px;font-weight:600;color:var(--gn);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
+.bp-chip:hover{border-color:var(--gl)}
+.bp-chip.on{background:var(--gl);border-color:var(--gl);color:#fff}
+.bp-chip .bp-esc{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gold);margin-left:5px;vertical-align:middle}
+.bp-atual{font-size:12px;font-weight:600;color:var(--gn);white-space:nowrap}
+.bp-tog{margin-left:auto;border:none;background:none;color:var(--gray600);cursor:pointer;padding:4px 6px;font-size:12px;flex-shrink:0}
+#barra-posto-mob{position:fixed;top:var(--mob-header-h);left:0;right:0;z-index:340;margin:0;border-radius:0;border-left:0;border-right:0;flex-wrap:nowrap;overflow-x:auto;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+body.com-barra-posto #mob-app{padding-top:calc(var(--mob-header-h) + var(--bp-h,44px))}
+body.com-barra-posto #mob-form-fullscreen,body.com-barra-posto #mob-form-overlay{padding-top:calc(56px + var(--bp-h,44px))!important}
+#mob-posto-content{scroll-margin-top:calc(var(--mob-header-h) + var(--bp-h,44px) + 8px)}
+
 /* ===== MOBILE PWA ===== */
 :root{--mob-tab-h:64px;--mob-header-h:56px}
 body.is-mobile{overflow-x:hidden}
@@ -707,6 +721,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0;z-index:210}
           <button id="detail-whatsapp-btn" class="btn btn-sm" onclick="partilharViaWhatsApp()" title="Partilhar via WhatsApp" style="background:#25D366;color:#fff;border-color:#25D366;display:none"><i class="fab fa-whatsapp"></i> Partilhar</button>
         </div>
       </div>
+      <div id="barra-posto" class="barra-posto" style="display:none"></div>
       <div class="tabs-nav" id="tabs-nav">
         <button class="tab-btn active" onclick="showTab('tab-resumo')"><i class="fas fa-clipboard"></i> Resumo</button>
         <button class="tab-btn" onclick="showTab('tab-info')"><i class="fas fa-info-circle"></i> Informações</button>
@@ -2215,21 +2230,11 @@ let _postoEscolhido = null;
 
 const EN_ORDEM = ['n1','n2','n3','n4','nc'];
 
-// Acumulação de funções (5.29 e 5.30): assumida em sentido decrescente, com
-// exceção do n.º 1, que nunca acumula. A posição mais alta escalada absorve as
-// funções das posições acima dela que não estejam preenchidas.
+// Sem acumulação de quadros: a posição escolhida vê só o seu quadro.
+// Quando o negociador precisar de outra função, troca de posição na barra.
 function enAcumulacao(eq, k){
-  eq = eq || {};
-  if(!k) return [];
-  if(k === 'n1') return ['n1'];
-  const tem = p => !!(eq[p] && eq[p].id);
-  const i = EN_ORDEM.indexOf(k);
-  if(i < 0) return [];
-  // só acumula quem for a posição preenchida mais alta
-  for(let j = i + 1; j < EN_ORDEM.length; j++){ if(tem(EN_ORDEM[j])) return [k]; }
-  const out = [k];
-  for(let j = i + 1; j < EN_ORDEM.length; j++) out.push(EN_ORDEM[j]);
-  return out;
+  if(!k || EN_ORDEM.indexOf(k) < 0) return [];
+  return [k];
 }
 
 // A Coordenação sobe para a posição mais alta que estiver escalada.
@@ -2265,6 +2270,78 @@ function escolherPosto(k){
   renderPosto();
   aplicarFiltroPosto();
 }
+// ---- Barra de posições (sempre disponível, colapsável) ----
+let _barraPostoColapsada = false;
+try { _barraPostoColapsada = localStorage.getItem('sgi_barra_posto_col') === '1'; } catch(e){}
+function toggleBarraPosto(){
+  _barraPostoColapsada = !_barraPostoColapsada;
+  try { localStorage.setItem('sgi_barra_posto_col', _barraPostoColapsada ? '1' : '0'); } catch(e){}
+  renderBarraPosto();
+}
+const BP_CURTO = {n1:'N.º 1', n2:'N.º 2', n3:'N.º 3', n4:'N.º 4', nc:'Coord.'};
+function _barraPostoHTML(){
+  const eq = (currentDetail && currentDetail.record && currentDetail.record.equipa) || {};
+  const uid = currentUser && currentUser.id;
+  const escalado = k => !!(uid && eq[k] && eq[k].id === uid);
+  const atual = _postoEscolhido ? enNomePos(_postoEscolhido) : 'por escolher';
+  if(_barraPostoColapsada){
+    return '<span class="bp-lbl"><i class="fas fa-user-shield" style="color:var(--gl);margin-right:4px"></i>Posição</span>'
+      + '<span class="bp-atual">' + atual + '</span>'
+      + '<button class="bp-tog" onclick="toggleBarraPosto()" title="Mostrar posições"><i class="fas fa-chevron-down"></i></button>';
+  }
+  let h = '<span class="bp-lbl"><i class="fas fa-user-shield" style="color:var(--gl);margin-right:4px"></i>Posição</span>';
+  EN_POSICOES.forEach(p => {
+    h += '<button class="bp-chip' + (_postoEscolhido === p.k ? ' on' : '') + '" onclick="selecionarPostoBarra(\'' + p.k + '\')" title="' + p.nome + ' — ' + p.desc + (escalado(p.k) ? ' (escalado)' : '') + '">'
+      + BP_CURTO[p.k] + (escalado(p.k) ? '<span class="bp-esc"></span>' : '') + '</button>';
+  });
+  return h + '<button class="bp-tog" onclick="toggleBarraPosto()" title="Colapsar"><i class="fas fa-chevron-up"></i></button>';
+}
+function renderBarraPosto(){
+  const mob = (typeof isMobile !== 'undefined' && isMobile);
+  if(mob){
+    let b = document.getElementById('barra-posto-mob');
+    const noCaso = typeof mobDetail !== 'undefined' && mobDetail && ['detalhe','chamada','form'].indexOf(mobCurrentTab) > -1;
+    if(!noCaso || !currentDetail || casoEncerrado()){
+      if(b) b.style.display = 'none';
+      document.body.classList.remove('com-barra-posto');
+      return;
+    }
+    if(!b){
+      b = document.createElement('div');
+      b.id = 'barra-posto-mob';
+      b.className = 'barra-posto';
+      document.body.appendChild(b);
+    }
+    b.innerHTML = _barraPostoHTML();
+    b.style.display = 'flex';
+    document.body.classList.add('com-barra-posto');
+    document.documentElement.style.setProperty('--bp-h', b.offsetHeight + 'px');
+    return;
+  }
+  const d = document.getElementById('barra-posto');
+  if(!d) return;
+  if(!currentDetail || casoEncerrado()){ d.style.display = 'none'; d.innerHTML = ''; return; }
+  d.innerHTML = _barraPostoHTML();
+  d.style.display = 'flex';
+}
+function selecionarPostoBarra(k){
+  _postoEscolhido = k;
+  const mob = (typeof isMobile !== 'undefined' && isMobile);
+  if(mob){
+    const o = document.getElementById('mob-form-fullscreen');
+    if(o && o.style.display !== 'none'){
+      o.style.display = 'none';
+      const bb = document.getElementById('mob-back-btn');
+      if(bb && typeof mobGoBack === 'function') bb.onclick = mobGoBack;
+    }
+    if(mobCurrentTab !== 'detalhe') mobShowTab('detalhe');
+    renderPosto();
+    const pc = document.getElementById('mob-posto-content');
+    if(pc) pc.scrollIntoView({behavior:'smooth', block:'start'});
+    return;
+  }
+  showTab('tab-posto');
+}
 function trocarPosto(){
   _postoEscolhido = null;
   renderPosto();
@@ -2277,6 +2354,7 @@ function enAlguemEscalado(){
 function toggleVerTodosTabs(){ enVerTodosTabs = !enVerTodosTabs; aplicarFiltroPosto(); }
 
 function aplicarFiltroPosto(){
+  renderBarraPosto();
   const nav = document.getElementById('tabs-nav');
   if(!nav) return;
   const f = enFuncoesAtuais();
@@ -2290,7 +2368,6 @@ function aplicarFiltroPosto(){
   } else if(!mostrarTudo){
     const set = {};
     f.forEach(k => (EN_TABS[k]||[]).forEach(t => { set[t] = true; }));
-    if(!podeVerCoordenacao()) delete set['tab-posto'];
     permitidos = set;
   }
   const botoes = nav.querySelectorAll('.tab-btn');
@@ -2642,8 +2719,7 @@ function _seletorPostoHTML(){
 
   let h = '<div class="form-section">'
     + '<h3><i class="fas fa-hand-pointer" style="color:var(--gl)"></i> Que posição ocupa neste caso?</h3>'
-    + '<p style="font-size:12px;color:var(--gray600);margin:-2px 0 12px;line-height:1.55">Escolha o seu número. Os formulários e separadores passam a ser os dessa posição, já com a acumulação de funções que resulta de a célula estar constituída a '
-    + preenchidos.length + ' negociador' + (preenchidos.length === 1 ? '' : 'es') + ' (5.29, 5.30).</p>'
+    + '<p style="font-size:12px;color:var(--gray600);margin:-2px 0 12px;line-height:1.55">Escolha o seu número. Os formulários e separadores passam a ser os dessa posição, apenas dessa. Para outra função, troque de posição na barra de posições (acima).</p>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:9px;align-items:stretch">';
 
   EN_POSICOES.forEach(p => {
@@ -2662,7 +2738,6 @@ function _seletorPostoHTML(){
   });
 
   h += '</div>';
-  if(!preenchidos.length) h += '<p style="font-size:12px;color:var(--gray600);margin:12px 0 0"><i class="fas fa-circle-info" style="margin-right:5px"></i>A EN ainda não está escalada neste caso, por isso não há acumulação calculada.</p>';
   return h + '</div>';
 }
 
@@ -2679,6 +2754,7 @@ function renderPosto(){
   const _mob = (typeof isMobile!=='undefined' && isMobile);
   if(_mob){ const d=document.getElementById('posto-content'); if(d) d.innerHTML=''; }
   const el=document.getElementById(_mob ? 'mob-posto-content' : 'posto-content');
+  renderBarraPosto();
   if(!el||!currentDetail) return;
   const r=currentDetail.record;
   const eq=r.equipa||{};
@@ -2739,7 +2815,7 @@ function renderPosto(){
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Gere a informação a introduzir na CN e garante o cumprimento da doutrina, do PN e do PD (5.25-5.27).</p>'
       +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="_postoIrTab(\'tab-info\')"><i class="fas fa-inbox"></i> Registos de informação</button>'+(_mob?'':'<button class="btn btn-outline btn-sm" onclick="showTab(\'tab-pd\')"><i class="fas fa-comments"></i> Plano de Diálogo</button>')+'</div></div>';
   }
-  if(eNC || eN4){
+  if(eNC){
     h+='<div class="form-section"><h3><i class="fas fa-star" style="color:var(--gold)"></i> Quadro do Coordenador</h3>'
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Resumo para briefar o Cmdt GI a qualquer momento, com a modalidade de ação proposta (4.85). Atualiza ao abrir o separador.</p>'
       +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'
@@ -2753,7 +2829,7 @@ function renderPosto(){
   el.innerHTML=h;
   renderCabecalhoCoordenacao();
   if(eN1 || eN2) renderResumoPlanos();
-  if(eNC || eN4) renderQuadroCoordenador();
+  if(eNC) renderQuadroCoordenador();
 }
 // ---- Plano de Diálogo (4.88) ----
 const PD_CAMPOS=[
@@ -9390,6 +9466,7 @@ function mobShowTab(tab, resetStack) {
 
   if (resetStack) mobNavStack = [];
   mobCurrentTab = tab;
+  try { renderBarraPosto(); } catch(e){}
   // Hide all screens
   document.querySelectorAll('.mob-screen').forEach(s => s.classList.add('hidden'));
   const screen = document.getElementById('mob-screen-' + tab);
