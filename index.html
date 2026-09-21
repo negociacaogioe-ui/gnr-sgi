@@ -5898,6 +5898,426 @@ async function openFormacaoAdmin(area) {
   }
 }
 
+// ===== AVALIAÇÃO DE FORMANDOS (CNeg) — Provas Práticas =====
+// Regulamento do CNeg 2024: art. 11.º e 12.º; Anexo B, Apêndices 1 a 7.
+// Coeficientes têm de coincidir com public.aval_coefs() na base de dados.
+const AV_LIMIAR = 12; // assinala a vermelho abaixo deste valor
+const AVAL_UCS = [
+  { uc:1, nome:'Enquadramento da Missão de Negociação', params:[
+    { k:'p1', coef:1, t:'Seleciona o tipo de comunicação de acordo com a situação apresentada', c:'Revela conhecer e dominar os vários tipos de comunicação apresentados bem como demonstra capacidade e flexibilidade para selecionar e aplicar aquele que melhor se adequa à situação apresentada.' },
+    { k:'p2', coef:2, t:'Demonstra autocontrolo emocional', c:'Revela sangue frio, racionalidade, não se deixando perturbar com a capacidade de persuasão ou pelas provocações apresentadas pelo suspeito.' },
+    { k:'p3', coef:1, t:'Domina os procedimentos e fases atinentes à resolução de um incidente de segurança', c:'Identifica o enquadramento global e organização do dispositivo empregue nas ações atinentes à resolução de um incidente de segurança. Percebe, domina e executa tarefas que são cometidas à Célula de Negociação.' },
+    { k:'p4', coef:2, t:'Estrutura uma estratégia de negociação com vista ao resultado', c:'Identifica as várias fases do processo negocial e delineia ou participa na elaboração de uma estratégia de negociação adequada ao tipo de incidente apresentado.' },
+    { k:'p5', coef:2, t:'Domina e aplica o modelo de negociação cooperativa', c:'Conhece, domina e emprega os passos que caraterizam o modelo de negociação cooperativa' },
+    { k:'p6', coef:2, t:'Domina e aplica o modelo de negociação Getting Past No', c:'Domina e emprega os passos que caraterizam o modelo de negociação cooperativa' },
+    { k:'p7', coef:2, t:'Domina e aplica o modelo de negociação de Escada de Mudança Comportamental', c:'Domina e emprega os passos que caraterizam o modelo de negociação cooperativa' }
+  ]},
+  { uc:2, nome:'Dinâmica da Equipa de Negociação', params:[
+    { k:'p1', coef:2, t:'Domina e aplica o modelo de Negociação da GNR', c:'Domina e emprega os passos que caraterizam o modelo de negociação da GNR' },
+    { k:'p2', coef:2, t:'Identifica as fases do incidente de segurança', c:'Demonstra capacidade de reconhecer as fases do incidente de segurança, fazendo uma boa relação entre componente teórica e a realidade com que se depara, conseguindo perceber o que já ocorreu e quais as ações subsequentes.' },
+    { k:'p3', coef:2, t:'Identifica as tarefas intrínsecas à fase de negociação', c:'Reconhece as ações essenciais na fase de negociação. Mantendo o foco na identificação do problema que impede ou bloqueia a resolução do incidente de segurança, descartando os eventuais sofismas.' },
+    { k:'p4', coef:2, t:'Elabora ou colabora na elaboração de um plano de negociação', c:'Carateriza os elementos essenciais que um plano de negociação deve conter, garantindo uma informação atempada e completa ao Gestor do Incidente.' },
+    { k:'p5', coef:1, t:'Elabora ou colabora na elaboração de um plano de diálogo', c:'Conhece e carateriza os elementos essenciais que um plano de diálogo deve conter, garantindo resposta às cinco questões base para a resolução do problema.' },
+    { k:'p6', coef:2, t:'Identifica os indicadores de progresso de uma negociação', c:'Identifica os indicadores de progresso na negociação, permitindo-o reconhecer em que fase se encontra o processo negocial bem como prover os ajustes, considerados necessários, aos planos de negociação e diálogo.' },
+    { k:'p7', coef:1, t:'Identifica as várias estruturas possíveis de uma Equipa de Negociação', c:'Executa as várias funções contidas nas várias estruturas possíveis de uma Equipa de Negociação.' },
+    { k:'p8', coef:2, t:'Demonstra capacidade de adaptação às diferentes estruturas de Equipa de Negociação', c:'Revela adaptabilidade e flexibilidade intelectual para desempenhar diferentes tarefas numa equipa de negociação tendo em consideração o efetivo disponível.' },
+    { k:'p9', coef:2, t:'Tira rendimento da utilização de intermediários', c:'Revela grande capacidade de raciocínio, decisão e astúcia perante todas as possibilidades de que dispões para alcançar os objetivos principais de um determinado processo negocial.' }
+  ]},
+  { uc:3, nome:'Negociação e Intervenção Tática', params:[
+    { k:'p1', coef:2, t:'Reconhece as ações e planos das Equipas de Intervenção Tática', c:'Reconhece quais os planos que as Equipas de Intervenção Tática elaboram e identifica aqueles que exigem maior integração entre estas equipas e a Equipa de negociação.' },
+    { k:'p2', coef:2, t:'Realiza o planeamento conjunto de uma operação de negociação as Equipas de Intervenção Tática', c:'Identifica e implementa as ações necessárias ao planeamento de uma operação de negociação em articulação com as Equipa de Intervenção Tática e seus objetivos.' },
+    { k:'p3', coef:2, t:'Reconhece as dinâmicas e tarefas inerentes à articulação entre o negociador e a Equipa Tática', c:'Reconhece as várias tarefas conducentes à integração e articulação da Equipa de Negociação com as Equipas de Intervenção Tática, garantindo as condições de segurança para o estabelecimento de comunicação com o suspeito.' },
+    { k:'p4', coef:2, t:'Aplica e integra-se nas várias formações onde se estabeleça a interligação entre a Equipa de Negociação e a Equipa Tática', c:'Aplica as várias formações possíveis de articulação entre as Equipas de Intervenção Tática e a Equipa de Negociação, revelando a capacidade de se integrar na qualidade de negociador em cada uma delas.' },
+    { k:'p5', coef:2, t:'Demonstra espírito de disciplina', c:'Revela exemplar dedicação no cumprimento das suas tarefas, executa as ordens emanadas dos seus superiores e formadores com correção e racionalidade, com constante preocupação com a sua atitude, integrando-se bem na sua hierarquia.' },
+    { k:'p6', coef:2, t:'Demonstra capacidade de trabalho em equipa', c:'Promove a dinâmica da equipa, escuta ativamente os outros elementos dentro e fora da equipa e explora as ideias/propostas que lhe são colocadas, mantendo a noção das tarefas que lhe são cometidas.' },
+    { k:'p7', coef:2, t:'Demonstra sentido de responsabilidade', c:'Revela exemplar dedicação no cumprimento das tarefas que lhe são atribuídas, referentes ao planeamento e articulação entre a negociação e a tática, procurando constantemente melhorar as suas limitações.' },
+    { k:'p8', coef:2, t:'Demonstra autoconfiança e autodomínio', c:'Tem perfeito conhecimento das suas capacidades e limitações respeitantes ao planeamento conjunto de operações de negociação e articulação entre a negociação e a tática, atuando sempre de forma ponderada e conscienciosa.' },
+    { k:'p9', coef:1, t:'Promove o dinamismo adequado ao processo negocial', c:'Demonstra vitalidade e energia nas diversas missões que lhe são atribuídas durante a aplicação do modelo de negociação no processo negocial.' }
+  ]}
+];
+// Apêndice 7 — Definição dos Níveis de Avaliação
+const AVAL_NIVEIS = [
+  { n:5, v:'18 a 20 valores',    d:'Indica que o formando possui no mais elevado grau todas as qualidades em apreciação, constituindo um caso de reconhecida exceção e um exemplo a seguir.' },
+  { n:4, v:'16 a 17.99 valores', d:'Indica que o formando revela um nível bom e acima da média, no que respeita às qualidades a classificar.' },
+  { n:3, v:'14 a 15.99 valores', d:'Indica que o formando revela um nível satisfatório e adequado na maioria das qualidades a classificar.' },
+  { n:2, v:'10 a 13.99 valores', d:'Indica que o formando apresenta limitações em algumas das qualidades a classificar, as quais, suscetíveis de correção futura, o colocam abaixo do nível médio desejável.' },
+  { n:1, v:'0 a 9.99 valores',   d:'Indica que o formando apresenta limitações na globalidade das qualidades a classificar, as quais, suscetíveis de correção futura, o colocam abaixo do nível médio desejável.' }
+];
+const AV_ESTADOS = {
+  rascunho:  { t:'Rascunho',  bg:'var(--gray100)', fg:'var(--gray600)' },
+  submetida: { t:'A aguardar validação', bg:'var(--amberl)', fg:'var(--amber)' },
+  validada:  { t:'Validada',  bg:'var(--gp)',      fg:'var(--gm)' },
+  devolvida: { t:'Devolvida', bg:'var(--redl)',    fg:'var(--red)' }
+};
+
+let _av = { epq:false, admin:false, edicoes:[], edicaoId:null, alunos:[], perfis:{}, fichas:[], epqIds:[], tab:null, filtroAval:null, ficha:null };
+
+function _avIsAdmin(){ return currentProfile?.role === 'admin'; }
+async function avCarregarAcesso(){
+  _av.admin = _avIsAdmin();
+  _av.epq = false;
+  if(!currentUser) return;
+  try{
+    const { data } = await sb.from('aval_epq').select('user_id').eq('user_id', currentUser.id).maybeSingle();
+    _av.epq = !!data;
+  }catch(e){ console.warn('aval_epq', e); }
+}
+function avTemAcesso(){ return _av.admin || _av.epq; }
+function avCardHtml(){
+  if(!avTemAcesso()) return '';
+  return `<div style="grid-column:1/-1;margin-bottom:4px">
+    <div onclick="abrirAvaliacao()" style="display:flex;align-items:center;gap:14px;background:var(--goldl);border:1.5px solid var(--gold);border-radius:var(--rl);padding:1rem 1.25rem;cursor:pointer">
+      <div style="width:48px;height:48px;background:#fff;border:1px solid var(--goldp);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">🎓</div>
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:15px;font-weight:700;color:var(--gn)">Avaliação de Formandos</span>
+          <span style="background:var(--gold);color:#fff;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;letter-spacing:.05em">${_av.admin?'ADMIN':'EPQ'}</span></div>
+        <div style="font-size:12.5px;color:var(--gray600);margin-top:2px">Fichas de avaliação das Provas Práticas (UC 1, UC 2 e UC 3) — acesso restrito</div>
+      </div>
+      <i class="fas fa-chevron-right" style="color:var(--gold)"></i>
+    </div>
+  </div>`;
+}
+
+// ---------- Cálculo (igual ao da base de dados) ----------
+function avUcDef(uc){ return AVAL_UCS.find(u=>u.uc===uc); }
+function avCalcular(uc, niveis){
+  const d = avUcDef(uc); let s1=0, s2=0, completo=true;
+  d.params.forEach(p=>{ s1+=p.coef; const n=niveis&&niveis[p.k]; if(n) s2+=p.coef*n; else completo=false; });
+  const cls = completo ? Math.round(((s2/s1)*5-5)*100)/100 : null;
+  return { s1, s2: completo ? s2 : (s2||null), cls, completo };
+}
+function avFmt(v){ return (v==null||isNaN(v)) ? '—' : Number(v).toFixed(2).replace('.',','); }
+function avMedia(arr){ const a=arr.filter(v=>v!=null); if(!a.length) return null; return Math.round((a.reduce((x,y)=>x+Number(y),0)/a.length)*100)/100; }
+function avBaixo(v){ return v!=null && Number(v) < AV_LIMIAR; }
+function avEstadoBadge(e){ const s=AV_ESTADOS[e]||AV_ESTADOS.rascunho; return `<span style="background:${s.bg};color:${s.fg};font-size:10.5px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap">${s.t}</span>`; }
+function avNome(id){ const p=_av.perfis[id]; return p ? ((p.posto?p.posto+' ':'')+(p.nome||'')).trim() : '—'; }
+
+// ---------- Carregamento ----------
+async function avCarregar(){
+  const { data:eds } = await sb.from('aval_edicoes').select('*').order('created_at', { ascending:false });
+  _av.edicoes = eds || [];
+  if(!_av.edicaoId || !_av.edicoes.some(e=>e.id===_av.edicaoId)){
+    const at = _av.edicoes.find(e=>e.ativa) || _av.edicoes[0];
+    _av.edicaoId = at ? at.id : null;
+  }
+  _av.alunos = []; _av.fichas = []; _av.epqIds = [];
+  if(!_av.edicaoId) return;
+  const ed = _av.edicoes.find(e=>e.id===_av.edicaoId);
+  if(ed && ed.ativa){ try{ await sb.rpc('aval_sincronizar_alunos'); }catch(e){ console.warn('sync alunos', e); } }
+  const [{ data:al }, { data:fi }] = await Promise.all([
+    sb.from('aval_alunos').select('*').eq('edicao_id', _av.edicaoId),
+    sb.from('aval_fichas').select('*').eq('edicao_id', _av.edicaoId)
+  ]);
+  _av.alunos = al || []; _av.fichas = fi || [];
+  if(_av.admin){ const { data:ep } = await sb.from('aval_epq').select('user_id'); _av.epqIds = (ep||[]).map(x=>x.user_id); }
+  const ids = Array.from(new Set([..._av.alunos.map(a=>a.aluno_id), ..._av.fichas.map(f=>f.avaliador_id), ..._av.epqIds, currentUser.id]));
+  if(ids.length){
+    const { data:pf } = await sb.from('profiles').select('id,nome,posto,cter,email').in('id', ids);
+    (pf||[]).forEach(p=>_av.perfis[p.id]=p);
+  }
+  _av.alunos.sort((a,b)=>(_av.perfis[a.aluno_id]?.nome||'').localeCompare(_av.perfis[b.aluno_id]?.nome||'','pt'));
+}
+
+// ---------- Ecrã principal ----------
+async function abrirAvaliacao(tab){
+  await avCarregarAcesso();
+  if(!avTemAcesso()){ alert('Sem acesso à Avaliação de Formandos.'); return; }
+  ['dashboard','incidentes','itp','formacao','formacao-detalhe','admin'].forEach(x=>{ const el=document.getElementById('section-'+x); if(el) el.classList.add('hidden'); });
+  document.getElementById('section-formacao-detalhe').classList.remove('hidden');
+  if(tab) _av.tab = tab;
+  if(!_av.tab) _av.tab = _av.admin ? 'resumo' : 'minhas';
+  if(!_av.admin) _av.tab = 'minhas';
+  _av.ficha = null;
+  const el = document.getElementById('formacao-detalhe-content');
+  el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--gray400)"><span class="spinner"></span></div>';
+  try{ await avCarregar(); }catch(e){ el.innerHTML='<div class="alert alert-error">Erro ao carregar: '+_ppEsc(e.message||e)+'</div>'; return; }
+  avRender();
+}
+function avRender(){
+  const el = document.getElementById('formacao-detalhe-content');
+  const ed = _av.edicoes.find(e=>e.id===_av.edicaoId);
+  const tabs = _av.admin
+    ? [['resumo','Resumo'],['avaliador','Por avaliador'],['minhas','As minhas avaliações'],['config','Configuração']]
+    : [['minhas','As minhas avaliações']];
+  let head = `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:1rem">
+    <div><div class="page-title" style="font-size:20px">🎓 Avaliação de Formandos</div>
+      <div class="page-sub">Fichas de Avaliação das Provas Práticas — Regulamento do CNeg, Anexo B</div></div>
+    ${_av.edicoes.length ? `<div style="display:flex;align-items:center;gap:6px"><label style="font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em">Edição</label>
+      <select onchange="_av.edicaoId=this.value;abrirAvaliacao()" style="width:auto;font-size:13px">${_av.edicoes.map(e=>`<option value="${e.id}" ${e.id===_av.edicaoId?'selected':''}>${_ppEsc(e.nome)}${e.ativa?' (ativa)':''}</option>`).join('')}</select></div>` : ''}
+  </div>`;
+  head += `<div style="display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin-bottom:1rem">${tabs.map(([k,t])=>`<button class="tab-btn ${_av.tab===k?'active':''}" onclick="_av.tab='${k}';avRender()">${t}</button>`).join('')}</div>`;
+  let body = '';
+  if(!ed && _av.tab!=='config'){
+    body = `<div style="padding:1.5rem;background:var(--gray100);border-radius:var(--rl);color:var(--gray600);font-size:13.5px">Ainda não existe nenhuma edição do curso.${_av.admin?' Cria a primeira em <strong>Configuração</strong>.':' O administrador tem de criar a edição do curso.'}</div>`;
+  } else if(_av.tab==='resumo') body = avHtmlResumo();
+  else if(_av.tab==='avaliador') body = avHtmlPorAvaliador();
+  else if(_av.tab==='config') body = avHtmlConfig();
+  else body = avHtmlGrelhaAvaliador(currentUser.id, true);
+  el.innerHTML = head + body;
+  if(_av.tab==='config') avCarregarListaEpq();
+}
+
+// Tabela alunos × UC para um avaliador (as minhas / por avaliador)
+function avHtmlGrelhaAvaliador(avaliadorId, proprias){
+  if(!_av.alunos.length) return '<div style="padding:1.5rem;color:var(--gray400);font-size:13px">Sem alunos inscritos nesta edição (militares com CTer "CTer Curso").</div>';
+  return `<div class="table-card"><div class="table-wrap"><table>
+    <thead><tr><th>Aluno</th>${AVAL_UCS.map(u=>`<th style="text-align:center">UC ${u.uc}</th>`).join('')}</tr></thead>
+    <tbody>${_av.alunos.map(a=>{
+      const cels = AVAL_UCS.map(u=>{
+        const f = _av.fichas.find(x=>x.aluno_id===a.aluno_id && x.uc===u.uc && x.avaliador_id===avaliadorId);
+        if(!f){
+          return proprias
+            ? `<td style="text-align:center"><button class="btn btn-outline btn-sm" onclick="avAbrirFicha('${a.aluno_id}',${u.uc},'${avaliadorId}')"><i class="fas fa-pen"></i> Avaliar</button></td>`
+            : `<td style="text-align:center;color:var(--gray400);font-size:12px">—</td>`;
+        }
+        const baixo = avBaixo(f.classificacao);
+        return `<td style="text-align:center;cursor:pointer" onclick="avAbrirFicha('${a.aluno_id}',${u.uc},'${avaliadorId}')">
+          <div style="font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:14px;color:${baixo?'var(--red)':'var(--gn)'}">${avFmt(f.classificacao)}</div>
+          <div style="margin-top:3px">${avEstadoBadge(f.estado)}</div></td>`;
+      }).join('');
+      return `<tr><td style="font-weight:600">${_ppEsc(avNome(a.aluno_id))}</td>${cels}</tr>`;
+    }).join('')}</tbody></table></div></div>`;
+}
+
+// Admin: resumo com médias por UC (EPQ + admin), só avaliações validadas
+function avResumoAluno(alunoId){
+  const r = { ucs:{}, individualBaixa:false, pendentes:0 };
+  AVAL_UCS.forEach(u=>{
+    const fs = _av.fichas.filter(f=>f.aluno_id===alunoId && f.uc===u.uc);
+    const val = fs.filter(f=>f.estado==='validada');
+    r.pendentes += fs.filter(f=>f.estado==='submetida').length;
+    if(fs.some(f=>(f.estado==='validada'||f.estado==='submetida') && avBaixo(f.classificacao))) r.individualBaixa = true;
+    r.ucs[u.uc] = { media: avMedia(val.map(f=>f.classificacao)), n: val.length, pend: fs.filter(f=>f.estado==='submetida').length };
+  });
+  const medias = AVAL_UCS.map(u=>r.ucs[u.uc].media);
+  r.geral = medias.every(m=>m!=null) ? avMedia(medias) : null;
+  r.vermelho = r.individualBaixa || medias.some(avBaixo) || avBaixo(r.geral);
+  return r;
+}
+function avHtmlResumo(){
+  if(!_av.alunos.length) return '<div style="padding:1.5rem;color:var(--gray400);font-size:13px">Sem alunos inscritos nesta edição.</div>';
+  const pend = _av.fichas.filter(f=>f.estado==='submetida').length;
+  return `${pend?`<div class="pending-banner"><i class="fas fa-hourglass-half"></i> ${pend} avaliação(ões) a aguardar validação</div>`:''}
+  <div style="font-size:12px;color:var(--gray600);margin-bottom:8px;line-height:1.5">Média das avaliações <strong>validadas</strong> de cada UC (EPQ e admin). O nome fica a <span style="color:var(--red);font-weight:700">vermelho</span> se alguma avaliação individual ou alguma média for inferior a ${AV_LIMIAR} valores. Clica numa UC para ver as avaliações individuais.</div>
+  <div class="table-card"><div class="table-wrap"><table>
+    <thead><tr><th>Aluno</th>${AVAL_UCS.map(u=>`<th style="text-align:center">UC ${u.uc}<div style="font-weight:400;font-size:10px;text-transform:none;letter-spacing:0">${_ppEsc(u.nome)}</div></th>`).join('')}<th style="text-align:center">Média geral (PP)</th></tr></thead>
+    <tbody>${_av.alunos.map(a=>{
+      const r = avResumoAluno(a.aluno_id);
+      return `<tr>
+        <td style="font-weight:700;color:${r.vermelho?'var(--red)':'var(--gray900)'}">${r.vermelho?'<i class="fas fa-triangle-exclamation" style="margin-right:5px"></i>':''}${_ppEsc(avNome(a.aluno_id))}</td>
+        ${AVAL_UCS.map(u=>{ const x=r.ucs[u.uc]; return `<td style="text-align:center;cursor:pointer" onclick="avVerIndividuais('${a.aluno_id}',${u.uc})">
+          <div style="font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:14px;color:${avBaixo(x.media)?'var(--red)':'var(--gn)'}">${avFmt(x.media)}</div>
+          <div style="font-size:10.5px;color:var(--gray400)">${x.n} validada(s)${x.pend?` · <span style="color:var(--amber)">${x.pend} pendente(s)</span>`:''}</div></td>`; }).join('')}
+        <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;color:${avBaixo(r.geral)?'var(--red)':'var(--gn)'}">${avFmt(r.geral)}</td>
+      </tr>`;
+    }).join('')}</tbody></table></div></div>`;
+}
+// Admin: avaliações individuais de um aluno numa UC (uma por avaliador)
+function avVerIndividuais(alunoId, uc){
+  const el = document.getElementById('formacao-detalhe-content');
+  const fs = _av.fichas.filter(f=>f.aluno_id===alunoId && f.uc===uc);
+  const u = avUcDef(uc);
+  el.innerHTML = `<button class="detail-back" onclick="avRender()">← Voltar ao resumo</button>
+    <div class="page-title" style="font-size:18px;margin:.5rem 0 2px">${_ppEsc(avNome(alunoId))}</div>
+    <div class="page-sub" style="margin-bottom:1rem">UC ${uc} — ${_ppEsc(u.nome)} · avaliações individuais</div>
+    <div class="table-card"><div class="table-wrap"><table>
+      <thead><tr><th>Avaliador</th><th style="text-align:center">Classificação</th><th>Estado</th><th></th></tr></thead>
+      <tbody>${!fs.length?'<tr><td colspan="4" style="text-align:center;padding:1.25rem;color:var(--gray400);font-size:13px">Ainda sem avaliações.</td></tr>':''}${fs.map(f=>`<tr>
+        <td>${_ppEsc(avNome(f.avaliador_id))}${f.avaliador_id===currentUser.id?' <span style="font-size:11px;color:var(--gray400)">(eu)</span>':''}</td>
+        <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;color:${avBaixo(f.classificacao)?'var(--red)':'var(--gn)'}">${avFmt(f.classificacao)}</td>
+        <td>${avEstadoBadge(f.estado)}</td>
+        <td><button class="btn btn-outline btn-sm" onclick="avAbrirFicha('${alunoId}',${uc},'${f.avaliador_id}','individuais')"><i class="fas fa-eye"></i> Abrir ficha</button></td>
+      </tr>`).join('')}</tbody></table></div></div>`;
+}
+// Admin: consultar as fichas de um avaliador EPQ
+function avHtmlPorAvaliador(){
+  const ids = Array.from(new Set([..._av.epqIds, ..._av.fichas.map(f=>f.avaliador_id)]));
+  if(!ids.length) return '<div style="padding:1.5rem;color:var(--gray400);font-size:13px">Ainda não há negociadores EPQ. Marca-os em <strong>Configuração</strong>.</div>';
+  if(!_av.filtroAval || !ids.includes(_av.filtroAval)) _av.filtroAval = ids[0];
+  return `<div class="field" style="max-width:420px;margin-bottom:1rem"><label>Negociador EPQ</label>
+      <select onchange="_av.filtroAval=this.value;avRender()">${ids.map(id=>`<option value="${id}" ${id===_av.filtroAval?'selected':''}>${_ppEsc(avNome(id))}${id===currentUser.id?' (eu)':''} — ${_av.fichas.filter(f=>f.avaliador_id===id).length} ficha(s)</option>`).join('')}</select></div>
+    ${avHtmlGrelhaAvaliador(_av.filtroAval, _av.filtroAval===currentUser.id)}`;
+}
+// Admin: configuração (edições, EPQ, dados dos alunos)
+function avHtmlConfig(){
+  const ed = _av.edicoes.find(e=>e.id===_av.edicaoId);
+  const candidatos = Object.values(_av.perfis);
+  return `
+  <div class="form-section"><h3><i class="fas fa-calendar" style="color:var(--gl)"></i> Edições do curso</h3>
+    ${_av.edicoes.length?`<div style="font-size:13px;margin-bottom:10px">${_av.edicoes.map(e=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+      <strong>${_ppEsc(e.nome)}</strong><span style="color:var(--gray600);font-size:12px">${e.data_inicio?new Date(e.data_inicio).toLocaleDateString('pt-PT'):'—'} a ${e.data_fim?new Date(e.data_fim).toLocaleDateString('pt-PT'):'—'}</span>
+      ${e.ativa?'<span class="badge badge-green">Ativa</span>':`<button class="btn btn-outline btn-sm" onclick="avAtivarEdicao('${e.id}')">Tornar ativa</button>`}</div>`).join('')}</div>`:''}
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:end">
+      <div class="field" style="margin:0"><label>Nova edição</label><input type="text" id="av-ed-nome" placeholder="Ex.: CNeg 2026"></div>
+      <div class="field" style="margin:0"><label>Início</label><input type="date" id="av-ed-ini"></div>
+      <div class="field" style="margin:0"><label>Fim</label><input type="date" id="av-ed-fim"></div>
+      <button class="btn btn-primary btn-sm" onclick="avCriarEdicao()"><i class="fas fa-plus"></i> Criar e ativar</button>
+    </div>
+    <div style="font-size:11.5px;color:var(--gray600);margin-top:6px">Na edição ativa, os militares com CTer "CTer Curso" são inscritos automaticamente e ficam com a ficha criada.</div>
+  </div>
+  <div class="form-section"><h3><i class="fas fa-user-check" style="color:var(--gl)"></i> Negociadores EPQ (avaliadores)</h3>
+    <div style="font-size:12px;color:var(--gray600);margin-bottom:8px">Só os negociadores marcados acedem a esta área. Cada EPQ vê apenas as avaliações que preenche.</div>
+    <div id="av-epq-lista" style="font-size:13px;color:var(--gray400)">A carregar…</div>
+  </div>
+  ${ed?`<div class="form-section"><h3><i class="fas fa-id-card" style="color:var(--gl)"></i> Dados dos alunos — ${_ppEsc(ed.nome)}</h3>
+    ${_av.alunos.length?`<div class="table-wrap"><table><thead><tr><th>Aluno</th><th>N.º Matrícula</th><th>Arma</th></tr></thead><tbody>${_av.alunos.map(a=>`<tr>
+      <td>${_ppEsc(avNome(a.aluno_id))}</td>
+      <td><input type="text" value="${_ppEsc(a.matricula||'')}" onchange="avGuardarAluno('${a.id}','matricula',this.value)" style="font-size:13px"></td>
+      <td><input type="text" value="${_ppEsc(a.arma||'')}" onchange="avGuardarAluno('${a.id}','arma',this.value)" style="font-size:13px"></td>
+    </tr>`).join('')}</tbody></table></div>`:'<div style="font-size:13px;color:var(--gray400)">Sem alunos inscritos.</div>'}
+  </div>`:''}`;
+}
+async function avCarregarListaEpq(){
+  const box = document.getElementById('av-epq-lista'); if(!box) return;
+  const { data:us } = await sb.from('profiles').select('id,nome,posto,cter,role,approved').eq('approved', true).order('nome');
+  const lista = (us||[]).filter(u=>u.cter!=='CTer Curso' && u.role!=='admin');
+  (us||[]).forEach(u=>{ _av.perfis[u.id] = Object.assign(_av.perfis[u.id]||{}, u); });
+  box.innerHTML = lista.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px">${lista.map(u=>`
+    <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--r);background:#fff;cursor:pointer;color:var(--gray900)">
+      <input type="checkbox" ${_av.epqIds.includes(u.id)?'checked':''} onchange="avMarcarEpq('${u.id}',this.checked)" style="width:16px;height:16px;accent-color:var(--gl)">
+      <span>${_ppEsc(((u.posto?u.posto+' ':'')+(u.nome||'')).trim())}<span style="color:var(--gray400);font-size:11px"> · ${_ppEsc(u.cter||'—')}</span></span></label>`).join('')}</div>`
+    : 'Sem negociadores disponíveis.';
+}
+async function avMarcarEpq(uid, on){
+  const { error } = on
+    ? await sb.from('aval_epq').insert({ user_id: uid, criado_por: currentUser.id })
+    : await sb.from('aval_epq').delete().eq('user_id', uid);
+  if(error){ alert('Erro: '+error.message); return; }
+  if(on) _av.epqIds.push(uid); else _av.epqIds = _av.epqIds.filter(x=>x!==uid);
+}
+async function avCriarEdicao(){
+  const nome = document.getElementById('av-ed-nome').value.trim();
+  if(!nome){ alert('Indica o nome da edição.'); return; }
+  const ini = document.getElementById('av-ed-ini').value || null, fim = document.getElementById('av-ed-fim').value || null;
+  if(!confirm('Criar a edição "'+nome+'" e torná-la ativa? A edição ativa anterior passa a consulta.')) return;
+  await sb.from('aval_edicoes').update({ ativa:false }).eq('ativa', true);
+  const { data, error } = await sb.from('aval_edicoes').insert({ nome, data_inicio:ini, data_fim:fim, ativa:true }).select().single();
+  if(error){ alert('Erro: '+error.message); return; }
+  _av.edicaoId = data.id; _av.tab = 'config'; abrirAvaliacao();
+}
+async function avAtivarEdicao(id){
+  if(!confirm('Tornar esta edição ativa? Os militares do CTer Curso passam a ser inscritos nela.')) return;
+  await sb.from('aval_edicoes').update({ ativa:false }).eq('ativa', true);
+  const { error } = await sb.from('aval_edicoes').update({ ativa:true }).eq('id', id);
+  if(error){ alert('Erro: '+error.message); return; }
+  _av.edicaoId = id; abrirAvaliacao();
+}
+async function avGuardarAluno(id, campo, valor){
+  const { error } = await sb.from('aval_alunos').update({ [campo]: valor.trim() }).eq('id', id);
+  if(error){ alert('Erro: '+error.message); return; }
+  const a = _av.alunos.find(x=>x.id===id); if(a) a[campo] = valor.trim();
+}
+
+// ---------- Ficha de avaliação ----------
+function avAbrirFicha(alunoId, uc, avaliadorId, origem){
+  const f = _av.fichas.find(x=>x.aluno_id===alunoId && x.uc===uc && x.avaliador_id===avaliadorId);
+  _av.ficha = { alunoId, uc, avaliadorId, origem: origem||'lista', niveis: JSON.parse(JSON.stringify((f&&f.niveis)||{})), row: f||null };
+  avRenderFicha();
+}
+function avFichaEditavel(){
+  const F = _av.ficha; const e = F.row ? F.row.estado : 'rascunho';
+  if(F.avaliadorId !== currentUser.id) return false;
+  return ['rascunho','devolvida'].includes(e) || (_av.admin && e!=='validada');
+}
+function avRenderFicha(){
+  const F = _av.ficha, u = avUcDef(F.uc), r = F.row || {};
+  const al = _av.alunos.find(a=>a.aluno_id===F.alunoId) || {};
+  const pAl = _av.perfis[F.alunoId] || {}, pAv = _av.perfis[F.avaliadorId] || {};
+  const ed = _av.edicoes.find(e=>e.id===_av.edicaoId) || {};
+  const edit = avFichaEditavel();
+  const calc = avCalcular(F.uc, F.niveis);
+  const dt = d => d ? new Date(d).toLocaleDateString('pt-PT') : '__/__/____';
+  const voltar = F.origem==='individuais' ? `avVerIndividuais('${F.alunoId}',${F.uc})` : 'avRender()';
+  const linhas = u.params.map(p=>{
+    const n = F.niveis[p.k];
+    return `<tr>
+      <td style="min-width:260px"><div style="font-weight:600;font-size:13px;color:var(--gray900)">${_ppEsc(p.t)}</div>
+        <details style="margin-top:3px"><summary style="font-size:11.5px;color:var(--gl);cursor:pointer">Caracterização</summary><div style="font-size:12px;color:var(--gray600);line-height:1.5;margin-top:4px">${_ppEsc(p.c)}</div></details></td>
+      <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700">${p.coef}</td>
+      ${[1,2,3,4,5].map(v=>`<td style="text-align:center;padding:4px">${edit
+        ? `<label style="display:inline-flex;width:34px;height:34px;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;border:1.5px solid ${n===v?'var(--gl)':'var(--border)'};background:${n===v?'var(--gl)':'#fff'};color:${n===v?'#fff':'var(--gray600)'};font-weight:700"><input type="radio" name="av-${p.k}" value="${v}" ${n===v?'checked':''} onchange="avSetNivel('${p.k}',${v})" style="display:none">${v}</label>`
+        : `<span style="display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:50%;${n===v?'background:var(--gl);color:#fff;font-weight:700':'color:var(--gray400)'}">${n===v?v:'·'}</span>`}</td>`).join('')}
+      <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700">${n?p.coef*n:''}</td>
+    </tr>`;
+  }).join('');
+  let acoes = '';
+  if(edit){
+    acoes = `<button class="btn btn-outline" onclick="avGuardarFicha('rascunho')"><i class="fas fa-save"></i> Guardar rascunho</button>
+      ${_av.admin
+        ? `<button class="btn btn-primary" onclick="avGuardarFicha('validada')"><i class="fas fa-check-double"></i> Guardar e validar</button>`
+        : `<button class="btn btn-primary" onclick="avGuardarFicha('submetida')"><i class="fas fa-paper-plane"></i> Submeter para validação</button>`}`;
+  } else if(_av.admin && F.row){
+    if(r.estado==='submetida') acoes = `<button class="btn btn-success" onclick="avDecidir('validada')"><i class="fas fa-check"></i> Validar</button>
+      <button class="btn btn-outline" style="color:var(--red)" onclick="avDecidir('devolvida')"><i class="fas fa-rotate-left"></i> Devolver para correção</button>`;
+    else if(r.estado==='validada') acoes = `<button class="btn btn-outline" style="color:var(--red)" onclick="avDecidir('devolvida')"><i class="fas fa-rotate-left"></i> Reabrir (devolver)</button>`;
+  }
+  const el = document.getElementById('formacao-detalhe-content');
+  el.innerHTML = `<button class="detail-back" onclick="${voltar}">← Voltar</button>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin:.5rem 0 1rem">
+    <div><div class="page-title" style="font-size:18px">Ficha de Avaliação da PP — UC ${F.uc}</div>
+      <div class="page-sub">${_ppEsc(u.nome)} · Anexo B do Regulamento do CNeg (artigo 12.º)</div></div>
+    <div>${avEstadoBadge(r.estado||'rascunho')}</div>
+  </div>
+  ${r.estado==='devolvida'&&r.motivo?`<div style="background:var(--redl);border:1px solid var(--red);border-radius:var(--r);padding:10px 12px;font-size:12.5px;color:var(--red);margin-bottom:1rem"><strong>Devolvida para correção:</strong> ${_ppEsc(r.motivo)}</div>`:''}
+  <div class="form-section"><h3>1. Elementos de identificação do formando</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 16px;font-size:13px">
+      <div><strong>Nome:</strong> ${_ppEsc(pAl.nome||'—')}</div><div><strong>Posto:</strong> ${_ppEsc(pAl.posto||'—')}</div>
+      <div><strong>N.º Matrícula:</strong> ${_ppEsc(al.matricula||'—')}</div><div><strong>Arma:</strong> ${_ppEsc(al.arma||'—')}</div>
+      <div style="grid-column:1/-1"><strong>Duração do Curso:</strong> de ${dt(ed.data_inicio)} a ${dt(ed.data_fim)}</div>
+    </div></div>
+  <div class="form-section"><h3>2. Avaliação prática</h3>
+    <div class="table-wrap"><table>
+      <thead><tr><th rowspan="2">Parâmetros de Avaliação</th><th rowspan="2" style="text-align:center">Coef.<div style="font-weight:400">(a)</div></th><th colspan="5" style="text-align:center">Pontuação (Níveis) (b)</th><th rowspan="2" style="text-align:center">Total<div style="font-weight:400">(a × b)</div></th></tr>
+        <tr>${[1,2,3,4,5].map(v=>`<th style="text-align:center">${v}</th>`).join('')}</tr></thead>
+      <tbody>${linhas}
+        <tr style="background:var(--gray100)"><td style="font-weight:700">Soma (1)</td><td style="text-align:center;font-weight:700;font-family:'IBM Plex Mono',monospace">${calc.s1}</td><td colspan="5" style="text-align:right;font-weight:700">Soma (2)</td><td style="text-align:center;font-weight:700;font-family:'IBM Plex Mono',monospace">${calc.completo?calc.s2:'—'}</td></tr>
+        <tr><td colspan="7" style="font-weight:700">Classificação [(Soma 2 / Soma 1) × 5] − 5</td><td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:16px;color:${avBaixo(calc.cls)?'var(--red)':'var(--gn)'}">${avFmt(calc.cls)}</td></tr>
+      </tbody></table></div>
+    <div style="font-size:11.5px;color:var(--gray600);margin-top:6px">A classificação resulta da conversão dos Níveis (1 a 5) para a Escala (0 a 20).</div>
+    <details style="margin-top:10px;border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;background:#fff">
+      <summary style="font-size:13px;font-weight:600;color:var(--gn);cursor:pointer">Apêndice 7 — Definição dos Níveis de Avaliação</summary>
+      <table style="margin-top:8px"><tbody>${AVAL_NIVEIS.map(x=>`<tr><td style="white-space:nowrap;vertical-align:top"><strong>${x.n}</strong><div style="font-size:11px;color:var(--gray600)">(${x.v})</div></td><td style="font-size:12.5px;line-height:1.5">${x.d}</td></tr>`).join('')}</tbody></table>
+    </details>
+    <div class="field" style="margin-top:12px"><label>Juízo ampliativo</label>
+      <textarea id="av-juizo" rows="3" ${edit?'':'disabled'}>${_ppEsc(r.juizo||'')}</textarea></div>
+  </div>
+  <div class="form-section"><h3>3. Identificação do avaliador</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 16px;font-size:13px;align-items:center">
+      <div><strong>Nome:</strong> ${_ppEsc(pAv.nome||'—')}</div><div><strong>Unidade:</strong> ${_ppEsc(pAv.cter||'—')}</div>
+      <div><strong>Posto:</strong> ${_ppEsc(pAv.posto||'—')}</div>
+      <div><strong>Função:</strong> ${edit?`<input type="text" id="av-funcao" value="${_ppEsc(r.funcao||'')}" style="font-size:13px;margin-top:3px">`:_ppEsc(r.funcao||'—')}</div>
+      <div><strong>Data:</strong> ${r.submetida_em?new Date(r.submetida_em).toLocaleDateString('pt-PT'):'—'}</div>
+      ${r.validado_em?`<div><strong>Validada em:</strong> ${new Date(r.validado_em).toLocaleDateString('pt-PT')} por ${_ppEsc(avNome(r.validado_por))}</div>`:''}
+    </div></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:1rem">${acoes}</div>`;
+}
+function avSetNivel(k, v){ _av.ficha.niveis[k] = v; avRenderFicha(); }
+async function avGuardarFicha(estado){
+  const F = _av.ficha;
+  const calc = avCalcular(F.uc, F.niveis);
+  if(estado!=='rascunho' && !calc.completo){ alert('Atribui um nível a todos os parâmetros antes de '+(estado==='validada'?'validar':'submeter')+'.'); return; }
+  if(estado==='submetida' && !confirm('Submeter para validação? Depois de submetida, só o administrador a pode devolver para correção.')) return;
+  const payload = { niveis:F.niveis, juizo:(document.getElementById('av-juizo')?.value||'').trim(), funcao:(document.getElementById('av-funcao')?.value||'').trim(), estado };
+  let res;
+  if(F.row) res = await sb.from('aval_fichas').update(payload).eq('id', F.row.id).select().single();
+  else res = await sb.from('aval_fichas').insert(Object.assign({ edicao_id:_av.edicaoId, aluno_id:F.alunoId, uc:F.uc, avaliador_id:currentUser.id }, payload)).select().single();
+  if(res.error){ alert('Erro: '+res.error.message); return; }
+  const i = _av.fichas.findIndex(x=>x.id===res.data.id);
+  if(i>=0) _av.fichas[i] = res.data; else _av.fichas.push(res.data);
+  F.row = res.data; F.niveis = JSON.parse(JSON.stringify(res.data.niveis||{}));
+  avRenderFicha();
+}
+async function avDecidir(estado){
+  const F = _av.ficha; let motivo = null;
+  if(estado==='devolvida'){ motivo = prompt('Motivo da devolução (visível ao avaliador):', ''); if(motivo===null) return; }
+  else if(!confirm('Validar esta avaliação? Passa a contar para a média da UC.')) return;
+  const patch = { estado }; if(estado==='devolvida') patch.motivo = motivo.trim() || null;
+  const { data, error } = await sb.from('aval_fichas').update(patch).eq('id', F.row.id).select().single();
+  if(error){ alert('Erro: '+error.message); return; }
+  const i = _av.fichas.findIndex(x=>x.id===data.id); if(i>=0) _av.fichas[i] = data;
+  F.row = data; avRenderFicha();
+}
+
 // ===== FORMAÇÃO =====
 window.__SGI_BUILD = 'pastas-dnd-select-autoedit-2026';
 const FORMACAO_AREAS = [
@@ -5934,6 +6354,7 @@ async function renderFormacao() {
   const progPct = Math.round((concluded/totalAreas)*100);
 
   const isAdmin = currentProfile?.role === 'admin';
+  await avCarregarAcesso();
 
   // Admin-only dropdown section
   let adminHtml = '';
@@ -5975,7 +6396,7 @@ async function renderFormacao() {
     <div class="prog-bar-wrap"><div class="prog-bar" style="width:${progPct}%"></div></div>
   </div>`;
 
-  el.innerHTML = adminHtml + progHtml + FORMACAO_AREAS.map(a => {
+  el.innerHTML = adminHtml + avCardHtml() + progHtml + FORMACAO_AREAS.map(a => {
     const d = formacaoData[a.area] || {};
     const preview = (d.conteudo || a.desc).replace(/<[^>]+>/g, '').slice(0, 100);
     const links = d.links ? (typeof d.links === 'string' ? JSON.parse(d.links) : d.links) : [];
