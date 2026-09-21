@@ -6081,48 +6081,51 @@ function avHtmlGrelhaAvaliador(avaliadorId, proprias){
 
 // Admin: resumo com médias por UC (EPQ + admin), só avaliações validadas
 function avResumoAluno(alunoId){
-  const r = { ucs:{}, individualBaixa:false, pendentes:0 };
+  // Por UC: EPQ = média das avaliações validadas dos EPQ; NN = média das avaliações do Núcleo de Negociação (admin).
+  // A nota da UC é a do NN; sem avaliação do NN, fica provisória com a média dos EPQ.
+  const r = { ucs:{}, individualBaixa:false };
   AVAL_UCS.forEach(u=>{
     const fs = _av.fichas.filter(f=>f.aluno_id===alunoId && f.uc===u.uc);
     const val = fs.filter(f=>f.estado==='validada');
-    r.pendentes += fs.filter(f=>f.estado==='submetida').length;
+    const isNN = f => (_av.perfis[f.avaliador_id]||{}).role === 'admin';
+    const epq = avMedia(val.filter(f=>!isNN(f)).map(f=>f.classificacao));
+    const nn  = avMedia(val.filter(isNN).map(f=>f.classificacao));
     if(fs.some(f=>(f.estado==='validada'||f.estado==='submetida') && avBaixo(f.classificacao))) r.individualBaixa = true;
-    r.ucs[u.uc] = { media: avMedia(val.map(f=>f.classificacao)), n: val.length, pend: fs.filter(f=>f.estado==='submetida').length };
+    r.ucs[u.uc] = {
+      epq, nn,
+      nota: nn!=null ? nn : epq,
+      provisoria: nn==null && epq!=null,
+      nEpq: val.filter(f=>!isNN(f)).length,
+      nNN: val.filter(isNN).length,
+      pend: fs.filter(f=>f.estado==='submetida').length
+    };
   });
-  const medias = AVAL_UCS.map(u=>r.ucs[u.uc].media);
-  r.geral = medias.every(m=>m!=null) ? avMedia(medias) : null;
-  r.vermelho = r.individualBaixa || medias.some(avBaixo) || avBaixo(r.geral);
+  const notas = AVAL_UCS.map(u=>r.ucs[u.uc].nota);
+  r.geral = notas.every(m=>m!=null) ? avMedia(notas) : null;
+  r.geralProvisoria = AVAL_UCS.some(u=>r.ucs[u.uc].provisoria);
+  r.vermelho = r.individualBaixa || AVAL_UCS.some(u=>avBaixo(r.ucs[u.uc].epq) || avBaixo(r.ucs[u.uc].nn)) || avBaixo(r.geral);
   return r;
-}
-// Rótulo do avaliador no resumo: avaliações do admin aparecem como Núcleo de Negociação
-function avRotuloAvaliador(id){
-  const p = _av.perfis[id];
-  if(p && p.role === 'admin') return 'Núcleo de Negociação';
-  return avNome(id);
 }
 function avHtmlResumo(){
   if(!_av.alunos.length) return '<div style="padding:1.5rem;color:var(--gray400);font-size:13px">Sem alunos inscritos nesta edição.</div>';
   const pend = _av.fichas.filter(f=>f.estado==='submetida').length;
-  return `${pend?`<div class="pending-banner"><i class="fas fa-hourglass-half"></i> ${pend} avaliação(ões) a aguardar validação</div>`:''}
-  <div style="font-size:12px;color:var(--gray600);margin-bottom:8px;line-height:1.5">Média das avaliações <strong>validadas</strong> de cada UC (EPQ e admin). O nome fica a <span style="color:var(--red);font-weight:700">vermelho</span> se alguma avaliação individual ou alguma média for inferior a ${AV_LIMIAR} valores. Clica numa UC para ver as avaliações individuais.</div>
+  const num = (v, forte) => `<span style="font-family:'IBM Plex Mono',monospace;font-weight:${forte?'700':'600'};font-size:${forte?'15px':'13.5px'};color:${avBaixo(v)?'var(--red)':(forte?'var(--gn)':'var(--gray900)')}">${avFmt(v)}</span>`;
+  const sep = 'border-left:1px solid var(--border)';
+  return `${pend?`<div class="pending-banner"><i class="fas fa-hourglass-half"></i> ${pend} avaliação(ões) de EPQ a aguardar validação</div>`:''}
+  <div style="font-size:12px;color:var(--gray600);margin-bottom:8px;line-height:1.55">Em cada UC: <strong>EPQ</strong> = média das avaliações validadas dos negociadores EPQ; <strong>NN</strong> = avaliação do Núcleo de Negociação (média, se houver mais do que uma). <strong>A nota da UC é a do NN</strong>; enquanto não houver avaliação do NN, fica provisória com o valor EPQ. O nome fica a <span style="color:var(--red);font-weight:700">vermelho</span> se alguma avaliação ou média for inferior a ${AV_LIMIAR} valores. Clica numa UC para ver as fichas.</div>
   <div class="table-card"><div class="table-wrap"><table>
-    <thead><tr><th>Aluno</th>${AVAL_UCS.map(u=>`<th style="text-align:center">UC ${u.uc}<div style="font-weight:400;font-size:10px;text-transform:none;letter-spacing:0">${_ppEsc(u.nome)}</div></th>`).join('')}<th style="text-align:center">Média geral (PP)</th></tr></thead>
+    <thead>
+      <tr><th rowspan="2">Aluno</th>${AVAL_UCS.map(u=>`<th colspan="2" style="text-align:center;${sep}">UC ${u.uc}<div style="font-weight:400;font-size:10px;text-transform:none;letter-spacing:0">${_ppEsc(u.nome)}</div></th>`).join('')}<th rowspan="2" style="text-align:center;${sep}">Média geral (PP)</th></tr>
+      <tr>${AVAL_UCS.map(()=>`<th style="text-align:center;${sep}">EPQ</th><th style="text-align:center">NN</th>`).join('')}</tr>
+    </thead>
     <tbody>${_av.alunos.map(a=>{
       const r = avResumoAluno(a.aluno_id);
       return `<tr>
         <td style="font-weight:700;color:${r.vermelho?'var(--red)':'var(--gray900)'}">${r.vermelho?'<i class="fas fa-triangle-exclamation" style="margin-right:5px"></i>':''}${_ppEsc(avNome(a.aluno_id))}</td>
-        ${AVAL_UCS.map(u=>{ const x=r.ucs[u.uc];
-          const ind = _av.fichas.filter(f=>f.aluno_id===a.aluno_id && f.uc===u.uc && (f.estado==='validada'||f.estado==='submetida'))
-            .sort((f1,f2)=>(avRotuloAvaliador(f1.avaliador_id)).localeCompare(avRotuloAvaliador(f2.avaliador_id),'pt'));
-          return `<td style="text-align:center;cursor:pointer;vertical-align:top" onclick="avVerIndividuais('${a.aluno_id}',${u.uc})">
-          ${ind.length?`<div style="display:inline-block;text-align:left;margin-bottom:6px">${ind.map(f=>`<div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;line-height:1.7">
-            <span style="color:var(--gray600)">${_ppEsc(avRotuloAvaliador(f.avaliador_id))}${f.estado==='submetida'?' <span style="color:var(--amber);font-size:10.5px">(por validar)</span>':''}</span>
-            <span style="font-family:'IBM Plex Mono',monospace;font-weight:600;color:${avBaixo(f.classificacao)?'var(--red)':'var(--gray900)'}">${avFmt(f.classificacao)}</span></div>`).join('')}</div>`:''}
-          <div style="border-top:${ind.length?'1px solid var(--border)':'none'};padding-top:${ind.length?'4px':'0'}">
-            <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.06em">Média</div>
-            <div style="font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;color:${avBaixo(x.media)?'var(--red)':'var(--gn)'}">${avFmt(x.media)}</div>
-            <div style="font-size:10.5px;color:var(--gray400)">${x.n} validada(s)</div></div></td>`; }).join('')}
-        <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;color:${avBaixo(r.geral)?'var(--red)':'var(--gn)'}">${avFmt(r.geral)}</td>
+        ${AVAL_UCS.map(u=>{ const x=r.ucs[u.uc]; const click=`style="text-align:center;cursor:pointer;vertical-align:middle;%S" onclick="avVerIndividuais('${a.aluno_id}',${u.uc})"`;
+          return `<td ${click.replace('%S',sep)}>${num(x.epq,false)}${x.pend?`<div style="font-size:10px;color:var(--amber)">+${x.pend} por validar</div>`:''}</td>
+                  <td ${click.replace('%S','background:var(--gp)')}>${num(x.nn,true)}${x.provisoria?`<div style="font-size:10px;color:var(--gray400)">provisória: EPQ</div>`:''}</td>`; }).join('')}
+        <td style="text-align:center;${sep}">${num(r.geral,true)}${r.geral!=null&&r.geralProvisoria?`<div style="font-size:10px;color:var(--gray400)">provisória</div>`:''}</td>
       </tr>`;
     }).join('')}</tbody></table></div></div>`;
 }
