@@ -6008,7 +6008,7 @@ async function avCarregar(){
     sb.from('aval_alunos').select('*').eq('edicao_id', _av.edicaoId),
     sb.from('aval_fichas').select('*').eq('edicao_id', _av.edicaoId)
   ]);
-  _av.alunos = al || []; _av.fichas = fi || [];
+  _av.alunos = (al || []).filter(a=>!a.removido); _av.fichas = fi || [];
   if(_av.admin){ const { data:ep } = await sb.from('aval_epq').select('user_id'); _av.epqIds = (ep||[]).map(x=>x.user_id); }
   const ids = Array.from(new Set([..._av.alunos.map(a=>a.aluno_id), ..._av.fichas.map(f=>f.avaliador_id), ..._av.epqIds, currentUser.id]));
   if(ids.length){
@@ -6054,7 +6054,7 @@ function avRender(){
   else if(_av.tab==='config') body = avHtmlConfig();
   else body = avHtmlGrelhaAvaliador(currentUser.id, true);
   el.innerHTML = head + body;
-  if(_av.tab==='config') avCarregarListaEpq();
+  if(_av.tab==='config'){ avCarregarListaEpq(); avCarregarCandidatosAluno(); }
 }
 
 // Tabela alunos × UC para um avaliador (as minhas / por avaliador)
@@ -6177,11 +6177,21 @@ function avHtmlConfig(){
     <div id="av-epq-lista" style="font-size:13px;color:var(--gray400)">A carregar…</div>
   </div>
   ${ed?`<div class="form-section"><h3><i class="fas fa-id-card" style="color:var(--gl)"></i> Dados dos alunos — ${_ppEsc(ed.nome)}</h3>
-    ${_av.alunos.length?`<div class="table-wrap"><table><thead><tr><th>Aluno</th><th>N.º Matrícula</th><th>Arma</th></tr></thead><tbody>${_av.alunos.map(a=>`<tr>
+    <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:12px">
+      <div class="field" style="margin:0;flex:1;min-width:260px"><label>Acrescentar aluno</label><select id="av-add-aluno"><option value="">A carregar…</option></select></div>
+      <button class="btn btn-primary btn-sm" onclick="avAdicionarAluno()"><i class="fas fa-user-plus"></i> Acrescentar</button>
+    </div>
+    ${_av.alunos.length?`<div class="table-wrap"><table><thead><tr><th>Aluno</th><th>N.º Matrícula</th><th>Arma</th><th></th></tr></thead><tbody>${_av.alunos.map(a=>`<tr>
       <td>${_ppEsc(avNome(a.aluno_id))}</td>
       <td><input type="text" value="${_ppEsc(a.matricula||'')}" onchange="avGuardarAluno('${a.id}','matricula',this.value)" style="font-size:13px"></td>
       <td><input type="text" value="${_ppEsc(a.arma||'')}" onchange="avGuardarAluno('${a.id}','arma',this.value)" style="font-size:13px"></td>
+      <td><button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="avRemoverAluno('${a.id}')" title="Remover da edição"><i class="fas fa-user-minus"></i> Remover</button></td>
     </tr>`).join('')}</tbody></table></div>`:'<div style="font-size:13px;color:var(--gray400)">Sem alunos inscritos.</div>'}
+    <div style="font-size:11.5px;color:var(--gray600);margin-top:6px">Um aluno removido não volta a ser inscrito automaticamente, mesmo que continue no CTer Curso. Pode ser acrescentado de novo aqui.</div>
+  </div>
+  <div class="form-section" style="border-left-color:var(--red)"><h3 style="color:var(--red)"><i class="fas fa-eraser"></i> Zerar avaliações — ${_ppEsc(ed.nome)}</h3>
+    <div style="font-size:12.5px;color:var(--gray600);line-height:1.55;margin-bottom:10px">Apaga <strong>todas as fichas de avaliação</strong> desta edição (EPQ e Núcleo de Negociação), incluindo as validadas. Os alunos inscritos, os seus dados e os negociadores EPQ mantêm-se. Esta ação não pode ser anulada.</div>
+    <button class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red)" onclick="avZerar()"><i class="fas fa-eraser"></i> Zerar todas as avaliações (${_av.fichas.length} ficha(s))</button>
   </div>`:''}`;
 }
 async function avCarregarListaEpq(){
@@ -6218,6 +6228,39 @@ async function avAtivarEdicao(id){
   const { error } = await sb.from('aval_edicoes').update({ ativa:true }).eq('id', id);
   if(error){ alert('Erro: '+error.message); return; }
   _av.edicaoId = id; abrirAvaliacao();
+}
+async function avCarregarCandidatosAluno(){
+  const sel = document.getElementById('av-add-aluno'); if(!sel) return;
+  const { data:us } = await sb.from('profiles').select('id,nome,posto,cter').eq('approved', true).order('nome');
+  const inscritos = new Set(_av.alunos.map(a=>a.aluno_id));
+  const lista = (us||[]).filter(u=>!inscritos.has(u.id));
+  lista.forEach(u=>{ _av.perfis[u.id] = Object.assign(_av.perfis[u.id]||{}, u); });
+  sel.innerHTML = '<option value="">— escolher militar —</option>' + lista.map(u=>`<option value="${u.id}">${_ppEsc(((u.posto?u.posto+' ':'')+(u.nome||'')).trim())} · ${_ppEsc(u.cter||'—')}</option>`).join('');
+}
+async function avAdicionarAluno(){
+  const uid = document.getElementById('av-add-aluno')?.value;
+  if(!uid){ alert('Escolhe o militar a acrescentar.'); return; }
+  const { error } = await sb.rpc('aval_adicionar_aluno', { p_edicao:_av.edicaoId, p_aluno:uid });
+  if(error){ alert('Erro: '+error.message); return; }
+  _av.tab = 'config'; abrirAvaliacao();
+}
+async function avRemoverAluno(id){
+  const a = _av.alunos.find(x=>x.id===id); if(!a) return;
+  const n = _av.fichas.filter(f=>f.aluno_id===a.aluno_id).length;
+  if(!confirm('Remover '+avNome(a.aluno_id)+' desta edição?'+(n?'\n\nAs '+n+' ficha(s) de avaliação deste aluno são apagadas.':'')+'\n\nEsta ação não pode ser anulada.')) return;
+  const { error } = await sb.rpc('aval_remover_aluno', { p_id:id });
+  if(error){ alert('Erro: '+error.message); return; }
+  _av.tab = 'config'; abrirAvaliacao();
+}
+async function avZerar(){
+  const ed = _av.edicoes.find(e=>e.id===_av.edicaoId); if(!ed) return;
+  const txt = prompt('ZERAR TODAS AS AVALIAÇÕES de "'+ed.nome+'".\n\nSão apagadas '+_av.fichas.length+' ficha(s), incluindo as validadas. Não pode ser anulado.\n\nPara confirmar, escreve o nome da edição:', '');
+  if(txt===null) return;
+  if(txt.trim() !== ed.nome){ alert('O nome não coincide. Nada foi apagado.'); return; }
+  const { data, error } = await sb.rpc('aval_zerar_edicao', { p_edicao:ed.id });
+  if(error){ alert('Erro: '+error.message); return; }
+  alert((data||0)+' ficha(s) apagada(s).');
+  _av.tab = 'config'; abrirAvaliacao();
 }
 async function avGuardarAluno(id, campo, valor){
   const { error } = await sb.from('aval_alunos').update({ [campo]: valor.trim() }).eq('id', id);
