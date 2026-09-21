@@ -480,6 +480,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0;z-index:210}
           <span><i class="fas fa-user-circle" style="color:var(--gl);margin-right:6px"></i>Editar Perfil</span>
           <button onclick="togglePerfilPanel()" style="background:none;border:none;cursor:pointer;color:var(--gray400);font-size:16px">×</button>
         </div>
+        <div id="perfil-pedido"></div>
         <div class="field" style="margin-bottom:.75rem"><label>Nome completo</label><input type="text" id="perfil-nome" placeholder="Nome..."></div>
         <div class="field" style="margin-bottom:.75rem"><label>Posto / Categoria</label><input type="text" id="perfil-posto" placeholder="Ex: Sargento, Alferes..."></div>
         <div class="field" style="margin-bottom:.75rem"><label>CTer / Unidade</label>
@@ -6635,10 +6636,26 @@ async function renderAdmin(){
   });
   const pendingAprov=(allUsers||[]).filter(x=>!x.approved).length;
   const pendingOper=(allUsers||[]).filter(x=>x.approved&&x.nivel_acesso==='formacao'&&x.role!=='admin').length;
+  let pedidosPerfil=[];
+  try{ const{data:pp}=await sb.from('pedidos_alteracao_perfil').select('*').eq('estado','pendente').order('created_at'); pedidosPerfil=pp||[]; }catch(e){ console.warn('pedidos perfil', e); }
   const el=document.getElementById('admin-wrap');
   el.innerHTML=`
     ${pendingAprov>0?`<div class="pending-banner"><i class="fas fa-exclamation-circle"></i> ${pendingAprov} conta(s) aguardam aprovação de acesso à Formação</div>`:''}
     ${pendingOper>0?`<div class="pending-banner" style="background:#eef5fc;border-color:#b8d4f0;color:#1e5094"><i class="fas fa-shield-alt"></i> ${pendingOper} negociador(es) com acesso só à Formação — podem receber acesso Operacional</div>`:''}
+    ${pedidosPerfil.length?`<div class="table-card" style="margin-bottom:1rem">
+      <div class="table-card-header"><span style="font-size:14px;font-weight:600;color:var(--gn)"><i class="fas fa-user-pen" style="color:var(--amber);margin-right:6px"></i>Alterações de perfil pendentes (${pedidosPerfil.length})</span></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Militar</th><th>Alteração pedida</th><th>Pedido em</th><th>Ações</th></tr></thead>
+        <tbody>${pedidosPerfil.map(p=>{ const u=(allUsers||[]).find(x=>x.id===p.user_id)||{}; return `<tr>
+          <td>${_ppEsc(((u.posto?u.posto+' ':'')+(u.nome||'')).trim()||'—')}<div style="font-size:11px;color:var(--gray400);font-family:'IBM Plex Mono',monospace">${_ppEsc(u.email||'')}</div></td>
+          <td style="font-size:12.5px;line-height:1.6">${_ppLinhas(p)}</td>
+          <td style="font-size:12px;color:var(--gray600)">${fmtDateTime(p.created_at)}</td>
+          <td><div style="display:flex;gap:5px;flex-wrap:wrap">
+            <button class="btn btn-success btn-sm" onclick="decidirPedidoPerfil('${p.id}',true)"><i class="fas fa-check"></i> Aprovar</button>
+            <button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="decidirPedidoPerfil('${p.id}',false)"><i class="fas fa-xmark"></i> Rejeitar</button>
+          </div></td></tr>`; }).join('')}</tbody>
+      </table></div>
+    </div>`:''}
     <div class="table-card">
       <div class="table-card-header">
         <span style="font-size:14px;font-weight:600;color:var(--gn)">Utilizadores</span>
@@ -9134,6 +9151,56 @@ async function deleteSinal() {
 }
 
 
+// ===== PEDIDOS DE ALTERAÇÃO DE PERFIL (nome / posto / CTer — aprovação do admin) =====
+const PEDIDO_PERFIL_CAMPOS = { nome:'Nome', posto:'Posto', cter:'CTer' };
+function _ppEsc(v){ return String(v==null?'':v).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function _ppLinhas(p){
+  return Object.keys(p.alteracoes||{}).map(k=>
+    '<div><strong>'+(PEDIDO_PERFIL_CAMPOS[k]||k)+':</strong> '+_ppEsc((p.anteriores||{})[k]||'—')+' → <strong>'+_ppEsc(p.alteracoes[k]||'—')+'</strong></div>'
+  ).join('');
+}
+// Mostra no perfil (desktop: pfx='', mobile: pfx='mob-') o pedido pendente e atualiza os valores aprovados
+async function carregarPedidoPerfil(pfx){
+  const box = document.getElementById(pfx+'perfil-pedido');
+  if(!box || !currentUser) return;
+  if(currentProfile?.role === 'admin'){ box.innerHTML=''; return; }
+  const aviso = '<div style="font-size:11.5px;color:var(--gray600);line-height:1.5;margin-bottom:.75rem"><i class="fas fa-circle-info" style="margin-right:5px;color:var(--gl)"></i>Alterações ao nome, posto e CTer só são aplicadas após aprovação do administrador.</div>';
+  try{
+    const { data:prof } = await sb.from('profiles').select('nome,posto,cter').eq('id', currentUser.id).maybeSingle();
+    if(prof){
+      currentProfile.nome = prof.nome; currentProfile.posto = prof.posto; currentProfile.cter = prof.cter;
+      const n=document.getElementById(pfx+'perfil-nome'), po=document.getElementById(pfx+'perfil-posto'), c=document.getElementById(pfx+'perfil-cter');
+      if(n) n.value = prof.nome||''; if(po) po.value = prof.posto||''; if(c) c.value = prof.cter||'';
+    }
+    const { data:p } = await sb.from('pedidos_alteracao_perfil').select('*').eq('user_id', currentUser.id).eq('estado','pendente').maybeSingle();
+    if(!p){ box.innerHTML = aviso; return; }
+    box.innerHTML = '<div style="background:var(--amberl);border:1px solid #f5dca0;border-radius:var(--r);padding:10px 12px;font-size:12.5px;color:#7a4a00;line-height:1.55;margin-bottom:.75rem">'
+      + '<div style="font-weight:700;margin-bottom:4px"><i class="fas fa-hourglass-half" style="margin-right:5px"></i>Alteração pendente de aprovação</div>'
+      + _ppLinhas(p)
+      + '<button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="cancelarPedidoPerfil(\''+p.id+'\',\''+pfx+'\')"><i class="fas fa-xmark"></i> Cancelar pedido</button>'
+      + '</div>';
+  }catch(e){ console.warn('pedido perfil', e); box.innerHTML = aviso; }
+}
+async function cancelarPedidoPerfil(id, pfx){
+  if(!confirm('Cancelar o pedido de alteração do perfil?')) return;
+  const { error } = await sb.rpc('cancelar_pedido_perfil', { p_id:id });
+  if(error){ alert('Erro: '+error.message); return; }
+  carregarPedidoPerfil(pfx||'');
+}
+// Admin: aprovar / rejeitar
+async function decidirPedidoPerfil(id, aprovar){
+  let motivo = null;
+  if(aprovar){
+    if(!confirm('Aprovar a alteração do perfil? Os novos valores são aplicados de imediato.')) return;
+  } else {
+    motivo = prompt('Motivo da rejeição (opcional):', '');
+    if(motivo === null) return;
+  }
+  const { error } = await sb.rpc('decidir_pedido_perfil', { p_id:id, p_aprovar:!!aprovar, p_motivo:motivo });
+  if(error){ alert('Erro: '+error.message); return; }
+  renderAdmin();
+}
+
 // ===== PERFIL =====
 let perfilOpen = false;
 
@@ -9149,6 +9216,7 @@ function togglePerfilPanel() {
     document.getElementById('perfil-posto').value = currentProfile.posto || '';
     document.getElementById('perfil-cter').value = currentProfile.cter || '';
     document.getElementById('perfil-alert').classList.add('hidden');
+    carregarPedidoPerfil('');
     // Close notif panel if open
     notifOpen = false;
     document.getElementById('notif-panel')?.classList.add('hidden');
@@ -9160,6 +9228,15 @@ async function guardarPerfil() {
   const posto = document.getElementById('perfil-posto').value.trim();
   const cter = document.getElementById('perfil-cter').value;
   if (!nome) { showAlert('perfil-alert', 'error', 'O nome é obrigatório.'); return; }
+
+  // Não-admin: a alteração segue como pedido para aprovação do admin
+  if (currentProfile?.role !== 'admin') {
+    const { error: ePed } = await sb.rpc('pedir_alteracao_perfil', { p_nome: nome, p_posto: posto, p_cter: cter });
+    if (ePed) { showAlert('perfil-alert', 'error', ePed.message); return; }
+    showAlert('perfil-alert', 'success', 'Pedido enviado. As alterações só são aplicadas após aprovação do administrador.');
+    carregarPedidoPerfil('');
+    return;
+  }
 
   const { error } = await sb.from('profiles').update({ nome, posto, cter }).eq('id', currentUser.id);
   if (error) { showAlert('perfil-alert', 'error', 'Erro: ' + error.message); return; }
@@ -9396,6 +9473,7 @@ setImages();
     <!-- Corpo com scroll -->
     <div style="overflow-y:auto;padding:20px;flex:1;-webkit-overflow-scrolling:touch">
       <div id="mob-perfil-alert" style="display:none;padding:10px 14px;border-radius:var(--r);font-size:13px;margin-bottom:1rem;border:1px solid"></div>
+      <div id="mob-perfil-pedido"></div>
       <div class="field"><label>Nome completo</label><input type="text" id="mob-perfil-nome" placeholder="Nome..." autocomplete="name"></div>
       <div class="field"><label>Posto / Categoria</label><input type="text" id="mob-perfil-posto" placeholder="Ex: Sargento, Alferes..."></div>
       <div class="field"><label>CTer / Unidade</label>
@@ -9594,6 +9672,7 @@ function mobAbrirPerfil() {
   const alert = document.getElementById('mob-perfil-alert');
   alert.style.display = 'none';
   modal.style.display = 'block';
+  carregarPedidoPerfil('mob-');
 }
 
 async function mobGuardarPerfil() {
@@ -9608,6 +9687,25 @@ async function mobGuardarPerfil() {
     alertEl.style.borderColor = '#f5c6c6';
     alertEl.style.color = 'var(--red)';
     alertEl.textContent = 'O nome é obrigatório.';
+    return;
+  }
+
+  // Não-admin: a alteração segue como pedido para aprovação do admin
+  if (currentProfile?.role !== 'admin') {
+    const { error: ePed } = await sb.rpc('pedir_alteracao_perfil', { p_nome: nome, p_posto: posto, p_cter: cter });
+    alertEl.style.display = 'block';
+    if (ePed) {
+      alertEl.style.background = 'var(--redl)';
+      alertEl.style.borderColor = '#f5c6c6';
+      alertEl.style.color = 'var(--red)';
+      alertEl.textContent = ePed.message;
+      return;
+    }
+    alertEl.style.background = 'var(--gp)';
+    alertEl.style.borderColor = '#b8d4bb';
+    alertEl.style.color = 'var(--gm)';
+    alertEl.textContent = 'Pedido enviado. As alterações só são aplicadas após aprovação do administrador.';
+    carregarPedidoPerfil('mob-');
     return;
   }
 
