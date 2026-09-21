@@ -6819,7 +6819,7 @@ function renderLinksView(links) {
 
   // Default view (non-categorized links)
   return links.map(l => {
-    const isEmbed = l.embed || isEmbedUrl(l.url);
+    const isEmbed = linkIncorporado(l);
     const embedUrl = getEmbedUrl(l.url);
     const _badgeOculto = (_isAdmin && l.publicado === false)
       ? `<span style="font-size:10px;background:var(--amber,#b45309);color:#fff;padding:1px 7px;border-radius:10px;margin-left:6px">OCULTO</span>` : '';
@@ -6842,6 +6842,8 @@ function renderLinksView(links) {
   }).join('');
 }
 
+// Incorporado: marcado pelo admin, ou link de Drive/PDF — exceto se o admin o desincorporou
+function linkIncorporado(l) { return !!l && !l.nao_incorporar && (!!l.embed || isEmbedUrl(l.url)); }
 function isEmbedUrl(url) {
   if (!url) return false;
   return url.includes('drive.google.com') || 
@@ -6971,7 +6973,10 @@ function confirmarEdicaoLink(area, idx){
   const embedEl = document.getElementById(`edit-link-embed-${area}-${idx}`);
   if (!url) { alert('Introduza um URL válido.'); return; }
   l.label = label || url; l.url = url;
-  if (embedEl) l.embed = embedEl.checked;
+  if (embedEl) {
+    l.embed = embedEl.checked;
+    if (embedEl.checked) delete l.nao_incorporar; else l.nao_incorporar = true;
+  }
   _linkEmEdicao = null; _rerenderListasConteudo(area);
   _autoGuardarLinks(area);
 }
@@ -6981,7 +6986,7 @@ function itemArrastavel(area, l, idx) {
       <input type="text" id="edit-link-label-${area}-${idx}" value="${_escAttr(l.label || '')}" placeholder="Nome / texto" style="flex:1;min-width:160px;font-size:13px">
       <input type="url" id="edit-link-url-${area}-${idx}" value="${_escAttr(l.url || '')}" placeholder="https://..." style="flex:2;min-width:220px;font-size:13px"
         onkeydown="if(event.key==='Enter'){event.preventDefault();confirmarEdicaoLink('${area}',${idx})}">
-      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--gray600);white-space:nowrap"><input type="checkbox" id="edit-link-embed-${area}-${idx}" ${l.embed ? 'checked' : ''} style="width:auto"> Incorporar</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--gray600);white-space:nowrap"><input type="checkbox" id="edit-link-embed-${area}-${idx}" ${linkIncorporado(l) ? 'checked' : ''} style="width:auto"> Incorporar</label>
       <button type="button" class="btn btn-primary btn-sm" onclick="confirmarEdicaoLink('${area}',${idx})"><i class="fas fa-check"></i> OK</button>
       <button type="button" class="btn btn-outline btn-sm" onclick="cancelarEdicaoLink('${area}')">Cancelar</button>
     </div>`;
