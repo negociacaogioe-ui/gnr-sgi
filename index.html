@@ -3685,6 +3685,7 @@ function renderResumo(){
             Declara ITP quando o comando local reconhece que os meios disponíveis são insuficientes e é requerido apoio especializado UI/GIOE. É um critério de <strong>capacidade</strong> — independente da gravidade ou da existência de reféns.
           </div>
           <button class="btn btn-primary btn-sm" onclick="declararITP()"><i class="fas fa-shield-halved"></i> Declarar ITP</button>
+          <div id="itp-confirmacao"></div>
         </div>`}
     </div>`}
     ${`<div class="form-section">
@@ -6818,7 +6819,26 @@ async function migrarParentType(id, isItp){
   const res = await Promise.all(tabs.map(t => sb.from(t).update({parent_type: novo}).eq('parent_id', id).neq('parent_type', novo)));
   res.forEach((r, i) => { if(r.error) console.warn('parent_type '+tabs[i], r.error.message); });
 }
-async function declararITP(){
+// Declarar ITP: primeiro mostra a confirmação por baixo do botão; só grava ao confirmar
+function _itpConfBox(){
+  const mob = (typeof isMobile!=='undefined' && isMobile);
+  return document.getElementById(mob ? 'mob-itp-confirmacao' : 'itp-confirmacao') || document.getElementById('itp-confirmacao');
+}
+function declararITP(){
+  if(!currentDetail) return;
+  const box = _itpConfBox();
+  if(!box){ if(confirm('Confirmar a classificação como Incidente Tático-Policial (ITP)?')) confirmarDeclararITP(); return; }
+  box.innerHTML = '<div style="background:var(--redl);border:1px solid var(--red);border-radius:var(--r);padding:12px;margin-top:10px;font-size:12.5px;color:var(--gray900);line-height:1.55">'
+    + '<div style="font-weight:700;color:var(--red);font-size:13.5px;margin-bottom:6px"><i class="fas fa-shield-halved" style="margin-right:5px"></i>Confirmar classificação ITP</div>'
+    + 'O comando local reconhece que os meios disponíveis são insuficientes e é requerido apoio especializado da UI/GIOE. '
+    + 'A UI/GIOE passa a estar disponível para escalar na EN. A reversão só pode ser feita pelo administrador ou pelo negociador que abriu o caso.'
+    + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'
+    + '<button class="btn btn-primary btn-sm" onclick="confirmarDeclararITP()"><i class="fas fa-check"></i> Confirmar ITP</button>'
+    + '<button class="btn btn-outline btn-sm" onclick="cancelarDeclararITP()">Cancelar</button>'
+    + '</div></div>';
+}
+function cancelarDeclararITP(){ const box=_itpConfBox(); if(box) box.innerHTML=''; }
+async function confirmarDeclararITP(){
   if(!currentDetail) return;
   const _tbl = currentDetail.isTreino ? 'treino_incidentes' : 'incidentes';
   const r=currentDetail.record;
@@ -9964,7 +9984,8 @@ function mobRenderDetalhe() {
           ? `<div style="font-size:13px;color:var(--red);font-weight:600;margin-bottom:8px">Incidente Tático-Policial (ITP)</div>
              ${podeReverterITP(r) ? `<button class="btn btn-outline btn-sm" style="width:100%;color:var(--red)" onclick="reverterITP()"><i class="fas fa-rotate-left"></i> Reverter classificação</button>` : ''}`
           : `<div style="font-size:12px;color:var(--gray600);margin-bottom:8px">Incidente de segurança. Se a situação exceder a capacidade local e for solicitado apoio da UI/GIOE, classifica-se como ITP.</div>
-             <button class="btn btn-primary btn-sm" style="width:100%" onclick="declararITP()"><i class="fas fa-shield-halved"></i> Declarar ITP</button>`
+             <button class="btn btn-primary btn-sm" style="width:100%" onclick="declararITP()"><i class="fas fa-shield-halved"></i> Declarar ITP</button>
+             <div id="mob-itp-confirmacao"></div>`
         }
       </div>
       <!-- Info -->
