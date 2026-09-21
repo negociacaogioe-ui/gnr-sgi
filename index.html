@@ -6012,7 +6012,7 @@ async function avCarregar(){
   if(_av.admin){ const { data:ep } = await sb.from('aval_epq').select('user_id'); _av.epqIds = (ep||[]).map(x=>x.user_id); }
   const ids = Array.from(new Set([..._av.alunos.map(a=>a.aluno_id), ..._av.fichas.map(f=>f.avaliador_id), ..._av.epqIds, currentUser.id]));
   if(ids.length){
-    const { data:pf } = await sb.from('profiles').select('id,nome,posto,cter,email').in('id', ids);
+    const { data:pf } = await sb.from('profiles').select('id,nome,posto,cter,email,role').in('id', ids);
     (pf||[]).forEach(p=>_av.perfis[p.id]=p);
   }
   _av.alunos.sort((a,b)=>(_av.perfis[a.aluno_id]?.nome||'').localeCompare(_av.perfis[b.aluno_id]?.nome||'','pt'));
@@ -6094,6 +6094,12 @@ function avResumoAluno(alunoId){
   r.vermelho = r.individualBaixa || medias.some(avBaixo) || avBaixo(r.geral);
   return r;
 }
+// Rótulo do avaliador no resumo: avaliações do admin aparecem como Núcleo de Negociação
+function avRotuloAvaliador(id){
+  const p = _av.perfis[id];
+  if(p && p.role === 'admin') return 'Núcleo de Negociação';
+  return avNome(id);
+}
 function avHtmlResumo(){
   if(!_av.alunos.length) return '<div style="padding:1.5rem;color:var(--gray400);font-size:13px">Sem alunos inscritos nesta edição.</div>';
   const pend = _av.fichas.filter(f=>f.estado==='submetida').length;
@@ -6105,9 +6111,17 @@ function avHtmlResumo(){
       const r = avResumoAluno(a.aluno_id);
       return `<tr>
         <td style="font-weight:700;color:${r.vermelho?'var(--red)':'var(--gray900)'}">${r.vermelho?'<i class="fas fa-triangle-exclamation" style="margin-right:5px"></i>':''}${_ppEsc(avNome(a.aluno_id))}</td>
-        ${AVAL_UCS.map(u=>{ const x=r.ucs[u.uc]; return `<td style="text-align:center;cursor:pointer" onclick="avVerIndividuais('${a.aluno_id}',${u.uc})">
-          <div style="font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:14px;color:${avBaixo(x.media)?'var(--red)':'var(--gn)'}">${avFmt(x.media)}</div>
-          <div style="font-size:10.5px;color:var(--gray400)">${x.n} validada(s)${x.pend?` · <span style="color:var(--amber)">${x.pend} pendente(s)</span>`:''}</div></td>`; }).join('')}
+        ${AVAL_UCS.map(u=>{ const x=r.ucs[u.uc];
+          const ind = _av.fichas.filter(f=>f.aluno_id===a.aluno_id && f.uc===u.uc && (f.estado==='validada'||f.estado==='submetida'))
+            .sort((f1,f2)=>(avRotuloAvaliador(f1.avaliador_id)).localeCompare(avRotuloAvaliador(f2.avaliador_id),'pt'));
+          return `<td style="text-align:center;cursor:pointer;vertical-align:top" onclick="avVerIndividuais('${a.aluno_id}',${u.uc})">
+          ${ind.length?`<div style="display:inline-block;text-align:left;margin-bottom:6px">${ind.map(f=>`<div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;line-height:1.7">
+            <span style="color:var(--gray600)">${_ppEsc(avRotuloAvaliador(f.avaliador_id))}${f.estado==='submetida'?' <span style="color:var(--amber);font-size:10.5px">(por validar)</span>':''}</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-weight:600;color:${avBaixo(f.classificacao)?'var(--red)':'var(--gray900)'}">${avFmt(f.classificacao)}</span></div>`).join('')}</div>`:''}
+          <div style="border-top:${ind.length?'1px solid var(--border)':'none'};padding-top:${ind.length?'4px':'0'}">
+            <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.06em">Média</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;color:${avBaixo(x.media)?'var(--red)':'var(--gn)'}">${avFmt(x.media)}</div>
+            <div style="font-size:10.5px;color:var(--gray400)">${x.n} validada(s)</div></div></td>`; }).join('')}
         <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;color:${avBaixo(r.geral)?'var(--red)':'var(--gn)'}">${avFmt(r.geral)}</td>
       </tr>`;
     }).join('')}</tbody></table></div></div>`;
