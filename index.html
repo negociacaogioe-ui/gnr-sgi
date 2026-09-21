@@ -6855,6 +6855,7 @@ function addFormacaoLink(area) {
 
 function removeFormacaoLink(area, idx) {
   _garantirTempLinks(area);
+  _linkEmEdicao = null;
   _tempLinks[area].splice(idx, 1);
   renderLinksEditList(area);
   renderPastasEditList(area);
@@ -6918,7 +6919,33 @@ function dropNaPasta(ev, area, pastaIdx) {
   renderLinksEditList(area);
 }
 
+// Edição de um conteúdo já carregado (nome, link e visualização incorporada)
+let _linkEmEdicao = null; // { area, idx }
+function _rerenderListasConteudo(area){ renderPastasEditList(area); renderLinksEditList(area); }
+function editarFormacaoLink(area, idx){ _garantirTempLinks(area); _linkEmEdicao = { area, idx }; _rerenderListasConteudo(area);
+  setTimeout(()=>{ const el=document.getElementById(`edit-link-label-${area}-${idx}`); if(el) el.focus(); }, 0); }
+function cancelarEdicaoLink(area){ _linkEmEdicao = null; _rerenderListasConteudo(area); }
+function confirmarEdicaoLink(area, idx){
+  const l = (_tempLinks[area] || [])[idx]; if(!l) return;
+  const label = document.getElementById(`edit-link-label-${area}-${idx}`).value.trim();
+  const url = document.getElementById(`edit-link-url-${area}-${idx}`).value.trim();
+  const embedEl = document.getElementById(`edit-link-embed-${area}-${idx}`);
+  if (!url) { alert('Introduza um URL válido.'); return; }
+  l.label = label || url; l.url = url;
+  if (embedEl) l.embed = embedEl.checked;
+  _linkEmEdicao = null; _rerenderListasConteudo(area);
+}
 function itemArrastavel(area, l, idx) {
+  if (_linkEmEdicao && _linkEmEdicao.area === area && _linkEmEdicao.idx === idx) {
+    return `<div class="link-item" id="link-item-${area}-${idx}" style="flex-wrap:wrap;gap:6px;background:var(--goldl);border:1px solid var(--goldp)">
+      <input type="text" id="edit-link-label-${area}-${idx}" value="${_escAttr(l.label || '')}" placeholder="Nome / texto" style="flex:1;min-width:160px;font-size:13px">
+      <input type="url" id="edit-link-url-${area}-${idx}" value="${_escAttr(l.url || '')}" placeholder="https://..." style="flex:2;min-width:220px;font-size:13px"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();confirmarEdicaoLink('${area}',${idx})}">
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--gray600);white-space:nowrap"><input type="checkbox" id="edit-link-embed-${area}-${idx}" ${l.embed ? 'checked' : ''} style="width:auto"> Incorporar</label>
+      <button type="button" class="btn btn-primary btn-sm" onclick="confirmarEdicaoLink('${area}',${idx})"><i class="fas fa-check"></i> OK</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="cancelarEdicaoLink('${area}')">Cancelar</button>
+    </div>`;
+  }
   const oculto = l.publicado === false;
   const url = l.url || '';
   const nomes = (_tempLinks[area] || []).filter(x => x.tipo === 'pasta').map(x => x.nome);
@@ -6929,6 +6956,7 @@ function itemArrastavel(area, l, idx) {
     <span draggable="true" ondragstart="dragStartConteudo(event,'${area}',${idx})" ondragend="dragEndConteudo(event)" style="color:var(--gray400);cursor:grab" title="Arraste para uma pasta (ou use o seletor)">⠿</span>
     <span style="flex:1;font-size:13px;min-width:0"><strong>${l.label || '—'}</strong> — <a href="${url}" target="_blank" draggable="false" style="color:var(--gl)">${url.slice(0, 40)}${url.length > 40 ? '...' : ''}</a></span>
     <select onchange="setLinkPasta('${area}',${idx},this.value)" title="Pasta do conteúdo" style="font-size:12px;max-width:140px">${opts}</select>
+    <button type="button" onclick="editarFormacaoLink('${area}',${idx})" title="Editar nome e link" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:var(--gl)">✏️</button>
     <button type="button" onclick="toggleFormacaoLinkVis('${area}',${idx})" title="Visibilidade do link" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:${oculto ? 'var(--gray400)' : 'var(--gl)'}">${oculto ? '🚫' : '👁️'}</button>
     <button class="link-del" onclick="removeFormacaoLink('${area}',${idx})">×</button>
   </div>`;
@@ -7102,6 +7130,7 @@ async function saveFormacaoArea(area) {
   if (err) { alert('Erro ao guardar: ' + err.message); return; }
 
   delete _tempLinks[area];
+  _linkEmEdicao = null;
   await loadFormacao();
   openFormacaoArea(area);
 }
