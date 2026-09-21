@@ -3677,7 +3677,6 @@ function renderResumo(){
       ${r.is_itp?`
         <div style="background:var(--redl);border:1px solid var(--red);border-radius:var(--r);padding:12px">
           <div style="font-weight:700;color:var(--red);font-size:14px;margin-bottom:6px">Incidente Tático-Policial (ITP)</div>
-          <button class="btn btn-outline btn-sm" onclick="editarDadosITP()" style="margin-top:10px"><i class="fas fa-edit"></i> Editar dados do ITP</button>
           ${podeReverterITP(r)?`<button class="btn btn-outline btn-sm" onclick="reverterITP()" style="margin-top:10px;color:var(--gray600)"><i class="fas fa-rotate-left"></i> Reverter classificação</button>`:''}
         </div>`
       :`<div style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:12px">
@@ -9963,8 +9962,7 @@ function mobRenderDetalhe() {
         <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px"><i class="fas fa-shield-halved" style="color:${isItp?'var(--red)':'var(--gl)'}"></i> Classificação</div>
         ${isItp
           ? `<div style="font-size:13px;color:var(--red);font-weight:600;margin-bottom:8px">Incidente Tático-Policial (ITP)</div>
-             <button class="btn btn-outline btn-sm" style="width:100%" onclick="editarDadosITP()"><i class="fas fa-edit"></i> Editar dados de ITP</button>
-             ${podeReverterITP(r) ? `<button class="btn btn-outline btn-sm" style="width:100%;margin-top:6px;color:var(--red)" onclick="reverterITP()"><i class="fas fa-rotate-left"></i> Reverter classificação</button>` : ''}`
+             ${podeReverterITP(r) ? `<button class="btn btn-outline btn-sm" style="width:100%;color:var(--red)" onclick="reverterITP()"><i class="fas fa-rotate-left"></i> Reverter classificação</button>` : ''}`
           : `<div style="font-size:12px;color:var(--gray600);margin-bottom:8px">Incidente de segurança. Se a situação exceder a capacidade local e for solicitado apoio da UI/GIOE, classifica-se como ITP.</div>
              <button class="btn btn-primary btn-sm" style="width:100%" onclick="declararITP()"><i class="fas fa-shield-halved"></i> Declarar ITP</button>`
         }
