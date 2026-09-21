@@ -6649,11 +6649,11 @@ async function openFormacaoArea(area) {
       <div class="formacao-content-view">${d.conteudo || '<p style="color:var(--gray400);font-style:italic">Sem conteúdo ainda.</p>'}</div>
     </div>
 
-    ${renderLinksGrupado(links) ? `
+    ${renderLinksGrupado(links, area) ? `
     <div class="formacao-editor">
       <h3><i class="fas fa-link" style="color:var(--gl);margin-right:6px"></i>Links e Recursos</h3>
       <div id="formacao-links-view">
-        ${renderLinksGrupado(links)}
+        ${renderLinksGrupado(links, area)}
       </div>
     </div>` : ''}
 
@@ -6769,7 +6769,7 @@ function _autoGuardarLinks(area) {
   }).catch(e => { console.warn('autosave links', e); });
 }
 
-function renderLinksView(links) {
+function renderLinksView(links, area) {
   const _isAdmin = currentProfile?.role === 'admin';
   // Libertação progressiva: o formando não recebe links ocultos
   if (!_isAdmin) links = links.filter(l => l.publicado !== false);
@@ -6819,7 +6819,7 @@ function renderLinksView(links) {
 
   // Default view (non-categorized links)
   return links.map(l => {
-    const isEmbed = linkIncorporado(l);
+    const isEmbed = linkIncorporado(l, area);
     const embedUrl = getEmbedUrl(l.url);
     const _badgeOculto = (_isAdmin && l.publicado === false)
       ? `<span style="font-size:10px;background:var(--amber,#b45309);color:#fff;padding:1px 7px;border-radius:10px;margin-left:6px">OCULTO</span>` : '';
@@ -6835,6 +6835,15 @@ function renderLinksView(links) {
         </div>
       </div>`;
     }
+    const _dl = urlTransferir(l.url);
+    if (_dl) {
+      return `<div class="link-item" style="gap:10px">
+      <i class="fas fa-file-arrow-down" style="color:var(--gl);font-size:15px"></i>
+      <span style="flex:1;font-size:13.5px;font-weight:500;color:var(--gn)">${l.label || 'Documento'}${_badgeOculto}</span>
+      <a href="${l.url}" target="_blank" rel="noopener" class="btn btn-outline btn-sm" style="text-decoration:none"><i class="fas fa-eye"></i> Abrir</a>
+      <a href="${_dl}" target="_blank" rel="noopener" download class="btn btn-primary btn-sm" style="text-decoration:none"><i class="fas fa-download"></i> Transferir</a>
+    </div>`;
+    }
     return `<div class="link-item">
       <i class="fas fa-external-link-alt" style="color:var(--gl);font-size:13px"></i>
       <a href="${l.url}" target="_blank" rel="noopener">${l.label || l.url}</a>${_badgeOculto}
@@ -6842,8 +6851,26 @@ function renderLinksView(links) {
   }).join('');
 }
 
-// Incorporado: marcado pelo admin, ou link de Drive/PDF — exceto se o admin o desincorporou
-function linkIncorporado(l) { return !!l && !l.nao_incorporar && (!!l.embed || isEmbedUrl(l.url)); }
+// Incorporado: marcado pelo admin, ou link de Drive/PDF — exceto se o admin o desincorporou.
+// Áreas em FORMACAO_SO_TRANSFERIR (ex.: Horário) não incorporam automaticamente: mostram o ficheiro para transferir.
+const FORMACAO_SO_TRANSFERIR = ['horario'];
+function linkIncorporado(l, area) {
+  if (!l || l.nao_incorporar) return false;
+  if (area && FORMACAO_SO_TRANSFERIR.includes(area)) return l.embed === true;
+  return !!l.embed || isEmbedUrl(l.url);
+}
+// Link de transferência direta para ficheiros do Google Drive/Docs; restantes usam o próprio URL
+function urlTransferir(url) {
+  if (!url) return null;
+  let m = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/) || url.match(/drive\.google\.com\/open\?id=([^&#]+)/) || url.match(/drive\.google\.com\/uc\?[^#]*id=([^&#]+)/);
+  if (m) return `https://drive.google.com/uc?export=download&id=${m[1]}`;
+  m = url.match(/docs\.google\.com\/(document|spreadsheets|presentation)\/d\/([^/?#]+)/);
+  if (m) return m[1] === 'document' ? `https://docs.google.com/document/d/${m[2]}/export?format=pdf`
+       : m[1] === 'spreadsheets' ? `https://docs.google.com/spreadsheets/d/${m[2]}/export?format=xlsx`
+       : `https://docs.google.com/presentation/d/${m[2]}/export/pptx`;
+  if (url.includes('supabase.co/storage') || /\.(pdf|docx?|xlsx?|pptx?)(\?|$)/i.test(url)) return url;
+  return null;
+}
 function isEmbedUrl(url) {
   if (!url) return false;
   return url.includes('drive.google.com') || 
@@ -6986,7 +7013,7 @@ function itemArrastavel(area, l, idx) {
       <input type="text" id="edit-link-label-${area}-${idx}" value="${_escAttr(l.label || '')}" placeholder="Nome / texto" style="flex:1;min-width:160px;font-size:13px">
       <input type="url" id="edit-link-url-${area}-${idx}" value="${_escAttr(l.url || '')}" placeholder="https://..." style="flex:2;min-width:220px;font-size:13px"
         onkeydown="if(event.key==='Enter'){event.preventDefault();confirmarEdicaoLink('${area}',${idx})}">
-      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--gray600);white-space:nowrap"><input type="checkbox" id="edit-link-embed-${area}-${idx}" ${linkIncorporado(l) ? 'checked' : ''} style="width:auto"> Incorporar</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--gray600);white-space:nowrap"><input type="checkbox" id="edit-link-embed-${area}-${idx}" ${linkIncorporado(l, area) ? 'checked' : ''} style="width:auto"> Incorporar</label>
       <button type="button" class="btn btn-primary btn-sm" onclick="confirmarEdicaoLink('${area}',${idx})"><i class="fas fa-check"></i> OK</button>
       <button type="button" class="btn btn-outline btn-sm" onclick="cancelarEdicaoLink('${area}')">Cancelar</button>
     </div>`;
@@ -7114,7 +7141,7 @@ function contarItensVisiveis(links, isAdmin) {
     (!l.pasta || arr.some(p => p.tipo === 'pasta' && p.nome === l.pasta && p.publicado !== false))).length;
 }
 
-function renderLinksGrupado(links) {
+function renderLinksGrupado(links, area) {
   const isAdmin = currentProfile?.role === 'admin';
   const arr = links || [];
   const pastas = arr.filter(l => l.tipo === 'pasta');
@@ -7128,7 +7155,7 @@ function renderLinksGrupado(links) {
     out += `<div style="margin-bottom:1.25rem;${oculta ? 'opacity:.6;' : ''}">
       <div style="font-size:13px;font-weight:600;color:var(--gn);margin-bottom:.6rem;display:flex;align-items:center;gap:8px"><span style="font-size:16px">📁</span> ${p.nome}${badge}</div>
       <div style="padding-left:.5rem;border-left:2px solid var(--border)">
-        ${itensP.length ? renderLinksView(itensP) : '<div style="font-size:12px;color:var(--gray400);font-style:italic;padding:4px 0">Pasta vazia.</div>'}
+        ${itensP.length ? renderLinksView(itensP, area) : '<div style="font-size:12px;color:var(--gray400);font-style:italic;padding:4px 0">Pasta vazia.</div>'}
       </div>
     </div>`;
   });
@@ -7137,7 +7164,7 @@ function renderLinksGrupado(links) {
     const temPastasVis = pastas.filter(p => isAdmin || p.publicado !== false).length;
     out += `<div style="margin-bottom:.5rem">
       ${temPastasVis ? '<div style="font-size:13px;font-weight:600;color:var(--gray600);margin-bottom:.6rem">Sem pasta</div>' : ''}
-      ${renderLinksView(soltos)}
+      ${renderLinksView(soltos, area)}
     </div>`;
   }
   return out;
