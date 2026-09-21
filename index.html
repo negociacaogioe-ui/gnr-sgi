@@ -6721,11 +6721,12 @@ async function editFormacaoArea(area) {
           <button class="btn btn-primary btn-sm" onclick="addFormacaoLink('${area}')"><i class="fas fa-plus"></i></button>
         </div>
         <div style="font-size:11px;color:var(--gray400);margin-top:4px"><i class="fas fa-info-circle"></i> Marque "Incorporar" para mostrar o PDF na página. Escolha a pasta do link (ou "Sem pasta").</div>
+        <div style="font-size:11.5px;color:var(--gray600);margin-top:6px"><i class="fas fa-bolt" style="color:var(--gl)"></i> Pastas e links são gravados automaticamente. <span id="links-autosave-${area}"></span></div>
       </div>
 
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)">
-        <button class="btn btn-outline" onclick="delete _tempLinks['${area}'];document.getElementById('formacao-edit-panel-${area}').classList.add('hidden')">Cancelar</button>
-        <button class="btn btn-primary" onclick="saveFormacaoArea('${area}')"><i class="fas fa-save"></i> Guardar</button>
+        <button class="btn btn-outline" onclick="fecharEdicaoFormacao('${area}')">Fechar</button>
+        <button class="btn btn-primary" onclick="saveFormacaoArea('${area}')"><i class="fas fa-save"></i> Guardar texto</button>
       </div>
     </div>
   `;
@@ -6735,6 +6736,38 @@ async function editFormacaoArea(area) {
 }
 
 let _tempLinks = {};
+
+async function fecharEdicaoFormacao(area) {
+  try { await (_autoSaveFila[area] || Promise.resolve()); } catch (e) {}
+  delete _tempLinks[area]; _linkEmEdicao = null;
+  openFormacaoArea(area);
+}
+// Gravação automática dos conteúdos (links e pastas) — não é preciso carregar em Guardar
+const _autoSaveFila = {};
+function _autoGuardarLinks(area) {
+  if (_tempLinks[area] === undefined) return;
+  const links = JSON.parse(JSON.stringify(_tempLinks[area]));
+  const st = document.getElementById(`links-autosave-${area}`);
+  if (st) { st.style.color = 'var(--gray400)'; st.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> A gravar…'; }
+  _autoSaveFila[area] = (_autoSaveFila[area] || Promise.resolve()).then(async () => {
+    const payload = { links, ultima_edicao: new Date().toISOString(), editor_nome: currentProfile.nome, editor_id: currentUser.id };
+    const { data: existing } = await sb.from('formacao_conteudo').select('id').eq('area', area).maybeSingle();
+    let res;
+    if (existing) res = await sb.from('formacao_conteudo').update(payload).eq('area', area);
+    else {
+      const info = FORMACAO_AREAS.find(a => a.area === area) || FORMACAO_AREAS_ADMIN.find(a => a.area === area) || { titulo: formacaoData[area]?.titulo || 'Pasta' };
+      res = await sb.from('formacao_conteudo').insert(Object.assign({ area, titulo: info.titulo, conteudo: '', publicado: true }, payload));
+    }
+    const s2 = document.getElementById(`links-autosave-${area}`);
+    if (res.error) {
+      if (s2) { s2.style.color = 'var(--red)'; s2.innerHTML = '<i class="fas fa-triangle-exclamation"></i> Não gravado: ' + res.error.message; }
+      alert('Erro ao gravar os conteúdos: ' + res.error.message);
+      return;
+    }
+    formacaoData[area] = Object.assign({}, formacaoData[area] || { area }, { links });
+    if (s2) { s2.style.color = 'var(--gm)'; s2.innerHTML = '<i class="fas fa-check"></i> Conteúdos gravados'; }
+  }).catch(e => { console.warn('autosave links', e); });
+}
 
 function renderLinksView(links) {
   const _isAdmin = currentProfile?.role === 'admin';
@@ -6851,14 +6884,18 @@ function addFormacaoLink(area) {
   if (embedEl) embedEl.checked = false;
   renderLinksEditList(area);
   renderPastasEditList(area);
+  _autoGuardarLinks(area);
 }
 
 function removeFormacaoLink(area, idx) {
   _garantirTempLinks(area);
+  const _l = _tempLinks[area][idx];
+  if (!_l || !confirm(`Apagar o conteúdo "${_l.label || _l.url || ''}"? Fica apagado de imediato.`)) return;
   _linkEmEdicao = null;
   _tempLinks[area].splice(idx, 1);
   renderLinksEditList(area);
   renderPastasEditList(area);
+  _autoGuardarLinks(area);
 }
 
 function toggleFormacaoLinkVis(area, idx) {
@@ -6868,6 +6905,7 @@ function toggleFormacaoLinkVis(area, idx) {
   l.publicado = (l.publicado === false);
   renderPastasEditList(area);
   renderLinksEditList(area);
+  _autoGuardarLinks(area);
 }
 
 function _garantirTempLinks(area) {
@@ -6917,6 +6955,7 @@ function dropNaPasta(ev, area, pastaIdx) {
   else { const p = arr[pastaIdx]; if (p && p.tipo === 'pasta') l.pasta = p.nome; }
   renderPastasEditList(area);
   renderLinksEditList(area);
+  _autoGuardarLinks(area);
 }
 
 // Edição de um conteúdo já carregado (nome, link e visualização incorporada)
@@ -6934,6 +6973,7 @@ function confirmarEdicaoLink(area, idx){
   l.label = label || url; l.url = url;
   if (embedEl) l.embed = embedEl.checked;
   _linkEmEdicao = null; _rerenderListasConteudo(area);
+  _autoGuardarLinks(area);
 }
 function itemArrastavel(area, l, idx) {
   if (_linkEmEdicao && _linkEmEdicao.area === area && _linkEmEdicao.idx === idx) {
@@ -7027,6 +7067,7 @@ function criarPastaNaArea(area) {
   renderPastasEditList(area);
   renderLinksEditList(area);
   atualizarSelectPastas(area);
+  _autoGuardarLinks(area);
 }
 
 function togglePastaEditVis(area, idx) {
@@ -7034,6 +7075,7 @@ function togglePastaEditVis(area, idx) {
   if (!l) return;
   l.publicado = (l.publicado === false);
   renderPastasEditList(area);
+  _autoGuardarLinks(area);
 }
 
 function removePastaNaArea(area, idx) {
@@ -7047,6 +7089,7 @@ function removePastaNaArea(area, idx) {
   renderPastasEditList(area);
   renderLinksEditList(area);
   atualizarSelectPastas(area);
+  _autoGuardarLinks(area);
 }
 
 function setLinkPasta(area, idx, val) {
@@ -7055,6 +7098,7 @@ function setLinkPasta(area, idx, val) {
   if (val) l.pasta = val; else delete l.pasta;
   renderPastasEditList(area);
   renderLinksEditList(area);
+  _autoGuardarLinks(area);
 }
 
 function contarItensVisiveis(links, isAdmin) {
