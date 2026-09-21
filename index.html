@@ -6865,6 +6865,7 @@ function toggleFormacaoLinkVis(area, idx) {
   const l = _tempLinks[area][idx];
   if (!l) return;
   l.publicado = (l.publicado === false);
+  renderPastasEditList(area);
   renderLinksEditList(area);
 }
 
