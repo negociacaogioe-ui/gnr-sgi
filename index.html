@@ -1279,13 +1279,52 @@ async function doRegister(){
 }
 
 async function doLogout(){
+  try { sessionStorage.removeItem('sgi_vista_aluno'); } catch(e){}
+  window.__sgiVistaAluno = false; window.__sgiPerfilReal = null;
+  const _vb = document.getElementById('sgi-vista-btn'); if (_vb) _vb.remove();
   await sb.auth.signOut();currentUser=null;currentProfile=null;allIncidentes=[];allITPs=[];
   if(window._chartTipo){window._chartTipo.destroy();window._chartTipo=null;}
   if(window._chartMensal){window._chartMensal.destroy();window._chartMensal=null;}
   showPage('login');
 }
 
+// ===== VISTA DE ALUNO (só para o admin) =====
+// Simula na interface o perfil de um formando (negociador com acesso só à Formação).
+// A base de dados continua a tratar a sessão como admin.
+function sgiAplicarVistaAluno(){
+  if (!currentProfile) return;
+  if (!window.__sgiPerfilReal || window.__sgiPerfilReal.id !== currentProfile.id) {
+    window.__sgiPerfilReal = { id: currentProfile.id, role: currentProfile.role, nivel_acesso: currentProfile.nivel_acesso, approved: currentProfile.approved };
+  }
+  let on = false;
+  try { on = sessionStorage.getItem('sgi_vista_aluno') === '1'; } catch (e) {}
+  if (window.__sgiPerfilReal.role !== 'admin') on = false;
+  window.__sgiVistaAluno = on;
+  if (on) { currentProfile.role = 'negotiator'; currentProfile.nivel_acesso = 'formacao'; }
+  sgiRenderBotaoVista();
+}
+function sgiRenderBotaoVista(){
+  let b = document.getElementById('sgi-vista-btn');
+  const real = window.__sgiPerfilReal;
+  if (!real || real.role !== 'admin') { if (b) b.remove(); return; }
+  if (!b) { b = document.createElement('button'); b.id = 'sgi-vista-btn'; b.type = 'button'; b.onclick = sgiAlternarVista; document.body.appendChild(b); }
+  const aluno = !!window.__sgiVistaAluno;
+  const mob = (typeof isMobile !== 'undefined' && isMobile);
+  b.style.cssText = 'position:fixed;z-index:450;left:12px;' + (mob ? 'bottom:calc(var(--mob-tab-h, 64px) + 10px);' : 'bottom:16px;')
+    + 'display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:20px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.15);'
+    + (aluno ? 'background:var(--amberl);color:var(--amber);border:1.5px solid var(--gold);' : 'background:#fff;color:var(--gn);border:1.5px solid var(--border);');
+  b.innerHTML = aluno ? '<i class="fas fa-user-shield"></i> Vista de aluno · voltar a admin' : '<i class="fas fa-user-graduate"></i> Ver como aluno';
+  b.title = aluno ? 'Estás a ver a aplicação como um formando. Carrega para voltar à vista de administrador.' : 'Ver a aplicação como um formando (só na interface)';
+}
+function sgiAlternarVista(){
+  const on = !window.__sgiVistaAluno;
+  try { if (on) sessionStorage.setItem('sgi_vista_aluno', '1'); else sessionStorage.removeItem('sgi_vista_aluno'); }
+  catch (e) { alert('Não foi possível alternar a vista neste navegador.'); return; }
+  location.reload();
+}
+
 async function enterApp(){
+  sgiAplicarVistaAluno();
   showPage('app');
   const posto_str = currentProfile.posto ? currentProfile.posto + ' ' : '';
   document.getElementById('nav-user-label').textContent = posto_str + (currentProfile.nome||'').split(' ')[0];
@@ -11832,10 +11871,13 @@ if(isMobile){
       var r = await sb.from('profiles').select('role,nivel_acesso,approved').eq('id', currentUser.id).maybeSingle();
       var p = r && r.data;
       if (!p) return;
-      var mudou = (p.role !== currentProfile.role) ||
-                  (p.nivel_acesso !== currentProfile.nivel_acesso) ||
-                  (p.approved !== currentProfile.approved);
+      // Em "vista de aluno" compara com o perfil real do admin, não com o perfil simulado
+      var ref = (window.__sgiVistaAluno && window.__sgiPerfilReal) ? window.__sgiPerfilReal : currentProfile;
+      var mudou = (p.role !== ref.role) ||
+                  (p.nivel_acesso !== ref.nivel_acesso) ||
+                  (p.approved !== ref.approved);
       if (!mudou) return;
+      try { sessionStorage.removeItem('sgi_vista_aluno'); } catch(e){}
       currentProfile.role = p.role;
       currentProfile.nivel_acesso = p.nivel_acesso;
       currentProfile.approved = p.approved;
