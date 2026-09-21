@@ -319,6 +319,11 @@ body.com-barra-posto #mob-form-fullscreen,body.com-barra-posto #mob-form-overlay
 /* ===== MOBILE PWA ===== */
 :root{--mob-tab-h:64px;--mob-header-h:56px}
 body.is-mobile{overflow-x:hidden}
+/* Formação no telemóvel (EPQ e admin) */
+#mob-formacao-host .page,#mob-formacao-host .detail-page{padding:0;max-width:100%}
+#mob-formacao-host #formacao-grid{grid-template-columns:1fr!important}
+#mob-formacao-host .form-section{padding:12px}
+#mob-formacao-host table{font-size:12.5px}
 body.is-mobile .navbar{display:none!important}
 
 /* Mobile header fixed */
@@ -6837,11 +6842,10 @@ function renderLinksView(links, area) {
     }
     const _dl = urlTransferir(l.url);
     if (_dl) {
-      return `<div class="link-item" style="gap:10px">
-      <i class="fas fa-file-arrow-down" style="color:var(--gl);font-size:15px"></i>
-      <span style="flex:1;font-size:13.5px;font-weight:500;color:var(--gn)">${l.label || 'Documento'}${_badgeOculto}</span>
-      <a href="${l.url}" target="_blank" rel="noopener" class="btn btn-outline btn-sm" style="text-decoration:none"><i class="fas fa-eye"></i> Abrir</a>
-      <a href="${_dl}" target="_blank" rel="noopener" download class="btn btn-primary btn-sm" style="text-decoration:none"><i class="fas fa-download"></i> Transferir</a>
+      return `<div class="link-item">
+      <i class="fas fa-external-link-alt" style="color:var(--gl);font-size:13px"></i>
+      <a href="${l.url}" target="_blank" rel="noopener">${l.label || 'Documento'}</a>${_badgeOculto}
+      <a href="${_dl}" target="_blank" rel="noopener" download title="Transferir" style="color:var(--gl);font-size:13px;margin-left:6px;text-decoration:none"><i class="fas fa-download"></i></a>
     </div>`;
     }
     return `<div class="link-item">
@@ -10062,6 +10066,7 @@ setImages();
   <button onclick="mobToggleMenu();mobShowTab('novo-inc');mobBuildForms();" style="width:100%;text-align:left;padding:14px 16px;border:none;background:none;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--gray900)"><i class="fas fa-plus-circle" style="color:var(--gm);width:18px"></i> Novo Incidente</button>
   <button class="hidden" onclick="mobToggleMenu();mobShowTab('novo-itp');mobBuildForms();" style="width:100%;text-align:left;padding:14px 16px;border:none;background:none;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--gray900)"><i class="fas fa-shield-alt" style="color:var(--red);width:18px"></i> Novo ITP</button>
   <button onclick="mobToggleMenu();mobShowTab('treino');mobRenderTreino();" style="width:100%;text-align:left;padding:14px 16px;border:none;background:none;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--gray900)"><i class="fas fa-shield-alt" style="color:var(--amber);width:18px"></i> Área de Treino</button>
+  <button id="mob-menu-formacao" class="hidden" onclick="mobToggleMenu();mobAbrirFormacao();" style="width:100%;text-align:left;padding:14px 16px;border:none;background:none;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--gray900)"><i class="fas fa-graduation-cap" style="width:18px;color:var(--gl)"></i> Formação</button>
   <button onclick="mobToggleMenu();mobAbrirPerfil();" style="width:100%;text-align:left;padding:14px 16px;border:none;background:none;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--gray900)"><i class="fas fa-user-edit" style="color:var(--gl);width:18px"></i> Editar Perfil</button>
   <div style="height:1px;background:var(--border)"></div>
   <button onclick="mobToggleMenu();doLogout();" style="width:100%;text-align:left;padding:14px 16px;border:none;background:none;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--red)"><i class="fas fa-sign-out-alt" style="width:18px"></i> Terminar Sessão</button>
@@ -10186,6 +10191,11 @@ setImages();
     </div>
   </div>
 
+  <!-- SCREEN: Formação (EPQ e admin) — recebe as secções da Formação do desktop -->
+  <div id="mob-screen-formacao" class="mob-screen hidden" style="padding:.875rem;padding-bottom:calc(var(--mob-tab-h) + 1rem)">
+    <div id="mob-formacao-host"></div>
+  </div>
+
   <div id="mob-screen-treino" class="mob-screen hidden" style="padding:.875rem;padding-bottom:calc(var(--mob-tab-h) + 1rem)">
     <div style="background:var(--amberl);border:1px solid #f5dca0;border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--amber);margin-bottom:12px"><i class="fas fa-exclamation-triangle"></i> Ambiente de treino — os registos aqui criados NÃO afetam os dados reais.</div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
@@ -10260,6 +10270,7 @@ function mobEnterApp() {
   document.querySelectorAll('.mob-tab').forEach(t => { t.disabled = false; t.style.opacity = '1'; });
   mobNavStack = [];
   mobShowTab('dashboard');
+  mobAtualizarMenuFormacao();
   mobRenderLista();
   mobRenderDashboard();
   mobBuildForms();
@@ -10357,6 +10368,28 @@ function mobPushTab(tab) {
   mobShowTab(tab);
 }
 
+// ===== FORMAÇÃO NO TELEMÓVEL — só negociadores EPQ e administradores =====
+// Reutiliza as secções da Formação do desktop (mesmo código e mesmos níveis de acesso).
+async function mobAtualizarMenuFormacao() {
+  const btn = document.getElementById('mob-menu-formacao');
+  if (!btn) return;
+  try { await avCarregarAcesso(); } catch (e) {}
+  btn.classList.toggle('hidden', !avTemAcesso());
+}
+async function mobAbrirFormacao() {
+  try { await avCarregarAcesso(); } catch (e) {}
+  if (!avTemAcesso()) { alert('A Formação no telemóvel está disponível apenas para negociadores EPQ e administradores.'); return; }
+  const host = document.getElementById('mob-formacao-host');
+  ['section-formacao', 'section-formacao-detalhe'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.parentNode !== host) { el.style.display = ''; host.appendChild(el); }
+  });
+  if (mobCurrentTab !== 'formacao') mobNavStack.push(mobCurrentTab);
+  mobShowTab('formacao');
+  showSection('formacao');
+  window.scrollTo(0, 0);
+}
+
 function mobShowTab(tab, resetStack) {
   // Close form overlay if open when switching tabs
   const overlay = document.getElementById('mob-form-fullscreen');
@@ -10383,6 +10416,7 @@ function mobShowTab(tab, resetStack) {
     'novo-inc': ['Novo Incidente', 'Registar ocorrência'],
     'novo-itp': ['Novo ITP', 'Incidente Tático-Policial'],
     treino:     ['Área de Treino', 'Ambiente de simulação'],
+    formacao:   ['Formação', 'Área de Formação'],
   };
   const h = headers[tab] || ['SGI', ''];
   document.getElementById('mob-header-title').textContent = h[0];
