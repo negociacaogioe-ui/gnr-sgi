@@ -723,7 +723,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0;z-index:210}
       </div>
       <div id="barra-posto" class="barra-posto" style="display:none"></div>
       <div class="tabs-nav" id="tabs-nav">
-        <button class="tab-btn active" onclick="showTab('tab-resumo')"><i class="fas fa-clipboard"></i> Resumo</button>
+        <button class="tab-btn active" onclick="showTab('tab-resumo')"><i class="fas fa-clipboard"></i> Constituição de EN</button>
         <button class="tab-btn" onclick="showTab('tab-info')"><i class="fas fa-info-circle"></i> Informações</button>
         <button class="tab-btn" onclick="showTab('tab-iris')"><i class="fas fa-heartbeat"></i> IRIS</button>
         <button class="tab-btn" id="tab-visado-btn" onclick="showTab('tab-visado')"><i class="fas fa-user-tag"></i> Descrição do Visado</button>
@@ -1104,7 +1104,7 @@ async function saveVisado(){
   if(!_sgiSilent) showAlert('visado-alert','success','Descrição do visado guardada.');
   await loadData();
 }
-const SGI_I18N = {"Estatísticas": "Statistics", "Gestão de Utilizadores": "User Management", "Incidentes": "Incidents", "Incidentes Tático-Policiais": "Tactical-Police Incidents (ITP)", "Administração": "Administration", "Formação": "Training", "Área de Treino Operacional": "Operational Training Area", "Resumo": "Summary", "Informações": "Information", "Descrição do Visado": "Subject Description", "Contactos": "Contacts", "Histórico": "History", "Plano": "Plan", "Em curso": "Ongoing", "Resolvido": "Resolved", "Arquivado": "Archived", "Baixa": "Low", "Média": "Medium", "Alta": "High", "Crítica": "Critical", "Novo": "New", "Novo Incidente": "New Incident", "Novo ITP": "New ITP", "Guardar": "Save", "Guardar Incidente": "Save Incident", "Guardar ITP": "Save ITP", "Guardar IRIS": "Save IRIS", "Avaliação": "Save Assessment", "Guardar Plano de Negociação": "Save Negotiation Plan", "Guardar Descrição": "Save Description", "Guardar Guião": "Save Script", "Editar": "Edit", "Editar Perfil": "Edit Profile", "Editar Registo": "Edit Record", "Eliminar": "Delete", "Enviar": "Send", "Cancelar": "Cancel", "Confirmar": "Confirm", "Responder": "Reply", "Limpar": "Clear", "Limpar Treino": "Clear Training", "Exportar PDF": "Export PDF", "Partilhar": "Share", "Sair": "Log out", "Terminar Sessão": "Log out", "Adicionar": "Add", "Adicionar contacto": "Add contact", "Registar Contacto": "Log Contact", "Registar Informação": "Log Information", "Nova Sinalização": "New Report", "Sinalizar VD": "Report DV", "Analisar Conteúdo": "Analyze Content", "Atualizar lista": "Refresh list", "Adicionar Vídeo": "Add Video", "Chamada / Gravador": "Call / Recorder", "Ligar e Gravar": "Call and Record", "Gravar": "Record", "Só Gravar": "Record Only", "Parar": "Stop", "Pausar": "Pause", "Terminar": "End", "Transmitir": "Transmit", "Ouvir em Direto": "Listen Live", "Parar Tx": "Stop Tx", "Migrar para Formação": "Migrate to Training", "Reordenar": "Reorder", "Registos de Informação": "Information Records", "Inv. Criminal": "Criminal Inv.", "Guião Anx. B": "Script Anx. B", "Acesso": "Access", "Alcunha / Apelido": "Nickname / Alias", "Arma Envolvida": "Weapon Involved", "Arma foi utilizada?": "Was the weapon used?", "Armas Presentes": "Weapons Present", "Armas Utilizadas": "Weapons Used", "CTer / Unidade": "Territorial Command (CTer)", "CTer / Unidade *": "Territorial Command (CTer) *", "Categoria": "Category", "Comando Territorial (CTer)": "Territorial Command (CTer)", "Comunicação": "Communication", "Concelho": "Municipality", "Cuidados Médicos": "Medical Care", "Data": "Date", "Data da avaliação": "Assessment date", "Data de Nascimento": "Date of Birth", "Data e Hora": "Date and Time", "Data e hora": "Date and time", "Descrição": "Description", "Descrição (opcional)": "Description (optional)", "Descrição Armas": "Weapons Description", "Descrição Física": "Physical Description", "Descrição das Outras Pessoas": "Description of Other People", "Descrição tática": "Tactical description", "Distrito / Região": "District / Region", "Documento de Identificação": "Identification Document", "Doenças / Problemas de Saúde": "Illnesses / Health Problems", "Doenças Mentais Diagnosticadas": "Diagnosed Mental Illnesses", "Duração (min)": "Duration (min)", "Duração do Incidente": "Incident Duration", "Email institucional": "Institutional email", "Estado": "Status", "Estado Emocional": "Emotional State", "Exigências / Reivindicações": "Demands / Claims", "Faixa etária": "Age range", "Fatores de Stress Recentes": "Recent Stress Factors", "Ferimentos Visíveis": "Visible Injuries", "Fiabilidade da Fonte": "Source Reliability", "Fonte": "Source", "Gravidade": "Severity", "Género": "Gender", "Histórico Criminal": "Criminal History", "Histórico Psiquiátrico": "Psychiatric History", "Histórico de Ameaças": "Threat History", "Idade": "Age", "Impacto na Negociação": "Impact on Negotiation", "Informação": "Information", "Informações adicionais": "Additional information", "Interesses (necessidades reais)": "Interests (real needs)", "Localização": "Location", "Medicação em Uso": "Current Medication", "Meios de Comunicação": "Means of Communication", "Mensagem": "Message", "Motivação aparente": "Apparent motivation", "Nacionalidade": "Nationality", "Negociador": "Negotiator", "Nome": "Name", "Nome Completo": "Full Name", "Nome completo": "Full name", "Nome do visado": "Subject name", "Notas Operacionais": "Operational Notes", "Nº Identificação": "ID No.", "Nº Ocorrências Anteriores": "No. of Prior Occurrences", "Nº de Pisos": "No. of Floors", "Nº de Reféns": "No. of Hostages", "Nº de Vítimas": "No. of Victims", "Nº reféns": "No. hostages", "Nº suspeitos": "No. suspects", "Nível de Risco *": "Risk Level *", "Nível de Acesso": "Access Level", "Objetivo Principal": "Main Objective", "Objetivos Intermédios": "Intermediate Objectives", "Observações": "Remarks", "Palavra-passe": "Password", "Pessoas Presentes": "People Present", "Posição (o que diz que quer)": "Position (what they say they want)", "Posto": "Rank", "Posto / Categoria": "Rank / Category", "Posto / Função": "Rank / Role", "Presença de arma": "Weapon present", "Reféns": "Hostages", "Relação com a vítima": "Relationship to victim", "Relações Pessoais / Conflitos": "Personal Relationships / Conflicts", "Religiosidade": "Religiosity", "Risco de Suicídio": "Suicide Risk", "Sexo": "Sex", "Substâncias": "Substances", "Tempo Estimado": "Estimated Time", "Tentativas de Suicídio Anteriores": "Previous Suicide Attempts", "Tipo": "Type", "Tipo *": "Type *", "Tipo de Crime": "Crime Type", "Tipo de Residência": "Type of Residence", "Tipo de Situação": "Type of Situation", "Tipo de crime / ocorrência": "Crime / occurrence type", "Tipos de Ocorrência": "Occurrence Types", "Toda a informação recolhida": "All information gathered", "Título": "Title", "Unidade": "Unit", "Violência Doméstica": "Domestic Violence", "Visibilidade Interior": "Interior Visibility", "Zona / Localidade": "Zone / Locality", "Armas": "Weapons", "Ativação": "Activation", "Ações": "Actions", "Data/Hora": "Date/Time", "Dur.": "Dur.", "Influência": "Influence", "Neg.": "Neg.", "Notas": "Notes", "Ocorrências": "Occurrences", "Papel": "Role", "Ref.": "Hostages", "Risco": "Risk", "Sus.": "Suspects", "Zona": "Zone", "Selecionar...": "Select...", "Todas as gravidades": "All severities", "Masculino": "Male", "Feminino": "Female", "Outro / Não especificado": "Other / Unspecified", "Nenhuma": "None", "Desconhecida": "Unknown", "Arma branca": "Bladed weapon", "Arma de fogo": "Firearm", "Objeto contundente": "Blunt object", "Álcool": "Alcohol", "Estupefacientes": "Narcotics", "Medicação / Psicofármacos": "Medication / Psychotropics", "Jogo": "Gambling", "Cônjuge / companheiro(a)": "Spouse / partner", "Ex-cônjuge / ex-companheiro(a)": "Ex-spouse / ex-partner", "Familiar": "Family member", "Conhecido": "Acquaintance", "Desconhecido": "Stranger", "Não aplicável": "Not applicable", "Violência doméstica": "Domestic violence", "Tentativa de suicídio": "Suicide attempt", "Sequestro / Reféns": "Kidnapping / Hostages", "Ameaça / Coação": "Threat / Coercion", "Homicídio / Tentativa": "Homicide / Attempt", "Roubo": "Robbery", "Distúrbio / Perturbação da ordem": "Disturbance / Public disorder", "Indivíduo barricado": "Barricaded individual", "Outro": "Other", "Filtrar por:": "Filter by:", "Ano": "Year", "Intervalo": "Range", "Todos os registos": "All records", "até": "to"};
+const SGI_I18N = {"Estatísticas": "Statistics", "Gestão de Utilizadores": "User Management", "Incidentes": "Incidents", "Incidentes Tático-Policiais": "Tactical-Police Incidents (ITP)", "Administração": "Administration", "Formação": "Training", "Área de Treino Operacional": "Operational Training Area", "Resumo": "Summary", "Constituição de EN": "Negotiation Team (EN)", "Informações": "Information", "Descrição do Visado": "Subject Description", "Contactos": "Contacts", "Histórico": "History", "Plano": "Plan", "Em curso": "Ongoing", "Resolvido": "Resolved", "Arquivado": "Archived", "Baixa": "Low", "Média": "Medium", "Alta": "High", "Crítica": "Critical", "Novo": "New", "Novo Incidente": "New Incident", "Novo ITP": "New ITP", "Guardar": "Save", "Guardar Incidente": "Save Incident", "Guardar ITP": "Save ITP", "Guardar IRIS": "Save IRIS", "Avaliação": "Save Assessment", "Guardar Plano de Negociação": "Save Negotiation Plan", "Guardar Descrição": "Save Description", "Guardar Guião": "Save Script", "Editar": "Edit", "Editar Perfil": "Edit Profile", "Editar Registo": "Edit Record", "Eliminar": "Delete", "Enviar": "Send", "Cancelar": "Cancel", "Confirmar": "Confirm", "Responder": "Reply", "Limpar": "Clear", "Limpar Treino": "Clear Training", "Exportar PDF": "Export PDF", "Partilhar": "Share", "Sair": "Log out", "Terminar Sessão": "Log out", "Adicionar": "Add", "Adicionar contacto": "Add contact", "Registar Contacto": "Log Contact", "Registar Informação": "Log Information", "Nova Sinalização": "New Report", "Sinalizar VD": "Report DV", "Analisar Conteúdo": "Analyze Content", "Atualizar lista": "Refresh list", "Adicionar Vídeo": "Add Video", "Chamada / Gravador": "Call / Recorder", "Ligar e Gravar": "Call and Record", "Gravar": "Record", "Só Gravar": "Record Only", "Parar": "Stop", "Pausar": "Pause", "Terminar": "End", "Transmitir": "Transmit", "Ouvir em Direto": "Listen Live", "Parar Tx": "Stop Tx", "Migrar para Formação": "Migrate to Training", "Reordenar": "Reorder", "Registos de Informação": "Information Records", "Inv. Criminal": "Criminal Inv.", "Guião Anx. B": "Script Anx. B", "Acesso": "Access", "Alcunha / Apelido": "Nickname / Alias", "Arma Envolvida": "Weapon Involved", "Arma foi utilizada?": "Was the weapon used?", "Armas Presentes": "Weapons Present", "Armas Utilizadas": "Weapons Used", "CTer / Unidade": "Territorial Command (CTer)", "CTer / Unidade *": "Territorial Command (CTer) *", "Categoria": "Category", "Comando Territorial (CTer)": "Territorial Command (CTer)", "Comunicação": "Communication", "Concelho": "Municipality", "Cuidados Médicos": "Medical Care", "Data": "Date", "Data da avaliação": "Assessment date", "Data de Nascimento": "Date of Birth", "Data e Hora": "Date and Time", "Data e hora": "Date and time", "Descrição": "Description", "Descrição (opcional)": "Description (optional)", "Descrição Armas": "Weapons Description", "Descrição Física": "Physical Description", "Descrição das Outras Pessoas": "Description of Other People", "Descrição tática": "Tactical description", "Distrito / Região": "District / Region", "Documento de Identificação": "Identification Document", "Doenças / Problemas de Saúde": "Illnesses / Health Problems", "Doenças Mentais Diagnosticadas": "Diagnosed Mental Illnesses", "Duração (min)": "Duration (min)", "Duração do Incidente": "Incident Duration", "Email institucional": "Institutional email", "Estado": "Status", "Estado Emocional": "Emotional State", "Exigências / Reivindicações": "Demands / Claims", "Faixa etária": "Age range", "Fatores de Stress Recentes": "Recent Stress Factors", "Ferimentos Visíveis": "Visible Injuries", "Fiabilidade da Fonte": "Source Reliability", "Fonte": "Source", "Gravidade": "Severity", "Género": "Gender", "Histórico Criminal": "Criminal History", "Histórico Psiquiátrico": "Psychiatric History", "Histórico de Ameaças": "Threat History", "Idade": "Age", "Impacto na Negociação": "Impact on Negotiation", "Informação": "Information", "Informações adicionais": "Additional information", "Interesses (necessidades reais)": "Interests (real needs)", "Localização": "Location", "Medicação em Uso": "Current Medication", "Meios de Comunicação": "Means of Communication", "Mensagem": "Message", "Motivação aparente": "Apparent motivation", "Nacionalidade": "Nationality", "Negociador": "Negotiator", "Nome": "Name", "Nome Completo": "Full Name", "Nome completo": "Full name", "Nome do visado": "Subject name", "Notas Operacionais": "Operational Notes", "Nº Identificação": "ID No.", "Nº Ocorrências Anteriores": "No. of Prior Occurrences", "Nº de Pisos": "No. of Floors", "Nº de Reféns": "No. of Hostages", "Nº de Vítimas": "No. of Victims", "Nº reféns": "No. hostages", "Nº suspeitos": "No. suspects", "Nível de Risco *": "Risk Level *", "Nível de Acesso": "Access Level", "Objetivo Principal": "Main Objective", "Objetivos Intermédios": "Intermediate Objectives", "Observações": "Remarks", "Palavra-passe": "Password", "Pessoas Presentes": "People Present", "Posição (o que diz que quer)": "Position (what they say they want)", "Posto": "Rank", "Posto / Categoria": "Rank / Category", "Posto / Função": "Rank / Role", "Presença de arma": "Weapon present", "Reféns": "Hostages", "Relação com a vítima": "Relationship to victim", "Relações Pessoais / Conflitos": "Personal Relationships / Conflicts", "Religiosidade": "Religiosity", "Risco de Suicídio": "Suicide Risk", "Sexo": "Sex", "Substâncias": "Substances", "Tempo Estimado": "Estimated Time", "Tentativas de Suicídio Anteriores": "Previous Suicide Attempts", "Tipo": "Type", "Tipo *": "Type *", "Tipo de Crime": "Crime Type", "Tipo de Residência": "Type of Residence", "Tipo de Situação": "Type of Situation", "Tipo de crime / ocorrência": "Crime / occurrence type", "Tipos de Ocorrência": "Occurrence Types", "Toda a informação recolhida": "All information gathered", "Título": "Title", "Unidade": "Unit", "Violência Doméstica": "Domestic Violence", "Visibilidade Interior": "Interior Visibility", "Zona / Localidade": "Zone / Locality", "Armas": "Weapons", "Ativação": "Activation", "Ações": "Actions", "Data/Hora": "Date/Time", "Dur.": "Dur.", "Influência": "Influence", "Neg.": "Neg.", "Notas": "Notes", "Ocorrências": "Occurrences", "Papel": "Role", "Ref.": "Hostages", "Risco": "Risk", "Sus.": "Suspects", "Zona": "Zone", "Selecionar...": "Select...", "Todas as gravidades": "All severities", "Masculino": "Male", "Feminino": "Female", "Outro / Não especificado": "Other / Unspecified", "Nenhuma": "None", "Desconhecida": "Unknown", "Arma branca": "Bladed weapon", "Arma de fogo": "Firearm", "Objeto contundente": "Blunt object", "Álcool": "Alcohol", "Estupefacientes": "Narcotics", "Medicação / Psicofármacos": "Medication / Psychotropics", "Jogo": "Gambling", "Cônjuge / companheiro(a)": "Spouse / partner", "Ex-cônjuge / ex-companheiro(a)": "Ex-spouse / ex-partner", "Familiar": "Family member", "Conhecido": "Acquaintance", "Desconhecido": "Stranger", "Não aplicável": "Not applicable", "Violência doméstica": "Domestic violence", "Tentativa de suicídio": "Suicide attempt", "Sequestro / Reféns": "Kidnapping / Hostages", "Ameaça / Coação": "Threat / Coercion", "Homicídio / Tentativa": "Homicide / Attempt", "Roubo": "Robbery", "Distúrbio / Perturbação da ordem": "Disturbance / Public disorder", "Indivíduo barricado": "Barricaded individual", "Outro": "Other", "Filtrar por:": "Filter by:", "Ano": "Year", "Intervalo": "Range", "Todos os registos": "All records", "até": "to"};
 Object.assign(SGI_I18N, {"Este mês": "This month", "Registar Incidente Tático-Policial": "Register Tactical-Police Incident", "Incidente tático-policial": "Tactical-police incident", "Registos recentes": "Recent records", "Ver todos →": "View all →", "Ver todos": "View all", "Sem registos ainda.": "No records yet.", "Sem registos": "No records", "Registar Incidente": "Register Incident", "Treino": "Op. Training", "Dashboard": "Dashboard", "Bom dia": "Good morning", "Boa tarde": "Good afternoon", "Boa noite": "Good evening"});
 Object.assign(SGI_I18N, {"Guarda": "Guard", "Guarda-Principal": "Principal Guard", "Cabo": "Corporal", "Cabo-Chefe": "Chief Corporal", "Cabo-Mor": "Master Corporal", "Furriel": "Sergeant (Furriel)", "Segundo-Sargento": "Second Sergeant", "Primeiro-Sargento": "First Sergeant", "Sargento": "Sergeant", "Sargento-Ajudante": "Staff Sergeant", "Sargento-Chefe": "Chief Sergeant", "Sargento-Mor": "Sergeant Major", "Alferes": "Second Lieutenant", "Tenente": "Lieutenant", "Capitão": "Captain", "Major": "Major", "Tenente-Coronel": "Lieutenant Colonel", "Coronel": "Colonel", "Major-General": "Major General", "Tenente-General": "Lieutenant General", "General": "General"});
 Object.assign(SGI_I18N, {"Por definir": "To be defined", "Barricado": "Barricaded", "Barricado Armado": "Armed Barricade", "Tentativa de Suicídio": "Suicide Attempt", "Atirador Ativo": "Active Shooter", "Atirador ativo": "Active shooter", "Esfaqueador Ativo": "Active Stabber", "Esfaqueador ativo": "Active stabber", "Ameaça de Bomba": "Bomb Threat", "Ameaça de bomba": "Bomb threat", "Homicídio": "Homicide", "Sequestro": "Kidnapping", "Desordem pública": "Public disorder", "Violência entre pessoas": "Interpersonal violence", "Sequestro sem reféns": "Kidnapping without hostages", "Sequestro com reféns": "Kidnapping with hostages", "Tiroteio ativo": "Active shooting", "Atentado terrorista": "Terrorist attack"});
@@ -1862,6 +1862,8 @@ function enPreenchidos(eq){
   eq = eq || {};
   return EN_POSICOES.map(p=>p.k).filter(k => eq[k] && eq[k].id);
 }
+// Negociador isolado: determinado automaticamente — só 1 negociador atribuído na EN
+function enIsolado(eq){ return enPreenchidos(eq).length === 1; }
 // 5.29/5.30 — acumulação em sentido decrescente; o n.º 1 nunca acumula
 function enAcumulacao(eq){
   const has = k => eq && eq[k] && eq[k].id;
@@ -1933,7 +1935,6 @@ function enCterDe(id){
 function _enPfx(){ return (typeof isMobile!=='undefined' && isMobile) ? 'mob-' : ''; }
 function enEl(id){ return document.getElementById(_enPfx()+id) || document.getElementById(id); }
 function enSetCterFiltro(v){ _enCterFiltro = v; _enPintaSelects(); enAvaliar(); }
-function enSetIsolado(v){ _enWork.isolado = !!v; enAvaliar(); }
 function enSetPos(k, id){
   if(!id){ delete _enWork[k]; }
   else {
@@ -1988,8 +1989,6 @@ async function renderEquipaSelects(){
     fs.innerHTML=html;
     if(_enCterFiltro && _enCterFiltro!=='__itp__' && !ctrs.includes(_enCterFiltro)) fs.value='';
   }
-  const ic=enEl('en-isolado');
-  if(ic) ic.checked = !!_enWork.isolado;
   _enPintaSelects();
   enAvaliar();
 }
@@ -2007,7 +2006,11 @@ function enAvaliar(){
                  vazio:['var(--gray100)','var(--border)','var(--gray600)','fa-circle-info'],
                  'nao-conforme':['var(--redl)','var(--red)','var(--red)','fa-circle-xmark']};
     const [bg,bd,fg,ic]=cores[conf.estado];
-    box.innerHTML='<div style="background:'+bg+';border:1px solid '+bd+';border-radius:var(--r);padding:9px 11px;font-size:12.5px;color:'+fg+';line-height:1.5"><i class="fas '+ic+'" style="margin-right:5px"></i><strong>'+conf.n+' negociador(es)</strong> — '+conf.msg+'</div>';
+    if(enIsolado(eq)){ box.innerHTML='<div style="background:var(--redl);border:1px solid var(--red);border-radius:var(--r);padding:10px 12px;font-size:12.5px;color:var(--red);line-height:1.55">'
+      +'<i class="fas fa-triangle-exclamation" style="margin-right:5px"></i><strong>Negociador isolado — ação contrária à doutrina.</strong><br>'
+      +'O PDGNR M 1-08-02, 5.28, estabelece que a Equipa de Negociação não funciona com menos de 2 negociadores. '
+      +'O registo é permitido para refletir a situação real no terreno, mas a não conformidade com o 5.28 fica assinalada no caso, no histórico e no relatório.</div>'; }
+    else box.innerHTML='<div style="background:'+bg+';border:1px solid '+bd+';border-radius:var(--r);padding:9px 11px;font-size:12.5px;color:'+fg+';line-height:1.5"><i class="fas '+ic+'" style="margin-right:5px"></i><strong>'+conf.n+' negociador(es)</strong> — '+conf.msg+'</div>';
   }
   const amb=enEl('en-ambito');
   if(amb){
@@ -2019,16 +2022,6 @@ function enAvaliar(){
       + (enPodeUI() ? ' <span style="color:var(--gm)">UI/GIOE disponível (ITP declarado).</span>' : ' <span style="color:var(--gray400)">UI/GIOE só após declaração de ITP.</span>')
       + ((currentDetail && currentDetail.isTreino && _enEmpenhados.size) ? '<br><i class="fas fa-user-clock" style="margin-right:5px;color:var(--amber)"></i>'+_enEmpenhados.size+' formando(s) do CTer Curso ocultado(s) por estarem empenhados noutro exercício em curso.' : '')
       + (ctrs.length>1 ? '<br><i class="fas fa-users" style="margin-right:5px;color:var(--amber)"></i>EN mista: '+ctrs.join(', ') : '');
-  }
-  const iso=enEl('en-isolado-nota');
-  if(iso){
-    if(_enWork.isolado){
-      iso.style.display='';
-      iso.innerHTML='<div style="background:var(--redl);border:1px solid var(--red);border-radius:var(--r);padding:10px 12px;font-size:12.5px;color:var(--red);line-height:1.55;margin-top:8px">'
-        +'<i class="fas fa-triangle-exclamation" style="margin-right:5px"></i><strong>Negociador isolado — ação contrária à doutrina.</strong><br>'
-        +'O PDGNR M 1-08-02, 5.28, estabelece que a Equipa de Negociação não funciona com menos de 2 negociadores. '
-        +'O registo é permitido para refletir a situação real no terreno, mas a não conformidade com o 5.28 fica assinalada no caso, no histórico e no relatório.</div>';
-    } else { iso.innerHTML=''; iso.style.display='none'; }
   }
   const ac=enEl('en-acumulacao');
   if(ac){
@@ -2048,12 +2041,13 @@ async function guardarEquipa(){
   const _tbl = currentDetail.isTreino ? 'treino_incidentes' : 'incidentes';
   const eq=_enLerForm();
   const conf=enConformidade(eq, !!r.is_itp);
-  if(conf.estado==='nao-conforme'){
+  const _isolado = enIsolado(eq);
+  if(conf.estado==='nao-conforme' && !_isolado){
     if(!confirm('ATENÇÃO — constituição NÃO CONFORME com o manual (5.28).\n\n'+conf.msg+'\n\nO registo vai ser guardado com esta não conformidade assinalada no caso. Confirma?')) return;
   }
-  if(_enWork.isolado && !confirm('NEGOCIADOR ISOLADO — ação contrária à doutrina.\n\nO PDGNR M 1-08-02, 5.28, estabelece que a Equipa de Negociação não funciona com menos de 2 negociadores.\n\nO registo é permitido, mas a não conformidade com o 5.28 fica assinalada no caso, no histórico e no relatório. Confirma?')) return;
+  if(_isolado && !confirm('NEGOCIADOR ISOLADO — ação contrária à doutrina.\n\nO PDGNR M 1-08-02, 5.28, estabelece que a Equipa de Negociação não funciona com menos de 2 negociadores.\n\nO registo é permitido, mas a não conformidade com o 5.28 fica assinalada no caso, no histórico e no relatório. Confirma?')) return;
   eq.conformidade = conf.estado;
-  eq.isolado = !!_enWork.isolado;
+  eq.isolado = _isolado;
   const ids=enPreenchidos(eq).map(k=>eq[k].id);
   if(new Set(ids).size!==ids.length){ alert('O mesmo negociador não pode ocupar duas posições. A acumulação de funções é automática (5.29), não se atribui a mesma pessoa a dois postos.'); return; }
   const btn=enEl('en-save-btn'); if(btn) btn.disabled=true;
@@ -2794,7 +2788,7 @@ async function exportQuadroCoordenadorPDF(){
   kv('Risco de violência', sari ? ((sari.risk_level!=null?sari.risk_level+'/10':'—')) : 'Não preenchido');
 
   sec('Equipa de Negociação');
-  if(eq.isolado) kv('Negociador isolado', 'SIM — ação contrária à doutrina (PDGNR M 1-08-02, 5.28)');
+  if(eq.isolado || enIsolado(eq)) kv('Negociador isolado', 'SIM — ação contrária à doutrina (PDGNR M 1-08-02, 5.28)');
   EN_POSICOES.forEach(p => { if(eq[p.k] && eq[p.k].id) kv(p.nome, enNomeUtil(eq[p.k])); });
   kv('Conformidade (5.28)', eq.conformidade);
 
@@ -3674,26 +3668,16 @@ function renderResumo(){
   const{type,record:r}=currentDetail;
   const isItp=type==='itp';
   document.getElementById('resumo-content').innerHTML=`
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem">
-      ${isItp?`
-        <div class="stat-card"><div class="s-label">Suspeitos</div><div class="s-num red">${r.num_suspeitos}</div></div>
-        <div class="stat-card"><div class="s-label">Reféns</div><div class="s-num amber">${r.num_refens}</div></div>
-      `:`
+    ${isItp?'':`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem">
         <div class="stat-card"><div class="s-label">Estado</div><div class="s-num" style="font-size:18px">${r.estado}</div></div>
-      `}
-    </div>
+    </div>`}
     ${`<div class="form-section">
       <h3><i class="fas fa-shield-halved" style="color:${r.is_itp?'var(--red)':'var(--gl)'}"></i> Classificação</h3>
       ${r.is_itp?`
         <div style="background:var(--redl);border:1px solid var(--red);border-radius:var(--r);padding:12px">
           <div style="font-weight:700;color:var(--red);font-size:14px;margin-bottom:6px">Incidente Tático-Policial (ITP)</div>
-          <div style="display:flex;gap:16px;font-size:13px">
-            <span><strong>Negociador:</strong> ${r.negociador||'—'}</span>
-            <span><strong>Suspeitos:</strong> ${r.num_suspeitos??0}</span>
-            <span><strong>Reféns:</strong> ${r.num_refens??0}</span>
-          </div>
           <button class="btn btn-outline btn-sm" onclick="editarDadosITP()" style="margin-top:10px"><i class="fas fa-edit"></i> Editar dados do ITP</button>
-          ${isAdmin?`<button class="btn btn-outline btn-sm" onclick="reverterITP()" style="margin-top:10px;color:var(--gray600)"><i class="fas fa-rotate-left"></i> Reverter classificação</button>`:''}
+          ${podeReverterITP(r)?`<button class="btn btn-outline btn-sm" onclick="reverterITP()" style="margin-top:10px;color:var(--gray600)"><i class="fas fa-rotate-left"></i> Reverter classificação</button>`:''}
         </div>`
       :`<div style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:12px">
           <div style="font-weight:600;color:var(--gm);font-size:14px;margin-bottom:4px">Incidente de Segurança</div>
@@ -3713,11 +3697,6 @@ function renderResumo(){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         ${EN_POSICOES.map(p=>`<div class="field" style="margin:0"><label>${p.nome}</label><select id="en-${p.k}" onchange="enSetPos('${p.k}',this.value)"></select><div style="font-size:11px;color:var(--gray400);margin-top:3px">${p.desc}</div></div>`).join('')}
       </div>
-      <label style="display:flex;align-items:flex-start;gap:10px;margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r);background:#fff;cursor:pointer">
-        <input type="checkbox" id="en-isolado" style="width:18px;height:18px;min-width:18px;margin:1px 0 0;accent-color:var(--gl);cursor:pointer" onchange="enSetIsolado(this.checked)">
-        <span style="font-size:13.5px;line-height:1.45;color:var(--gray900)"><strong>Negociador Isolado</strong> — o negociador está sozinho, sem restante EN constituída. Fica assinalado no registo e no relatório.</span>
-      </label>
-      <div id="en-isolado-nota"></div>
       <div id="en-acumulacao"></div>
       <button class="btn btn-primary btn-sm" id="en-save-btn" onclick="guardarEquipa()" style="margin-top:12px"><i class="fas fa-save"></i> Guardar EN</button>
     </div>`}
@@ -4006,7 +3985,7 @@ function _relatorioPDF(r, type, iris, sari, plano, contactos, hist){
   // ---------------- 3. Equipa de Negociação
   sec('3. Equipa de Negociação');
   const eq = r.equipa || {};
-  if(eq.isolado){
+  if(eq.isolado || enIsolado(eq)){
     kv('Negociador isolado', 'SIM — negociador sozinho, sem restante EN constituída');
     kv('Nota doutrinária', 'Ação contrária à doutrina: o PDGNR M 1-08-02, 5.28, estabelece que a EN não funciona com menos de 2 negociadores.');
   }
@@ -6837,9 +6816,14 @@ async function declararITP(){
   renderDetailHeader(); renderResumo();
   if (typeof isMobile !== 'undefined' && isMobile && mobDetail) { mobDetail.type = (currentDetail.record.is_itp ? 'itp' : 'inc'); mobDetail.record = currentDetail.record; mobRenderDetalhe(); }
 }
+// Reverter a classificação de ITP: admin ou o negociador que abriu o caso (real e treino)
+function podeReverterITP(r){
+  if(currentProfile?.role === 'admin') return true;
+  return !!(r && currentUser && r.autor_id && r.autor_id === currentUser.id);
+}
 async function reverterITP(){
   if(!currentDetail) return;
-  if(currentProfile?.role !== 'admin'){ alert('Apenas um administrador pode reverter a classificação de ITP.'); return; }
+  if(!podeReverterITP(currentDetail.record)){ alert('Apenas um administrador ou o negociador que abriu o caso pode reverter a classificação de ITP.'); return; }
   const _tbl = currentDetail.isTreino ? 'treino_incidentes' : 'incidentes';
   const r=currentDetail.record;
   const patchObj={ is_itp:false };
@@ -9882,7 +9866,7 @@ function mobRenderDetalhe() {
         ${isItp
           ? `<div style="font-size:13px;color:var(--red);font-weight:600;margin-bottom:8px">Incidente Tático-Policial (ITP)</div>
              <button class="btn btn-outline btn-sm" style="width:100%" onclick="editarDadosITP()"><i class="fas fa-edit"></i> Editar dados de ITP</button>
-             ${currentProfile?.role==='admin' ? `<button class="btn btn-outline btn-sm" style="width:100%;margin-top:6px;color:var(--red)" onclick="reverterITP()"><i class="fas fa-rotate-left"></i> Reverter classificação</button>` : ''}`
+             ${podeReverterITP(r) ? `<button class="btn btn-outline btn-sm" style="width:100%;margin-top:6px;color:var(--red)" onclick="reverterITP()"><i class="fas fa-rotate-left"></i> Reverter classificação</button>` : ''}`
           : `<div style="font-size:12px;color:var(--gray600);margin-bottom:8px">Incidente de segurança. Se a situação exceder a capacidade local e for solicitado apoio da UI/GIOE, classifica-se como ITP.</div>
              <button class="btn btn-primary btn-sm" style="width:100%" onclick="declararITP()"><i class="fas fa-shield-halved"></i> Declarar ITP</button>`
         }
