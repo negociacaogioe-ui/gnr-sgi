@@ -2737,13 +2737,9 @@ async function renderQuadroCoordenador(){
   const sariCor = sari ? ((sari.risk_level||0) <= 3 ? 'var(--gm)' : (sari.risk_level||0) <= 6 ? 'var(--amber)' : 'var(--red)') : 'var(--gray400)';
   const ult = cts[0];
 
+  // IRIS, Risco/Cooperação, Contactos e Decorrido já estão nos cartões de cima (cabeçalho comum às posições)
   box.innerHTML =
-    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin-bottom:10px">'
-    + irisCartaoHTML(iris)
-    + cartao('Risco/Cooperação', sari ? (sari.negotiation_probability != null ? sari.negotiation_probability + '%' : '—') : 'Não preenchido', sari ? ('Cooperação · risco ' + (sari.risk_level != null ? sari.risk_level + '/10' : '—')) : '', sariCor)
-    + cartao('Contactos', String(cts.length), ult ? ('Último: ' + fmtDateTime(ult.contact_datetime)) : 'Sem contactos')
-    + '</div>'
-    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-bottom:10px">'
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-bottom:10px">'
     + lista('Exigências / ameaças', Array.isArray(q.exigencias) ? q.exigencias : [], 'var(--red)')
     + lista('Ações positivas da GNR', Array.isArray(q.acoes) ? q.acoes : [], 'var(--gl)')
     + lista('Evitar', Array.isArray(q.evitar) ? q.evitar : [], 'var(--red)')
@@ -3779,10 +3775,6 @@ function irisNivelCor(risk){
   const u = String(risk || '').toUpperCase();
   return (u.indexOf('ELEV') > -1 || u.indexOf('EXTREM') > -1) ? 'var(--red)' : u.indexOf('INTERM') > -1 ? 'var(--amber)' : 'var(--gm)';
 }
-function irisNivelFundo(risk){
-  const u = String(risk || '').toUpperCase();
-  return (u.indexOf('ELEV') > -1 || u.indexOf('EXTREM') > -1) ? 'var(--redl)' : u.indexOf('INTERM') > -1 ? 'var(--amberl)' : 'var(--gp)';
-}
 // todas as avaliações, por visado e por ordem cronológica
 function irisLinhas(l){
   const out = [];
@@ -3828,21 +3820,6 @@ function irisCartaoHTML(lista){
       + '</div>';
   }).join(''));
 }
-// Cartão IRIS do resumo da Monitorização de Contactos, quando há mais de uma avaliação
-function _irisResumoMulti(l){
-  const pior = irisPiorAtual(l), corG = irisNivelCor(pior && pior.risk_level), bgG = irisNivelFundo(pior && pior.risk_level);
-  return '<div style="background:' + bgG + ';border:2px solid ' + corG + ';border-radius:var(--r);padding:12px 16px;cursor:pointer" onclick="showTab(\'tab-iris\')" title="Ver IRIS">'
-    + '<div style="font-size:10px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px"><i class="fas fa-heartbeat" style="color:var(--red);margin-right:4px"></i>IRIS — Risco de Suicídio</div>'
-    + irisLinhas(l).map(x => {
-        const cor = irisNivelCor(x.a.risk_level), q = irisQuando(x.a);
-        return '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;padding:3px 0">'
-          + '<span style="font-size:11.5px;color:var(--gray900);line-height:1.35">' + _escHtml(x.visado) + '<br><span style="color:var(--gray600)">Aval. ' + x.k + (q ? ' · ' + q : '') + '</span></span>'
-          + '<span style="font-size:14px;font-weight:700;color:' + cor + ';white-space:nowrap">' + (x.a.score != null ? x.a.score + ' pts' : '—') + ' <span style="font-size:11px">' + _escHtml(String(x.a.risk_level || '—').toUpperCase()) + '</span></span>'
-          + '</div>';
-      }).join('')
-    + '</div>';
-}
-
 // --- navegação no separador IRIS (visados + avaliações)
 function _irisNavHTML(){
   const st = _irisEstado, l = st.lista;
@@ -9208,107 +9185,58 @@ async function toggleObjIntermedio(index) {
 
 
 function buildContactosSummary(iris, sari, plano, record) {
-  let irisHtml = '';
-  const _irisL = irisComoLista(iris);
-  iris = _irisL.length === 1 ? _irisL[0] : null;
-  if (_irisL.length > 1) {
-    irisHtml = _irisResumoMulti(_irisL);
-  } else if (iris) {
-    const sc = iris.score || iris.total_score || 0;
-    const savedRisk = iris.risk_level || '';
-    const risk = savedRisk || (sc >= 10 ? 'EXTREMO' : sc >= 7 ? 'ELEVADO' : sc >= 4 ? 'INTERMÉDIO' : 'BAIXO');
-    const riskUp = risk.toUpperCase();
-    // Extremo=red, Elevado=orange, Intermédio=amber, Reduzido/Baixo=green
-    const riskColor = riskUp.includes('EXTREM') ? 'var(--red)' : riskUp.includes('ELEV') ? 'var(--red)' : riskUp.includes('INTERM') ? 'var(--amber)' : riskUp.includes('REDUZ') ? '#b45309' : 'var(--gm)';
-    const riskBg = riskUp.includes('EXTREM') ? 'var(--redl)' : riskUp.includes('ELEV') ? 'var(--redl)' : riskUp.includes('INTERM') ? 'var(--amberl)' : riskUp.includes('REDUZ') ? '#fef3c7' : 'var(--gp)';
-    irisHtml = '<div style="background:' + riskBg + ';border:2px solid ' + riskColor + ';border-radius:var(--r);padding:12px 16px;cursor:pointer" onclick="showTab(\'tab-iris\')" title="Ver IRIS">'
-      + '<div style="font-size:10px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px"><i class="fas fa-heartbeat" style="color:var(--red);margin-right:4px"></i>IRIS — Risco de Suicídio</div>'
-      + '<div style="font-size:26px;font-weight:700;color:' + riskColor + ';line-height:1">' + sc + ' <span style="font-size:12px">pts</span></div>'
-      + '<div style="font-size:12px;font-weight:600;color:' + riskColor + ';margin-top:4px">' + risk + '</div>'
-      + '</div>';
-  } else {
-    irisHtml = '<div style="background:var(--gray50);border:1px dashed var(--border);border-radius:var(--r);padding:12px 16px;cursor:pointer;text-align:center" onclick="showTab(\'tab-iris\')">'
-      + '<div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;margin-bottom:6px"><i class="fas fa-heartbeat" style="margin-right:4px"></i>IRIS</div>'
-      + '<div style="font-size:12px;color:var(--gray400)">Não preenchido</div>'
-      + '<div style="font-size:11px;color:var(--gl);margin-top:4px">Clica para preencher →</div>'
-      + '</div>';
-  }
+  // Mesmo layout dos cartões do quadro do n.º 1 (cabeçalho das posições):
+  // cartão branco, barra de cor em cima, título em maiúsculas.
+  const card = (cor, titulo, corpo, tab, dica) =>
+    '<div style="background:#fff;border:1px solid var(--border);border-top:3px solid ' + cor + ';border-radius:var(--r);padding:11px 13px' + (tab ? ';cursor:pointer" onclick="showTab(\'' + tab + '\')" title="' + (dica||'') + '"' : '"') + '>'
+    + '<div style="font-size:10px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">' + titulo + '</div>'
+    + corpo + '</div>';
+  const valor = (v, cor) => '<div style="font-size:19px;font-weight:700;color:' + cor + ';line-height:1.15">' + v + '</div>';
+  const sub = t => '<div style="font-size:11.5px;color:var(--gray600);margin-top:3px;line-height:1.4">' + t + '</div>';
+  const linha = (k, v) => '<div style="font-size:12.5px;line-height:1.6;margin-bottom:3px"><strong style="color:var(--gm)">' + k + ':</strong> ' + v + '</div>';
 
-  let sariHtml = '';
+  // IRIS — o mesmo cartão do n.º 1 (todas as avaliações, por visado)
+  const irisHtml = '<div style="display:grid;cursor:pointer" onclick="showTab(\'tab-iris\')" title="Ver IRIS">' + irisCartaoHTML(iris) + '</div>';
+
+  // Risco/Cooperação — igual ao cartão do n.º 1
+  let sariHtml;
   if (sari) {
-    const neg = sari.negotiation_probability || sari.neg_prob || 0;
-    const risk = sari.risk_level || 0;
-    const negColor = neg >= 75 ? 'var(--gm)' : neg >= 50 ? '#b45309' : 'var(--red)';
-    const riskColor = risk <= 3 ? 'var(--gm)' : risk <= 6 ? '#b45309' : 'var(--red)';
-    const sariBorder = risk <= 3 ? 'var(--gl)' : risk <= 6 ? 'var(--amber)' : 'var(--red)';
-    const sariBg = risk <= 3 ? 'var(--gp)' : risk <= 6 ? 'var(--amberl)' : 'var(--redl)';
-    sariHtml = '<div style="background:' + sariBg + ';border:2px solid ' + sariBorder + ';border-radius:var(--r);padding:12px 16px;cursor:pointer" onclick="showTab(\'tab-sari\')" title="Ver Avaliação de Risco e Cooperação">'
-      + '<div style="font-size:10px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px"><i class="fas fa-shield-alt" style="color:var(--gm);margin-right:4px"></i>Risco/Coop.</div>'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-      + '<div><div style="font-size:10px;color:var(--gray500);margin-bottom:2px">Cooperação</div><div style="font-size:22px;font-weight:700;color:' + negColor + ';line-height:1">' + neg + '<span style="font-size:11px">%</span></div></div>'
-      + '<div style="text-align:right"><div style="font-size:10px;color:var(--gray500);margin-bottom:2px">Risco Violência</div><div style="font-size:22px;font-weight:700;color:' + riskColor + ';line-height:1">' + risk + '<span style="font-size:11px">/10</span></div></div>'
-      + '</div>'
-      + '</div>';
+    const risk = sari.risk_level;
+    const cor = (risk||0) <= 3 ? 'var(--gm)' : (risk||0) <= 6 ? 'var(--amber)' : 'var(--red)';
+    sariHtml = card(cor, 'Risco/Cooperação',
+      valor(sari.negotiation_probability != null ? sari.negotiation_probability + '%' : '—', cor)
+      + sub('Risco ' + (risk != null ? risk + '/10' : '—')), 'tab-sari', 'Ver Avaliação de Risco e Cooperação');
   } else {
-    sariHtml = '<div style="background:var(--gray50);border:1px dashed var(--border);border-radius:var(--r);padding:12px 16px;cursor:pointer;text-align:center" onclick="showTab(\'tab-sari\')">'
-      + '<div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;margin-bottom:6px"><i class="fas fa-shield-alt" style="margin-right:4px"></i>Risco/Coop.</div>'
-      + '<div style="font-size:12px;color:var(--gray400)">Não preenchido</div>'
-      + '<div style="font-size:11px;color:var(--gl);margin-top:4px">Clica para preencher →</div>'
-      + '</div>';
+    sariHtml = card('var(--gray400)', 'Risco/Cooperação', valor('Não preenchido', 'var(--gray400)'), 'tab-sari', 'Preencher Avaliação de Risco e Cooperação');
   }
 
-  let planoHtml = '';
+  // Plano de Negociação
+  let planoHtml;
   if (plano) {
-    const sit = plano.tipo_situacao || '—';
+    const sit = plano.tipo_situacao || '';
     const align = plano.alinhamento || '';
     const alignOk = align === 'desalinhados';
-    const alignIcon = align ? (alignOk ? '✅' : '⚠️') : '';
-    const alignLabel = align ? (alignOk ? 'Favorável' : 'Desfavorável') : 'Alinhamento por selecionar';
+    const alignLabel = align ? (alignOk ? 'Favorável' : 'Desfavorável') : 'por selecionar';
     const alignColor = align ? (alignOk ? 'var(--gm)' : 'var(--red)') : 'var(--gray400)';
-    const sitColor = sit === 'crise' ? 'var(--gm)' : sit === 'conflito' ? 'var(--red)' : 'var(--gray400)';
-    const pos = (plano.posicao_adversario || '').slice(0, 60) + ((plano.posicao_adversario||'').length > 60 ? '…' : '');
-    const int_ = (plano.interesses_adversario || '').slice(0, 60) + ((plano.interesses_adversario||'').length > 60 ? '…' : '');
-    planoHtml = '<div style="background:#fff;border:2px solid var(--border);border-radius:var(--r);padding:12px 16px;cursor:pointer" onclick="showTab(\'tab-plano\')" title="Ver Plano">'
-      + '<div style="font-size:10px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px"><i class="fas fa-clipboard-list" style="color:var(--gl);margin-right:4px"></i>PLANO DE NEGOCIAÇÃO</div>'
-      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-      + '<span style="font-size:13px;font-weight:700;color:' + sitColor + ';text-transform:uppercase">' + sit.toUpperCase() + '</span>'
-      + '<span style="font-size:13px;font-weight:600;color:' + alignColor + '">' + alignIcon + ' ' + alignLabel + '</span>'
-      + '</div>'
-      + (pos ? '<div style="font-size:11px;color:var(--gray600);margin-bottom:3px"><span style="font-weight:600">Posição:</span> ' + pos + '</div>' : '')
-      + (int_ ? '<div style="font-size:11px;color:var(--gray600)"><span style="font-weight:600">Interesses:</span> ' + int_ + '</div>' : '')
-      + '</div>';
+    const corta = t => { t = String(t || ''); return t.length > 60 ? t.slice(0, 60) + '…' : t; };
+    planoHtml = card('var(--gl)', 'Plano de Negociação',
+      (sit ? linha('Tipo de situação', sit.toUpperCase()) : '')
+      + linha('Alinhamento', '<span style="color:' + alignColor + ';font-weight:600">' + alignLabel + '</span>')
+      + (plano.posicao_adversario ? linha('Posição', corta(plano.posicao_adversario)) : '')
+      + (plano.interesses_adversario ? linha('Interesses', corta(plano.interesses_adversario)) : ''),
+      'tab-plano', 'Ver Plano');
   } else {
-    planoHtml = '<div style="background:var(--gray50);border:1px dashed var(--border);border-radius:var(--r);padding:12px 16px;cursor:pointer;text-align:center" onclick="showTab(\'tab-plano\')">'
-      + '<div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;margin-bottom:6px"><i class="fas fa-clipboard-list" style="margin-right:4px"></i>PLANO</div>'
-      + '<div style="font-size:12px;color:var(--gray400)">Não preenchido</div>'
-      + '<div style="font-size:11px;color:var(--gl);margin-top:4px">Clica para preencher →</div>'
-      + '</div>';
+    planoHtml = card('var(--gray400)', 'Plano de Negociação', valor('Não preenchido', 'var(--gray400)'), 'tab-plano', 'Preencher Plano');
   }
 
-  // Card de Contactos Vítima / Agressor (dados do registo)
+  // Contactos Vítima / Agressor (dados do registo)
   const cv = (record && record.contacto_vitima) ? record.contacto_vitima : '';
   const ca = (record && record.contacto_agressor) ? record.contacto_agressor : '';
-  const hasContacts = cv || ca;
-  let contactosHtml = '<div style="background:' + (hasContacts ? '#f0f4ff' : 'var(--gray50)') + ';border:2px solid ' + (hasContacts ? '#93c5fd' : 'var(--border)') + ';border-radius:var(--r);padding:12px 16px">'
-    + '<div style="font-size:10px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px"><i class="fas fa-address-book" style="color:#3b82f6;margin-right:4px"></i>CONTACTOS</div>';
-  if (hasContacts) {
-    if (cv) {
-      contactosHtml += '<div style="margin-bottom:6px">'
-        + '<div style="font-size:10px;font-weight:600;color:var(--gm);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px"><i class="fas fa-user" style="margin-right:3px"></i>Vítima</div>'
-        + '<a href="tel:' + cv + '" style="font-size:14px;font-weight:600;color:#1d4ed8;font-family:\'IBM Plex Mono\',monospace;text-decoration:none">' + cv + '</a>'
-        + '</div>';
-    }
-    if (ca) {
-      contactosHtml += '<div>'
-        + '<div style="font-size:10px;font-weight:600;color:var(--red);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px"><i class="fas fa-user-slash" style="margin-right:3px"></i>Agressor</div>'
-        + '<a href="tel:' + ca + '" style="font-size:14px;font-weight:600;color:#b91c1c;font-family:\'IBM Plex Mono\',monospace;text-decoration:none">' + ca + '</a>'
-        + '</div>';
-    }
-  } else {
-    contactosHtml += '<div style="font-size:12px;color:var(--gray400);font-style:italic">Sem contactos registados</div>'
-      + '<div style="font-size:11px;color:var(--gl);margin-top:4px">Preencher no registo →</div>';
-  }
-  contactosHtml += '</div>';
+  const tel = (rot, n, cor) => '<div style="margin-bottom:4px"><div style="font-size:11.5px;color:var(--gray600)">' + rot + '</div>'
+    + '<a href="tel:' + n + '" style="font-size:15px;font-weight:700;color:' + cor + ';font-family:\'IBM Plex Mono\',monospace;text-decoration:none">' + n + '</a></div>';
+  const contactosHtml = (cv || ca)
+    ? card('var(--gn)', 'Contactos', (cv ? tel('Vítima', cv, 'var(--gn)') : '') + (ca ? tel('Agressor', ca, 'var(--red)') : ''))
+    : card('var(--gray400)', 'Contactos', valor('Sem contactos', 'var(--gray400)') + sub('Preencher no registo'));
 
   return irisHtml + sariHtml + planoHtml + contactosHtml;
 }
