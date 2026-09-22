@@ -825,7 +825,7 @@ body.is-mobile .filter-bar input,body.is-mobile .filter-bar select{flex:1 1 45%;
       <button class="btn btn-primary btn-sm" id="treino-tab-todos" onclick="switchTreinoTab('todos')">Todos</button>
       <button class="btn btn-outline btn-sm" id="treino-tab-inc" onclick="switchTreinoTab('inc')">Incidente de Segurança</button>
       <button class="btn btn-outline btn-sm" id="treino-tab-itp" onclick="switchTreinoTab('itp')">ITP</button>
-      <button class="btn btn-danger btn-sm" style="margin-left:auto" onclick="limparTreino()" title="Apagar todos os registos de treino"><i class="fas fa-trash"></i> Limpar Treino</button>
+      <button class="btn btn-danger btn-sm" id="btn-limpar-treino" style="margin-left:auto" onclick="limparTreino()" title="Apagar todos os registos de treino"><i class="fas fa-trash"></i> Limpar Treino</button>
     </div>
     <div class="table-card">
       <div id="treino-inc-wrap"></div>
@@ -7572,6 +7572,8 @@ async function renderAdmin(){
   const pendingOper=(allUsers||[]).filter(x=>x.approved&&x.nivel_acesso==='formacao'&&x.role!=='admin').length;
   let pedidosPerfil=[];
   try{ const{data:pp}=await sb.from('pedidos_alteracao_perfil').select('*').eq('estado','pendente').order('created_at'); pedidosPerfil=pp||[]; }catch(e){ console.warn('pedidos perfil', e); }
+  let pedidosElimTreino=[];
+  try{ const{data:pe}=await sb.from('pedidos_eliminacao_treino').select('*').eq('estado','pendente').order('created_at'); pedidosElimTreino=pe||[]; }catch(e){ console.warn('pedidos eliminação treino', e); }
   const el=document.getElementById('admin-wrap');
   el.innerHTML=`
     ${pendingAprov>0?`<div class="pending-banner"><i class="fas fa-exclamation-circle"></i> ${pendingAprov} conta(s) aguardam aprovação de acesso à Formação</div>`:''}
@@ -7587,6 +7589,21 @@ async function renderAdmin(){
           <td><div style="display:flex;gap:5px;flex-wrap:wrap">
             <button class="btn btn-success btn-sm" onclick="decidirPedidoPerfil('${p.id}',true)"><i class="fas fa-check"></i> Aprovar</button>
             <button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="decidirPedidoPerfil('${p.id}',false)"><i class="fas fa-xmark"></i> Rejeitar</button>
+          </div></td></tr>`; }).join('')}</tbody>
+      </table></div>
+    </div>`:''}
+    ${pedidosElimTreino.length?`<div class="table-card" style="margin-bottom:1rem">
+      <div class="table-card-header"><span style="font-size:14px;font-weight:600;color:var(--gn)"><i class="fas fa-trash" style="color:var(--red);margin-right:6px"></i>Pedidos de eliminação de casos de treino (${pedidosElimTreino.length})</span></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Aluno</th><th>Caso de treino</th><th>Motivo</th><th>Pedido em</th><th>Ações</th></tr></thead>
+        <tbody>${pedidosElimTreino.map(p=>{ const u=(allUsers||[]).find(x=>x.id===p.user_id)||{}; const c=p.resumo||{}; return `<tr>
+          <td>${_ppEsc(((u.posto?u.posto+' ':'')+(u.nome||'')).trim()||'—')}<div style="font-size:11px;color:var(--gray400);font-family:'IBM Plex Mono',monospace">${_ppEsc(u.email||'')}</div></td>
+          <td style="font-size:12.5px;line-height:1.6"><strong>${c.is_itp?'ITP':'Inc. Segurança'}</strong> · ${_ppEsc(c.tipo||'—')}<div style="font-size:11.5px;color:var(--gray600)">${_ppEsc(c.cter||'—')}${c.data_hora?' · '+fmtDateTime(c.data_hora):''}</div>${p.treino_id?'':'<div style="font-size:11px;color:var(--gray400)">(caso já não existe)</div>'}</td>
+          <td style="font-size:12.5px;color:var(--gray600)">${_ppEsc(p.motivo||'—')}</td>
+          <td style="font-size:12px;color:var(--gray600)">${fmtDateTime(p.created_at)}</td>
+          <td><div style="display:flex;gap:5px;flex-wrap:wrap">
+            <button class="btn btn-success btn-sm" onclick="decidirPedidoEliminacaoTreino('${p.id}',true)"><i class="fas fa-check"></i> Aprovar</button>
+            <button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="decidirPedidoEliminacaoTreino('${p.id}',false)"><i class="fas fa-xmark"></i> Rejeitar</button>
           </div></td></tr>`; }).join('')}</tbody>
       </table></div>
     </div>`:''}
@@ -8535,12 +8552,27 @@ async function renderHistorico() {
 let treinoIncidentes = [], treinoITPs = [];
 let treinoTab = 'todos';
 let treinoTodos = [];
+let treinoPedidosPendentes = new Set();
+// Aluno = utilizador não-admin com acesso só à Formação (não vê «Limpar Treino»; apagar um caso exige aprovação do admin)
+function sgiEAluno() { return !!currentProfile && currentProfile.role !== 'admin' && currentProfile.nivel_acesso === 'formacao'; }
+function treinoBtnApagar(r, extraCls) {
+  if (sgiEAluno() && treinoPedidosPendentes.has(r.id))
+    return `<button class="btn btn-outline btn-sm" disabled title="Pedido de eliminação pendente de aprovação do admin" style="color:var(--amber)"><i class="fas fa-hourglass-half"></i></button>`;
+  return `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteTreino('inc','${r.id}')" title="${sgiEAluno() ? 'Pedir eliminação ao admin' : 'Eliminar'}"><i class="fas fa-trash"></i></button>`;
+}
 
 async function loadTreino() {
   const incRes = await sb.from('treino_incidentes').select('*').order('created_at', { ascending: false });
   treinoTodos = incRes.data || [];
   treinoIncidentes = treinoTodos.filter(r => !r.is_itp);
   treinoITPs = treinoTodos.filter(r => !!r.is_itp);
+  treinoPedidosPendentes = new Set();
+  if (sgiEAluno()) {
+    try {
+      const { data: pe } = await sb.from('pedidos_eliminacao_treino').select('treino_id').eq('user_id', currentUser.id).eq('estado', 'pendente');
+      (pe || []).forEach(x => treinoPedidosPendentes.add(x.treino_id));
+    } catch (e) { console.warn('pedidos eliminação treino', e); }
+  }
 }
 
 async function renderTreino() {
@@ -8550,6 +8582,7 @@ async function renderTreino() {
   document.getElementById('t-itp').textContent = treinoITPs.length;
   document.getElementById('t-curso').textContent = all.filter(x => x.estado === 'Em curso').length;
   document.getElementById('t-res').textContent = all.filter(x => x.estado === 'Resolvido').length;
+  ['btn-limpar-treino', 'mob-btn-limpar-treino'].forEach(id => { const b = document.getElementById(id); if (b) b.style.display = sgiEAluno() ? 'none' : ''; });
   renderTreinoTable();
   if (isMobile && document.getElementById('mob-treino-list')) mobRenderTreinoCards();
 }
@@ -8589,7 +8622,7 @@ function renderTreinoTable() {
     <td><div style="display:flex;gap:4px">
       <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openTreinoRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})" title="Abrir formulários"><i class="fas fa-folder-open"></i></button>
       <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();${r.is_itp?'editTreinoITP':'editTreinoIncidente'}('${r.id}')" title="Editar dados do caso"><i class="fas fa-edit"></i></button>
-      <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteTreino('inc','${r.id}')"><i class="fas fa-trash"></i></button>
+      ${treinoBtnApagar(r)}
     </div></td>
   </tr>`).join('')}</tbody></table></div>`;
 }
@@ -8738,10 +8771,41 @@ function editTreinoITP(id) {
 }
 
 async function deleteTreino(type, id) {
+  if (sgiEAluno()) { pedirEliminacaoTreino(id); return; }
   if (!confirm('Eliminar este registo de treino?')) return;
   const table = 'treino_incidentes';
-  await sb.from(table).delete().eq('id', id);
+  const { error } = await sb.from(table).delete().eq('id', id);
+  if (error) { alert('Erro ao eliminar: ' + error.message); return; }
   renderTreino();
+}
+
+// Aluno: pede ao admin a eliminação de um caso de treino
+async function pedirEliminacaoTreino(id) {
+  const r = (treinoTodos || []).find(x => x.id === id);
+  if (!r) return;
+  if (treinoPedidosPendentes.has(id)) { alert('Já existe um pedido de eliminação pendente para este caso.'); return; }
+  const motivo = prompt('A eliminação de casos de treino tem de ser aprovada pelo administrador.\n\nMotivo do pedido (opcional):', '');
+  if (motivo === null) return;
+  const resumo = { tipo: r.tipo || '', local: r.local || '', cter: r.cter || '', data_hora: r.data_hora || null, is_itp: !!r.is_itp };
+  const { error } = await sb.from('pedidos_eliminacao_treino').insert({ treino_id: id, user_id: currentUser.id, motivo: (motivo || '').trim() || null, resumo });
+  if (error) { alert('Erro ao enviar o pedido: ' + error.message); return; }
+  try { await notifyAdmins('Pedido de eliminação de caso de treino (' + (r.tipo || '—') + ') por ' + (currentProfile.nome || currentUser.email)); } catch (e) {}
+  alert('Pedido enviado. O caso será eliminado quando o administrador aprovar.');
+  renderTreino();
+}
+
+// Admin: aprovar / rejeitar pedido de eliminação de caso de treino
+async function decidirPedidoEliminacaoTreino(id, aprovar) {
+  let motivo = null;
+  if (aprovar) {
+    if (!confirm('Aprovar e eliminar definitivamente este caso de treino?')) return;
+  } else {
+    motivo = prompt('Motivo da rejeição (opcional):', '');
+    if (motivo === null) return;
+  }
+  const { error } = await sb.rpc('decidir_pedido_eliminacao_treino', { p_id: id, p_aprovar: !!aprovar, p_motivo: motivo });
+  if (error) { alert('Erro: ' + error.message); return; }
+  renderAdmin();
 }
 
 async function quickTreinoStatus(type, id, newStatus) {
@@ -8756,6 +8820,7 @@ async function quickTreinoStatus(type, id, newStatus) {
 }
 
 async function limparTreino() {
+  if (sgiEAluno()) return;
   if (!confirm('Apagar TODOS os registos de treino? Esta ação não pode ser desfeita.')) return;
   await Promise.all([
     sb.from('treino_incidentes').delete().neq('id', '00000000-0000-0000-0000-000000000000')
@@ -8805,7 +8870,7 @@ function mobRenderTreinoCards() {
           <option value="Resolvido" ${r.estado === 'Resolvido' ? 'selected' : ''}>Resolvido</option>
         </select>
         <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();${r.is_itp?'editTreinoITP':'editTreinoIncidente'}('${r.id}')" title="Editar dados do caso"><i class="fas fa-edit"></i></button>
-        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteTreino('inc','${r.id}')"><i class="fas fa-trash"></i></button>
+        ${treinoBtnApagar(r)}
       </div>
     </div>`).join('');
 }
@@ -10498,7 +10563,7 @@ setImages();
       <button class="btn btn-primary btn-sm" id="mob-treino-tab-todos" onclick="mobSwitchTreinoTab('todos')">Todos</button>
       <button class="btn btn-outline btn-sm" id="mob-treino-tab-inc" onclick="mobSwitchTreinoTab('inc')">Incidentes</button>
       <button class="btn btn-outline btn-sm" id="mob-treino-tab-itp" onclick="mobSwitchTreinoTab('itp')">ITP</button>
-      <button class="btn btn-danger btn-sm" style="margin-left:auto" onclick="limparTreino()" title="Limpar todos os registos de treino"><i class="fas fa-trash"></i></button>
+      <button class="btn btn-danger btn-sm" id="mob-btn-limpar-treino" style="margin-left:auto" onclick="limparTreino()" title="Limpar todos os registos de treino"><i class="fas fa-trash"></i></button>
     </div>
     <div id="mob-treino-list"></div>
   </div>
