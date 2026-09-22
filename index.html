@@ -6525,6 +6525,7 @@ function avHtmlConfig(){
   </div>
   <div class="form-section"><h3><i class="fas fa-user-check" style="color:var(--gl)"></i> Negociadores EPQ (avaliadores)</h3>
     <div style="font-size:12px;color:var(--gray600);margin-bottom:8px">Só os negociadores marcados acedem a esta área. Cada EPQ vê apenas as avaliações que preenche.</div>
+    <div class="field" style="margin:0 0 10px;max-width:320px"><label>CTer</label><select id="av-epq-cter" onchange="_av.epqCter=this.value;avRenderListaEpq()"><option value="">Todos os CTer</option></select></div>
     <div id="av-epq-lista" style="font-size:13px;color:var(--gray400)">A carregar…</div>
   </div>
   ${ed?`<div class="form-section"><h3><i class="fas fa-id-card" style="color:var(--gl)"></i> Dados dos alunos — ${_ppEsc(ed.nome)}</h3>
@@ -6550,11 +6551,23 @@ async function avCarregarListaEpq(){
   const { data:us } = await sb.from('profiles').select('id,nome,posto,cter,role,approved').eq('approved', true).order('nome');
   const lista = (us||[]).filter(u=>u.cter!=='CTer Curso' && u.role!=='admin');
   (us||[]).forEach(u=>{ _av.perfis[u.id] = Object.assign(_av.perfis[u.id]||{}, u); });
+  _av.epqLista = lista;
+  const sel = document.getElementById('av-epq-cter');
+  if(sel){
+    const cters = [...new Set(lista.map(u=>u.cter).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt'));
+    if(_av.epqCter && !cters.includes(_av.epqCter)) _av.epqCter = '';
+    sel.innerHTML = '<option value="">Todos os CTer</option>' + cters.map(c=>`<option value="${_ppEsc(c)}" ${_av.epqCter===c?'selected':''}>${_ppEsc(c)}</option>`).join('');
+  }
+  avRenderListaEpq();
+}
+function avRenderListaEpq(){
+  const box = document.getElementById('av-epq-lista'); if(!box) return;
+  const lista = (_av.epqLista||[]).filter(u=>!_av.epqCter || u.cter===_av.epqCter);
   box.innerHTML = lista.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px">${lista.map(u=>`
     <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--r);background:#fff;cursor:pointer;color:var(--gray900)">
       <input type="checkbox" ${_av.epqIds.includes(u.id)?'checked':''} onchange="avMarcarEpq('${u.id}',this.checked)" style="width:16px;height:16px;accent-color:var(--gl)">
       <span>${_ppEsc(((u.posto?u.posto+' ':'')+(u.nome||'')).trim())}<span style="color:var(--gray400);font-size:11px"> · ${_ppEsc(u.cter||'—')}</span></span></label>`).join('')}</div>`
-    : 'Sem negociadores disponíveis.';
+    : (_av.epqCter ? 'Sem negociadores neste CTer.' : 'Sem negociadores disponíveis.');
 }
 async function avMarcarEpq(uid, on){
   const { error } = on
