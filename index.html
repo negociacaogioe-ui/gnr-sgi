@@ -1755,7 +1755,7 @@ const SGI_LABELS = {
 };
 
 const SGI_FORMS = {
-  iris:  {panel:'iris-content',  titulo:'IRIS',                save:()=>saveIRIS()},
+  iris:  {panel:'iris-content',  get titulo(){ return 'IRIS — Visado ' + ((typeof _irisEstado!=='undefined' && _irisEstado && _irisEstado.visado) || 1); }, save:()=>saveIRIS()},
   sari:  {panel:'sari-content',  titulo:'Aval. Risco/Cooperação',                save:()=>saveSARI()},
   plano: {panel:'plano-content', titulo:'Plano de Negociação', save:()=>savePlano()},
   visado:{panel:'tab-visado',    titulo:'Descrição do Visado', save:()=>saveVisado()},
@@ -2700,15 +2700,15 @@ async function renderQuadroCoordenador(){
   if(!box || !currentDetail) return;
   const { type, record:r } = currentDetail;
   const pt = type === 'inc' ? 'incidente' : 'itp';
-  let iris = null, sari = null, plano = null, cts = [];
+  let iris = [], sari = null, plano = null, cts = [];
   try{
     const [a,b,c,d] = await Promise.all([
-      sb.from('iris').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+      sb.from('iris').select('*').eq('parent_type',pt).eq('parent_id',r.id),
       sb.from('sari').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
       sb.from('plano_negociacao').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
       sb.from('rnrv_contactos').select('*').eq('parent_type',pt).eq('parent_id',r.id).order('contact_datetime',{ascending:false})
     ]);
-    iris = a.data; sari = b.data; plano = c.data; cts = d.data || [];
+    iris = irisOrdenar(a.data || []); sari = b.data; plano = c.data; cts = d.data || [];
   }catch(e){}
   if(!document.getElementById('qc-content')) return;
 
@@ -2739,7 +2739,7 @@ async function renderQuadroCoordenador(){
 
   box.innerHTML =
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin-bottom:10px">'
-    + cartao('IRIS', iris ? (iris.score != null ? iris.score + ' pts' : '—') : 'Não preenchido', iris ? (iris.risk_level||'') : '', irisCor)
+    + irisCartaoHTML(iris)
     + cartao('Risco/Cooperação', sari ? (sari.negotiation_probability != null ? sari.negotiation_probability + '%' : '—') : 'Não preenchido', sari ? ('Cooperação · risco ' + (sari.risk_level != null ? sari.risk_level + '/10' : '—')) : '', sariCor)
     + cartao('Contactos', String(cts.length), ult ? ('Último: ' + fmtDateTime(ult.contact_datetime)) : 'Sem contactos')
     + '</div>'
@@ -2768,15 +2768,15 @@ async function exportQuadroCoordenadorPDF(){
   if(!currentDetail) return;
   const { type, record:r } = currentDetail;
   const pt = type === 'inc' ? 'incidente' : 'itp';
-  let iris=null, sari=null, plano=null, cts=[];
+  let iris=[], sari=null, plano=null, cts=[];
   try{
     const [a,b,c,d] = await Promise.all([
-      sb.from('iris').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+      sb.from('iris').select('*').eq('parent_type',pt).eq('parent_id',r.id),
       sb.from('sari').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
       sb.from('plano_negociacao').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
       sb.from('rnrv_contactos').select('*').eq('parent_type',pt).eq('parent_id',r.id).order('contact_datetime',{ascending:false})
     ]);
-    iris=a.data; sari=b.data; plano=c.data; cts=d.data||[];
+    iris=irisOrdenar(a.data||[]); sari=b.data; plano=c.data; cts=d.data||[];
   }catch(e){ alert('Não foi possível carregar os dados: '+((e&&e.message)||e)); return; }
 
   const {jsPDF} = window.jspdf;
@@ -2815,7 +2815,9 @@ async function exportQuadroCoordenadorPDF(){
   if(r.is_itp){ kv('Suspeitos', r.num_suspeitos); kv('Reféns', r.num_refens); }
 
   sec('Avaliação de risco');
-  kv('IRIS', iris ? ((iris.score!=null?iris.score+' pts':'—') + ' · ' + (iris.risk_level||'—')) : 'Não preenchido');
+  if(!iris.length) kv('IRIS', 'Não preenchido');
+  else if(iris.length===1) kv('IRIS', (iris[0].score!=null?iris[0].score+' pts':'—') + ' · ' + (iris[0].risk_level||'—'));
+  else irisLinhas(iris).forEach(x => { const q=irisQuando(x.a); kv('IRIS V'+x.n+' · aval. '+x.k, (irisNomeVisado(iris,x.n)||'Visado '+x.n) + (q?' ('+q+')':'') + ' — ' + (x.a.score!=null?x.a.score+' pts':'—') + ' · ' + (x.a.risk_level||'—')); });
   kv('Cooperação esperada', sari ? ((sari.negotiation_probability!=null?sari.negotiation_probability+'%':'—')) : 'Não preenchido');
   kv('Risco de violência', sari ? ((sari.risk_level!=null?sari.risk_level+'/10':'—')) : 'Não preenchido');
 
@@ -2855,14 +2857,14 @@ async function renderCabecalhoCoordenacao(){
   if(!box || !currentDetail) return;
   const { type, record:r } = currentDetail;
   const pt = type === 'inc' ? 'incidente' : 'itp';
-  let iris=null, sari=null, cts=[];
+  let iris=[], sari=null, cts=[];
   try{
     const [a,b,d] = await Promise.all([
-      sb.from('iris').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+      sb.from('iris').select('*').eq('parent_type',pt).eq('parent_id',r.id),
       sb.from('sari').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
       sb.from('rnrv_contactos').select('*').eq('parent_type',pt).eq('parent_id',r.id).order('contact_datetime',{ascending:false})
     ]);
-    iris=a.data; sari=b.data; cts=d.data||[];
+    iris=irisOrdenar(a.data||[]); sari=b.data; cts=d.data||[];
   }catch(e){}
   if(!document.getElementById('coord-cab')) return;
 
@@ -2878,7 +2880,7 @@ async function renderCabecalhoCoordenacao(){
   const sariCor = sari ? ((sari.risk_level||0)<=3?'var(--gm)':(sari.risk_level||0)<=6?'var(--amber)':'var(--red)') : 'var(--gray400)';
 
   box.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px">'
-    + cartao('IRIS', iris?(iris.score!=null?iris.score+' pts':'—'):'Não preenchido', iris?(iris.risk_level||''):'', irisCor)
+    + irisCartaoHTML(iris)
     + cartao('Risco/Cooperação', sari?(sari.negotiation_probability!=null?sari.negotiation_probability+'%':'—'):'Não preenchido', sari?('Risco '+(sari.risk_level!=null?sari.risk_level+'/10':'—')):'', sariCor)
     + cartao('Contactos', String(cts.length), cts[0]?('Último: '+fmtDateTime(cts[0].contact_datetime)):'Sem contactos')
     + cartao('Decorrido', decorrido, (r.estado||'—'))
@@ -3087,8 +3089,9 @@ async function _pxIris(){
   if(!r) return '';
   try{
     const pt = currentDetail.type==='itp' ? 'itp' : 'incidente';
-    const{data}=await sb.from('iris').select('score,risk_level').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle();
-    if(data && data.score!==null && data.score!==undefined) return 'IRIS — score '+data.score+' ('+(data.risk_level||'—')+')';
+    const l=(await irisListar(pt, r.id)).filter(a=>a.score!==null && a.score!==undefined);
+    if(l.length===1) return 'IRIS — score '+l[0].score+' ('+(l[0].risk_level||'—')+')';
+    if(l.length>1) return 'IRIS — '+irisLinhas(l).map(x=>'Visado '+x.n+(irisNomeVisado(l,x.n)?' ('+irisNomeVisado(l,x.n)+')':'')+', aval. '+x.k+': score '+x.a.score+' ('+(x.a.risk_level||'—')+')').join('; ');
   }catch(e){}
   return '';
 }
@@ -3739,19 +3742,212 @@ function renderResumo(){
   try{ renderEquipaSelects(); }catch(e){ console.warn('renderEquipaSelects', e); }
 }
 
+// ===== IRIS — vários visados e várias avaliações por caso =====
+// Cada linha da tabela iris é UMA avaliação de UM visado (visado_num 1, 2, …).
+// Um visado pode ter várias avaliações: todas ficam guardadas e editáveis e
+// todas aparecem nos quadros do índice de risco de suicídio.
+var _irisEstado = { caso: null, lista: [], visado: 1, id: null, aInserir: null };
+
+function irisVisadoNum(a){ return parseInt(a && a.visado_num, 10) || 1; }
+function _irisT(a){ const t = new Date(a && a.created_at || 0).getTime(); return isNaN(t) ? 0 : t; }
+function irisOrdenar(l){
+  return (l || []).slice().sort((a, b) =>
+    (irisVisadoNum(a) - irisVisadoNum(b)) || (_irisT(a) - _irisT(b)) || String(a.id).localeCompare(String(b.id)));
+}
+// aceita a lista nova ou um registo isolado (formato antigo)
+function irisComoLista(x){ return Array.isArray(x) ? irisOrdenar(x) : (x ? [x] : []); }
+async function irisListar(pt, id){
+  const { data, error } = await sb.from('iris').select('*').eq('parent_type', pt).eq('parent_id', id);
+  if(error) throw error;
+  return irisOrdenar(data || []);
+}
+function irisVisados(l){ return [...new Set((l || []).map(irisVisadoNum))].sort((a, b) => a - b); }
+function irisDoVisado(l, n){ return (l || []).filter(a => irisVisadoNum(a) === n); }
+function irisNomeVisado(l, n){
+  const av = irisDoVisado(l, n);
+  for(let i = av.length - 1; i >= 0; i--){ const nm = String(av[i].patient_name || '').trim(); if(nm) return nm; }
+  return '';
+}
+function irisRotuloVisado(l, n){ const nm = irisNomeVisado(l, n); return 'Visado ' + n + (nm ? ' — ' + nm : ''); }
+// data da avaliação (se indicada); senão data/hora do registo
+function irisQuando(a){
+  if(a && a.assessment_date) return String(a.assessment_date).slice(0, 10).split('-').reverse().join('/');
+  const c = a && a.created_at ? new Date(a.created_at) : null;
+  return (c && !isNaN(c)) ? c.toLocaleString('pt-PT', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
+}
+function irisNivelCor(risk){
+  const u = String(risk || '').toUpperCase();
+  return (u.indexOf('ELEV') > -1 || u.indexOf('EXTREM') > -1) ? 'var(--red)' : u.indexOf('INTERM') > -1 ? 'var(--amber)' : 'var(--gm)';
+}
+function irisNivelFundo(risk){
+  const u = String(risk || '').toUpperCase();
+  return (u.indexOf('ELEV') > -1 || u.indexOf('EXTREM') > -1) ? 'var(--redl)' : u.indexOf('INTERM') > -1 ? 'var(--amberl)' : 'var(--gp)';
+}
+// todas as avaliações, por visado e por ordem cronológica
+function irisLinhas(l){
+  const out = [];
+  irisVisados(l).forEach(n => {
+    const av = irisDoVisado(l, n);
+    av.forEach((a, i) => out.push({ a, n, k: i + 1, total: av.length, visado: irisRotuloVisado(l, n) }));
+  });
+  return out;
+}
+// avaliação de maior risco entre as mais recentes de cada visado (define a cor do quadro)
+function irisPiorAtual(l){
+  let pior = null;
+  irisVisados(l).forEach(n => {
+    const av = irisDoVisado(l, n), a = av[av.length - 1];
+    if(a && (!pior || (a.score || 0) > (pior.score || 0))) pior = a;
+  });
+  return pior;
+}
+function irisTextoAval(x){
+  const q = irisQuando(x.a);
+  return x.visado + ' · aval. ' + x.k + (q ? ' (' + q + ')' : '') + ': '
+    + (x.a.score != null ? x.a.score + ' pts' : '—') + ' · ' + (x.a.risk_level || '—');
+}
+// Cartão IRIS dos quadros (Coordenador / cabeçalho das posições)
+function irisCartaoHTML(lista){
+  const l = irisComoLista(lista);
+  const topo = (cor, corpo) =>
+    '<div style="background:#fff;border:1px solid var(--border);border-top:3px solid ' + cor + ';border-radius:var(--r);padding:11px 13px">'
+    + '<div style="font-size:10px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">IRIS</div>'
+    + corpo + '</div>';
+  if(!l.length) return topo('var(--gray400)', '<div style="font-size:19px;font-weight:700;color:var(--gray400);line-height:1.15">Não preenchido</div>');
+  if(l.length === 1){
+    const a = l[0], cor = irisNivelCor(a.risk_level);
+    return topo(cor, '<div style="font-size:19px;font-weight:700;color:' + cor + ';line-height:1.15">' + (a.score != null ? a.score + ' pts' : '—') + '</div>'
+      + (a.risk_level ? '<div style="font-size:11.5px;color:var(--gray600);margin-top:3px;line-height:1.4">' + _escHtml(a.risk_level) + '</div>' : ''));
+  }
+  const pior = irisPiorAtual(l);
+  return topo(irisNivelCor(pior && pior.risk_level), irisLinhas(l).map(x => {
+    const cor = irisNivelCor(x.a.risk_level), q = irisQuando(x.a);
+    return '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;padding:3px 0;border-bottom:1px dashed var(--border)">'
+      + '<span style="font-size:11.5px;color:var(--gray900);line-height:1.35">' + _escHtml(x.visado) + '<br><span style="color:var(--gray600)">Aval. ' + x.k + (q ? ' · ' + q : '') + '</span></span>'
+      + '<span style="font-size:13px;font-weight:700;color:' + cor + ';white-space:nowrap">' + (x.a.score != null ? x.a.score + ' pts' : '—') + '<br><span style="font-size:10.5px;font-weight:600">' + _escHtml(x.a.risk_level || '—') + '</span></span>'
+      + '</div>';
+  }).join(''));
+}
+// Cartão IRIS do resumo da Monitorização de Contactos, quando há mais de uma avaliação
+function _irisResumoMulti(l){
+  const pior = irisPiorAtual(l), corG = irisNivelCor(pior && pior.risk_level), bgG = irisNivelFundo(pior && pior.risk_level);
+  return '<div style="background:' + bgG + ';border:2px solid ' + corG + ';border-radius:var(--r);padding:12px 16px;cursor:pointer" onclick="showTab(\'tab-iris\')" title="Ver IRIS">'
+    + '<div style="font-size:10px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px"><i class="fas fa-heartbeat" style="color:var(--red);margin-right:4px"></i>IRIS — Risco de Suicídio</div>'
+    + irisLinhas(l).map(x => {
+        const cor = irisNivelCor(x.a.risk_level), q = irisQuando(x.a);
+        return '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;padding:3px 0">'
+          + '<span style="font-size:11.5px;color:var(--gray900);line-height:1.35">' + _escHtml(x.visado) + '<br><span style="color:var(--gray600)">Aval. ' + x.k + (q ? ' · ' + q : '') + '</span></span>'
+          + '<span style="font-size:14px;font-weight:700;color:' + cor + ';white-space:nowrap">' + (x.a.score != null ? x.a.score + ' pts' : '—') + ' <span style="font-size:11px">' + _escHtml(String(x.a.risk_level || '—').toUpperCase()) + '</span></span>'
+          + '</div>';
+      }).join('')
+    + '</div>';
+}
+
+// --- navegação no separador IRIS (visados + avaliações)
+function _irisNavHTML(){
+  const st = _irisEstado, l = st.lista;
+  const vs = irisVisados(l);
+  if(vs.indexOf(st.visado) < 0) vs.push(st.visado);
+  const chip = (ativo, onclick, html) =>
+    '<button type="button" class="btn btn-sm ' + (ativo ? 'btn-primary' : 'btn-outline') + '" onclick="' + onclick + '" style="white-space:nowrap">' + html + '</button>';
+  const doVis = irisDoVisado(l, st.visado);
+  let h = '<div style="background:var(--gray50);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">'
+    + '<div style="font-size:10px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Visados</div>'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
+    + vs.map(n => {
+        const guardado = irisDoVisado(l, n).length > 0;
+        return chip(n === st.visado, 'irisVerVisado(' + n + ')', '<i class="fas fa-user"></i> ' + _escHtml(irisRotuloVisado(l, n)) + (guardado ? '' : ' <em style="font-weight:400">(por gravar)</em>'));
+      }).join('')
+    + (doVis.length ? chip(false, 'irisNovoVisado()', '<i class="fas fa-user-plus"></i> Adicionar visado') : '')
+    + '</div>'
+    + '<div style="font-size:10px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Avaliações do Visado ' + st.visado + '</div>'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+  doVis.forEach((a, i) => {
+    const q = irisQuando(a);
+    h += chip(String(a.id) === String(st.id), "irisAbrir('" + String(a.id).replace(/'/g, '') + "')",
+      'Aval. ' + (i + 1) + (q ? ' · ' + q : '') + ' · <strong>' + (a.score != null ? a.score : '—') + ' pts</strong>');
+  });
+  if(!st.id) h += chip(true, '', '<i class="fas fa-pen"></i> ' + (doVis.length ? 'Nova avaliação' : 'Avaliação 1') + ' <em style="font-weight:400">(por gravar)</em>');
+  else h += chip(false, 'irisNovaAvaliacao()', '<i class="fas fa-plus"></i> Nova avaliação');
+  h += '</div></div>';
+  return h;
+}
+function _irisPintarNav(){ const nav = document.getElementById('iris-nav'); if(nav) nav.innerHTML = _irisNavHTML(); }
+function _irisGuardarNaLista(row){
+  if(!row) return;
+  const l = _irisEstado.lista.filter(x => String(x.id) !== String(row.id));
+  l.push(row);
+  _irisEstado.lista = irisOrdenar(l);
+}
+// grava o que estiver pendente antes de mudar de avaliação/visado
+async function _irisAntesDeTrocar(){
+  if(_irisEstado.aInserir){ try{ await _irisEstado.aInserir; }catch(e){} }
+  _sgiLastError = null;
+  try{ await sgiAutosaveExec('iris'); }catch(e){}
+  if(_sgiLastError){
+    if(!confirm('A avaliação atual não foi gravada (' + _sgiLastError + '). Mudar mesmo assim?')) return false;
+  }
+  return true;
+}
+async function irisAbrir(id){
+  if(!(await _irisAntesDeTrocar())) return;
+  const a = _irisEstado.lista.find(x => String(x.id) === String(id));
+  if(!a) return;
+  _irisEstado.visado = irisVisadoNum(a); _irisEstado.id = a.id;
+  _irisPintar();
+}
+async function irisVerVisado(n){
+  if(!(await _irisAntesDeTrocar())) return;
+  const av = irisDoVisado(_irisEstado.lista, n);
+  _irisEstado.visado = n; _irisEstado.id = av.length ? av[av.length - 1].id : null;
+  _irisPintar();
+}
+async function irisNovaAvaliacao(){
+  if(!(await _irisAntesDeTrocar())) return;
+  _irisEstado.id = null;
+  _irisPintar();
+}
+async function irisNovoVisado(){
+  if(!(await _irisAntesDeTrocar())) return;
+  const vs = irisVisados(_irisEstado.lista);
+  _irisEstado.visado = (vs.length ? Math.max.apply(null, vs) : 0) + 1;
+  _irisEstado.id = null;
+  _irisPintar();
+}
+
 // ===== TAB: IRIS =====
 async function renderIRIS(){
   const{type,record:r}=currentDetail;
   const el=document.getElementById('iris-content');
   el.innerHTML='<p style="color:var(--gray400);font-size:13px">A carregar...</p>';
-  const{data:existing}=await sb.from('iris').select('*').eq('parent_type',type==='inc'?'incidente':'itp').eq('parent_id',r.id).maybeSingle();
+  let lista=[];
+  try{ lista=await irisListar(type==='inc'?'incidente':'itp', r.id); }
+  catch(e){ el.innerHTML='<p style="color:var(--red);font-size:13px">Não foi possível carregar a IRIS: '+_escHtml((e&&e.message)||e)+'</p>'; return; }
+  const st=_irisEstado;
+  const mesmoCaso = st.caso===r.id;
+  st.caso=r.id; st.lista=lista; st.aInserir=null;
+  if(!mesmoCaso || (st.id && !lista.some(x=>String(x.id)===String(st.id)))){
+    const vs=irisVisados(lista);
+    st.visado = vs.length ? vs[0] : 1;
+    const av=irisDoVisado(lista, st.visado);
+    st.id = av.length ? av[av.length-1].id : null;
+  }
+  _irisPintar();
+}
 
-  const vals=existing||{};
+function _irisPintar(){
+  const el=document.getElementById('iris-content');
+  if(!el) return;
+  const st=_irisEstado;
+  const atual = st.id ? st.lista.find(x=>String(x.id)===String(st.id)) : null;
+  // avaliação nova: só o nome do visado vem da avaliação anterior
+  const vals = atual || { patient_name: irisNomeVisado(st.lista, st.visado) };
   el.innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
       <h3 style="font-size:16px;font-weight:600;color:var(--gn)"><i class="fas fa-heartbeat" style="color:var(--red)"></i> IRIS — Índice de Risco de Suicídio</h3>
       <button class="btn btn-gold btn-sm" onclick="exportIRISPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
     </div>
+    <div id="iris-nav">${_irisNavHTML()}</div>
     <div class="form-grid">
       <div class="field"><label>Nome do visado</label><input type="text" id="iris-name" value="${vals.patient_name||''}"></div>
       <div class="field"><label>Data da avaliação</label><input type="date" id="iris-date" value="${vals.assessment_date||''}"></div>
@@ -3846,13 +4042,24 @@ async function saveIRIS(){
     family_suicide:document.getElementById('iris-famhist').checked,
     suicide_history:document.getElementById('iris-suhist').checked,
     suicide_plan:plan,score,risk_level:riskLevel,
+    visado_num:_irisEstado.visado||1,
     autor_id:currentUser.id,autor_nome:currentProfile.nome
   };
-  const{data:ex}=await sb.from('iris').select('id').eq('parent_type',payload.parent_type).eq('parent_id',r.id).maybeSingle();
+  // se a avaliação ainda está a ser criada, espera — evita duplicados
+  if(_irisEstado.aInserir){ try{ await _irisEstado.aInserir; }catch(e){} }
   let err;
-  if(ex){const res=await sb.from('iris').update(payload).eq('id',ex.id);err=res.error;}
-  else{const res=await sb.from('iris').insert(payload);err=res.error;}
+  if(_irisEstado.id){
+    const res=await sb.from('iris').update(payload).eq('id',_irisEstado.id).select('*').maybeSingle();
+    err=res.error; if(!err && res.data) _irisGuardarNaLista(res.data);
+  } else {
+    const p=(async()=>await sb.from('iris').insert(payload).select('*').single())();
+    _irisEstado.aInserir=p;
+    const res=await p; _irisEstado.aInserir=null;
+    err=res.error;
+    if(!err && res.data){ _irisEstado.id=res.data.id; _irisGuardarNaLista(res.data); }
+  }
   if(err){_sgiFalhou('Erro ao guardar: '+err.message);return;}
+  _irisPintarNav();
   _sgiGuardou('IRIS guardado com sucesso!');
 }
 
@@ -3948,13 +4155,13 @@ async function produzirRelatorio(){
   btns.forEach(b => { b.disabled = true; b.dataset.old = b.innerHTML; b.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A produzir...'; });
   try{
     const [iR, sR, pR, cR, hR] = await Promise.all([
-      sb.from('iris').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+      sb.from('iris').select('*').eq('parent_type',pt).eq('parent_id',r.id),
       sb.from('sari').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
       sb.from('plano_negociacao').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
       sb.from('rnrv_contactos').select('*').eq('parent_type',pt).eq('parent_id',r.id).order('contact_datetime',{ascending:true}),
       sb.from('historico').select('*').in('tabela',['incidentes','itps','treino_incidentes']).eq('registo_id',r.id).order('created_at',{ascending:false}).limit(30)
     ]);
-    _relatorioPDF(r, type, iR.data, sR.data, pR.data, cR.data||[], hR.data||[]);
+    _relatorioPDF(r, type, irisOrdenar(iR.data||[]), sR.data, pR.data, cR.data||[], hR.data||[]);
   }catch(e){
     alert('Não foi possível produzir o relatório: ' + ((e && e.message) || e));
   }finally{
@@ -4054,7 +4261,9 @@ function _relatorioPDF(r, type, iris, sari, plano, contactos, hist){
 
   // ---------------- 5. IRIS
   sec('5. Anexo A — IRIS (Índice de Risco de Suicídio)');
-  if(iris){
+  const _irisL = irisComoLista(iris);
+  if(_irisL.length){ irisLinhas(_irisL).forEach((x, xi) => { const iris = x.a;
+    if(_irisL.length > 1){ if(xi) y += 3; kv('Avaliação', 'Visado ' + x.n + ' — avaliação ' + x.k + ' de ' + x.total); }
     kv('Visado', iris.patient_name);
     kv('Data da avaliação', iris.assessment_date);
     kv('Score', (iris.score != null ? iris.score : '—') + ' pontos');
@@ -4073,7 +4282,7 @@ function _relatorioPDF(r, type, iris, sari, plano, contactos, hist){
     if(iris.suicide_history) sim.push('Comportamentos suicidários prévios');
     if(iris.suicide_plan) sim.push('PLANO SUICIDA ORGANIZADO');
     kv('Fatores assinalados', sim.length ? sim.join('; ') : 'Nenhum');
-  } else { vazio('IRIS não preenchido.'); }
+  }); } else { vazio('IRIS não preenchido.'); }
 
   // ---------------- 6. SARI
   sec('6. Avaliação de Risco de Violência e Cooperação');
@@ -4532,13 +4741,13 @@ async function renderRNRV(){
   const el=document.getElementById('rnrv-content');
   const[contactsRes, irisRes, sariRes, planoRes] = await Promise.all([
     sb.from('rnrv_contactos').select('*').eq('parent_type',type==='inc'?'incidente':'itp').eq('parent_id',r.id).order('contact_datetime',{ascending:true}),
-    sb.from('iris').select('*').eq('parent_type',type==='inc'?'incidente':'itp').eq('parent_id',r.id).maybeSingle(),
+    sb.from('iris').select('*').eq('parent_type',type==='inc'?'incidente':'itp').eq('parent_id',r.id),
     sb.from('sari').select('*').eq('parent_type',type==='inc'?'incidente':'itp').eq('parent_id',r.id).maybeSingle(),
     sb.from('plano_negociacao').select('*').eq('parent_type',type==='inc'?'incidente':'itp').eq('parent_id',r.id).maybeSingle(),
   ]);
   rnrvContacts=contactsRes.data||[];
 
-  const irisData = irisRes.data || null;
+  const irisData = irisOrdenar(irisRes.data || []);
   const sariData = sariRes.data || null;
   const planoData = planoRes.data || null;
 
@@ -9000,7 +9209,11 @@ async function toggleObjIntermedio(index) {
 
 function buildContactosSummary(iris, sari, plano, record) {
   let irisHtml = '';
-  if (iris) {
+  const _irisL = irisComoLista(iris);
+  iris = _irisL.length === 1 ? _irisL[0] : null;
+  if (_irisL.length > 1) {
+    irisHtml = _irisResumoMulti(_irisL);
+  } else if (iris) {
     const sc = iris.score || iris.total_score || 0;
     const savedRisk = iris.risk_level || '';
     const risk = savedRisk || (sc >= 10 ? 'EXTREMO' : sc >= 7 ? 'ELEVADO' : sc >= 4 ? 'INTERMÉDIO' : 'BAIXO');
@@ -10852,6 +11065,8 @@ function mobAbrirEditar() {
 function mobDevolverSari() {
   const home = document.getElementById('tab-sari'), el = document.getElementById('sari-content');
   if (home && el && !home.contains(el)) home.appendChild(el);
+  const homeI = document.getElementById('tab-iris'), elI = document.getElementById('iris-content');
+  if (homeI && elI && !homeI.contains(elI)) homeI.appendChild(elI);
 }
 function mobMostrarSeletorFormularios() {
   mobDevolverSari();
@@ -10966,44 +11181,11 @@ async function mobAbrirForm(form) {
   const msg = (id) => `<div id="${id}" style="display:none;margin-top:10px;text-align:center;font-size:14px;padding:10px;border-radius:var(--r)"></div>`;
 
   if (form === 'iris') {
-    const {data:v} = await sb.from('iris').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle();
-    const d = v||{};
-    overlay.innerHTML = `<div style="padding:.875rem">
-      <div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);overflow:hidden;margin-bottom:12px">
-        <div style="padding:14px;background:var(--redl);display:flex;align-items:center;justify-content:space-between">
-          <span style="font-size:15px;font-weight:600;color:var(--red)"><i class="fas fa-heartbeat"></i> IRIS</span>
-          <div id="mob-iris-badge" style="font-size:13px;font-weight:700;padding:4px 12px;border-radius:20px;background:var(--gray100);color:var(--gray600)">Score: —</div>
-        </div>
-        <div style="padding:16px">
-          ${field('Nome','text','mob-iris-name',d.patient_name)}
-          ${field('Data avaliação','date','mob-iris-date',d.assessment_date)}
-          ${secHdr('Sociodemografia — 1 pt/item','var(--gn)')}
-          ${sel('Sexo','mob-iris-gender',[['','Selecionar...'],['male','Masculino (1 pt)'],['female','Feminino (0 pts)']],d.gender)}
-          ${sel('Idade','mob-iris-age',[['','Selecionar...'],['over45','45+ anos (1 pt)'],['under45','Menos de 45 (0 pts)']],d.age_group)}
-          ${sel('Religiosidade','mob-iris-rel',[['','Selecionar...'],['no','Não — sem fatores (1 pt)'],['yes','Sim (0 pts)']],d.religiosity)}
-          ${secHdr('Contextos — 2 pts/item','var(--gn)')}
-          ${chk('Vive só, sem apoio','mob-iris-iso',d.isolation)}
-          ${chk('Perda recente marcante','mob-iris-loss',d.recent_loss)}
-          ${chk('Doença física incapacitante','mob-iris-phys',d.physical_illness)}
-          ${chk('Abuso de substâncias','mob-iris-subs',d.substance_abuse)}
-          ${chk('Doença psiquiátrica grave','mob-iris-psych',d.psychiatric_illness)}
-          ${chk('Historial internamento psiq.','mob-iris-pshist',d.psychiatric_history)}
-          ${chk('História familiar de suicídio','mob-iris-fam',d.family_suicide)}
-          ${secHdr('Esfera Suicida','var(--red)')}
-          ${chk('2+ comportamentos suicidários prévios ou 1 grave (3 pts)','mob-iris-prev',d.suicide_history)}
-          ${chk('Plano suicida organizado, consistente, letal e exequível (Score = 20)','mob-iris-plan',d.suicide_plan)}
-          <div id="mob-iris-result" style="margin:14px 0;padding:14px;border-radius:var(--rl);text-align:center;background:var(--gray100)">
-            <div style="font-size:11px;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Nível de Risco</div>
-            <div id="mob-iris-level" style="font-size:26px;font-weight:700;color:var(--gray600)">—</div>
-            <div id="mob-iris-pts" style="font-size:13px;color:var(--gray400)">preenche os campos</div>
-          </div>
-          ${saveBtn('Guardar IRIS','var(--red)','mobSaveIRIS()')}
-          ${msg('mob-iris-msg')}
-        </div>
-      </div>
-    </div>`;
-    overlay.querySelectorAll('input,select').forEach(i=>i.addEventListener('change',mobCalcIRIS));
-    mobCalcIRIS();
+    // Mesmo formulário do desktop (renderIRIS/calcIRIS/saveIRIS): visados, avaliações e gravação automática
+    currentDetail = { type, record:r, isTreino: mobDetail.isTreino };
+    overlay.innerHTML = `<div style="padding:.875rem"><div id="mob-iris-wrap" style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px"></div></div>`;
+    const irisEl = document.getElementById('iris-content');
+    if (irisEl) { document.getElementById('mob-iris-wrap').appendChild(irisEl); await renderIRIS(); }
 
   } else if (form === 'sari') {
     // Mesmo formulário do desktop (renderSARI/calcSARI/saveSARI): uma só versão, mesmos campos e cálculo
@@ -11421,13 +11603,13 @@ async function mobCarregarResumoChamada(){
   const pt = type === 'inc' ? 'incidente' : 'itp';
   try{
     const [ir, sr, pr] = await Promise.all([
-      sb.from('iris').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+      sb.from('iris').select('*').eq('parent_type',pt).eq('parent_id',r.id),
       sb.from('sari').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
       sb.from('plano_negociacao').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle()
     ]);
     const atual = document.getElementById('mob-chamada-resumo');
     if(!atual) return;
-    atual.innerHTML = buildContactosSummary(ir.data||null, sr.data||null, pr.data||null, r);
+    atual.innerHTML = buildContactosSummary(irisOrdenar(ir.data||[]), sr.data||null, pr.data||null, r);
     // no telemóvel os cartões abrem o formulário respetivo, não separadores
     atual.querySelectorAll('[onclick]').forEach(c => {
       const o = c.getAttribute('onclick')||'';
