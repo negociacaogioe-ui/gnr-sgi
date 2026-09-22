@@ -982,7 +982,6 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0;z-index:210}
         <div class="field form-full"><label>Localização</label><input type="text" id="treino-itp-local"></div>
         <div class="field form-full"><label>CTer</label><select id="treino-itp-cter"><option value="">Selecionar CTer...</option><option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option><option>CTer Castelo Branco</option><option>CTer Coimbra</option><option>CTer Évora</option><option>CTer Faro</option><option>CTer Guarda</option><option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option><option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option><option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option><option>CTer Curso</option></select></div>
         <div class="field"><label>Data e hora</label><input type="datetime-local" id="treino-itp-data"></div>
-        <div class="field"><label>Negociador</label><input type="text" id="treino-itp-neg"></div>
         <div class="field"><label>Nº suspeitos</label><input type="number" id="treino-itp-sus" min="0" value="0"></div>
         <div class="field"><label>Nº reféns</label><input type="number" id="treino-itp-ref" min="0" value="0"></div>
         <div class="field"><label>Estado</label><select id="treino-itp-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
@@ -3692,13 +3691,12 @@ function renderTableITP(){
   document.getElementById('itp-count-label').textContent=data.length+' de '+allITPs.length+' registo(s)';
   const el=document.getElementById('table-itp-wrap');
   if(!data.length){el.innerHTML='<div class="empty-state"><p>Sem resultados para os filtros selecionados.</p></div>';return;}
-  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Tipo</th><th>CTer</th><th>Localização</th><th>Data/Hora</th><th>Negociador</th><th>Sus.</th><th>Ref.</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
+  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Tipo</th><th>CTer</th><th>Localização</th><th>Data/Hora</th><th>Sus.</th><th>Ref.</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
   ${data.map(r=>`<tr style="cursor:pointer" onclick="openRecord('itp',${JSON.stringify(r).replace(/"/g,'&quot;')})">
     <td style="font-weight:500;cursor:pointer">${r.tipo}</td>
     <td style="color:var(--gray600);font-size:12px">${r.cter||'—'}</td>
     <td style="color:var(--gray600);cursor:pointer">${r.cter||'—'}</td>
     <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gray600)">${fmtDateTime(r.data_hora)}</td>
-    <td>—</td>
     <td style="text-align:center;font-family:'IBM Plex Mono',monospace">${r.num_suspeitos}</td>
     <td style="text-align:center;font-family:'IBM Plex Mono',monospace">${r.num_refens}</td>
     <td>
@@ -8658,7 +8656,6 @@ function openTreinoModal(type) {
     document.getElementById('treino-itp-local').value = '';
     document.getElementById('treino-itp-cter').value = '';
     document.getElementById('treino-itp-data').value = now.toISOString().slice(0,16);
-    document.getElementById('treino-itp-neg').value = '';
     document.getElementById('treino-itp-sus').value = 0;
     document.getElementById('treino-itp-ref').value = 0;
     document.getElementById('treino-itp-estado').value = 'Em curso';
@@ -8702,7 +8699,6 @@ async function saveTreinoITP() {
   const local = document.getElementById('treino-itp-local').value.trim()||'Por definir';
   const cter = document.getElementById('treino-itp-cter').value;
   const data = document.getElementById('treino-itp-data').value||nowFallback;
-  const neg = document.getElementById('treino-itp-neg').value.trim()||currentProfile.nome;
   const sus = parseInt(document.getElementById('treino-itp-sus').value)||0;
   const ref = parseInt(document.getElementById('treino-itp-ref').value)||0;
   const estado = document.getElementById('treino-itp-estado').value;
@@ -8711,10 +8707,10 @@ async function saveTreinoITP() {
   const contactoAgressor = document.getElementById('treino-itp-contacto-agressor').value.trim();
   const btn = document.getElementById('btn-save-treino-itp');
   btn.innerHTML='<span class="spinner"></span>'; btn.disabled=true;
-  const payload = { tipo, local, cter, data_hora:new Date(data).toISOString(), negociador:neg, num_suspeitos:sus, num_refens:ref, gravidade:'', gravidade_criterios:[], estado, descricao:desc, contacto_vitima:contactoVitima, contacto_agressor:contactoAgressor, nome_vitima:document.getElementById('treino-itp-nome-vitima')?.value.trim()||'', nome_agressor:document.getElementById('treino-itp-nome-agressor')?.value.trim()||'', autor_id:currentUser.id, autor_nome:currentProfile.nome };
+  const payload = { tipo, local, cter, data_hora:new Date(data).toISOString(), num_suspeitos:sus, num_refens:ref, gravidade:'', gravidade_criterios:[], estado, descricao:desc, contacto_vitima:contactoVitima, contacto_agressor:contactoAgressor, nome_vitima:document.getElementById('treino-itp-nome-vitima')?.value.trim()||'', nome_agressor:document.getElementById('treino-itp-nome-agressor')?.value.trim()||'', autor_id:currentUser.id, autor_nome:currentProfile.nome };
   const { error } = id
     ? await sb.from('treino_incidentes').update(payload).eq('id', id)
-    : await sb.from('treino_incidentes').insert(Object.assign({}, payload, {is_itp:true, participantes:[currentUser.id]}));
+    : await sb.from('treino_incidentes').insert(Object.assign({}, payload, {is_itp:true, negociador:currentProfile.nome, participantes:[currentUser.id]}));
   btn.innerHTML='Guardar'; btn.disabled=false;
   if (error) { showAlert('treino-itp-alert','error','Erro: '+error.message); return; }
   closeModal('modal-treino-itp');
@@ -8748,7 +8744,6 @@ function editTreinoITP(id) {
   document.getElementById('treino-itp-cter').value = r.cter||'';
   const dt = new Date(r.data_hora); dt.setMinutes(dt.getMinutes()-dt.getTimezoneOffset());
   document.getElementById('treino-itp-data').value = dt.toISOString().slice(0,16);
-  document.getElementById('treino-itp-neg').value = r.negociador||'';
   document.getElementById('treino-itp-sus').value = r.num_suspeitos||0;
   document.getElementById('treino-itp-ref').value = r.num_refens||0;
   document.getElementById('treino-itp-estado').value = r.estado;
