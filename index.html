@@ -288,6 +288,18 @@ body.is-mobile .sgi-bar .btn{width:100%;justify-content:center}
   .tab-btn{white-space:nowrap}
   .nav-user,.nav-admin-badge{display:none}
   .detail-header{flex-direction:column}
+  /* Ficha de Avaliação da PP: escala por baixo de cada parâmetro */
+  .av-ficha-tbl,.av-ficha-tbl tbody{display:block;width:100%}
+  .av-ficha-tbl thead{display:none}
+  .av-ficha-tbl tr{display:flex;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--border);padding:8px 0}
+  .av-ficha-tbl td{border:none!important;padding:4px 6px}
+  .av-ficha-tbl td.av-par{flex:0 0 100%;min-width:0!important}
+  .av-ficha-tbl td.av-niv{flex:1 1 0;padding:4px 2px!important}
+  .av-ficha-tbl td.av-coef,.av-ficha-tbl td.av-tot{flex:0 0 auto;font-size:12px}
+  .av-ficha-tbl td.av-coef::before{content:'Coef. ';font-family:inherit;font-weight:400;color:var(--gray600)}
+  .av-ficha-tbl td.av-tot{min-width:52px;text-align:right!important}
+  .av-ficha-tbl td.av-tot:not(:empty)::before{content:'= ';font-weight:400;color:var(--gray600)}
+  .av-ficha-tbl tr:not(.av-lin) td{flex:1 1 auto}
 }
 
 /* NOTIFICATIONS */
@@ -3588,12 +3600,12 @@ function renderDashboard(){
   const isAdmin = currentProfile.role === 'admin';
   (document.getElementById('dash-recent')||{}).innerHTML=recent.length?`
     <table><thead><tr><th>Tipo</th><th>Localização</th><th>Data</th><th>Estado</th>${isAdmin?'<th></th>':''}</tr></thead><tbody>
-    ${recent.map(r=>`<tr>
-      <td style="cursor:pointer" onclick="openRecord('${r._t}',${JSON.stringify(r).replace(/"/g,'&quot;')})"><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:${r._t==='itp'?'var(--red)':'var(--gl)'}"></span>${r.tipo}</span></td>
-      <td style="color:var(--gray600);cursor:pointer" onclick="openRecord('${r._t}',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.local}</td>
+    ${recent.map(r=>`<tr style="cursor:pointer" onclick="openRecord('${r._t}',${JSON.stringify(r).replace(/"/g,'&quot;')})">
+      <td style="cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:${r._t==='itp'?'var(--red)':'var(--gl)'}"></span>${r.tipo}</span></td>
+      <td style="color:var(--gray600);cursor:pointer">${r.local}</td>
       <td style="color:var(--gray600);font-family:'IBM Plex Mono',monospace;font-size:12px">${fmtDate(r.data_hora)}</td>
       <td>${estadoBadge(r.estado)}</td>
-      ${isAdmin?`<td><button class="btn btn-outline btn-sm" onclick="${r._t==='itp'?`openEditITP('${r.id}')`:`openEditIncidente('${r.id}')`}" title="Editar/Eliminar"><i class="fas fa-edit"></i></button></td>`:''}
+      ${isAdmin?`<td><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openRecord('${r._t}',${JSON.stringify(r).replace(/"/g,'&quot;')})" title="Abrir caso"><i class="fas fa-edit"></i></button></td>`:''}
     </tr>`).join('')}</tbody></table>`:'<div class="empty-state"><p>Sem registos ainda.</p></div>';
   renderCharts();
   renderCterMap();
@@ -3641,21 +3653,21 @@ function renderTableIncidentes(){
   const el=document.getElementById('table-inc-wrap');
   if(!data.length){el.innerHTML='<div class="empty-state"><p>Sem resultados para os filtros selecionados.</p></div>';return;}
   el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Classificação</th><th>Tipo</th><th>CTer</th><th>Localização</th><th>Data/Hora</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
-  ${data.map(r=>`<tr>
+  ${data.map(r=>`<tr style="cursor:pointer" onclick="openRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">
     <td>${classBadge(r)}</td>
-    <td style="font-weight:500;cursor:pointer" onclick="openRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.tipo}</td>
+    <td style="font-weight:500;cursor:pointer">${r.tipo}</td>
     <td style="color:var(--gray600);font-size:12px">${r.cter||'—'}</td>
-    <td style="color:var(--gray600);cursor:pointer" onclick="openRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.cter||'—'}</td>
+    <td style="color:var(--gray600);cursor:pointer">${r.cter||'—'}</td>
     <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gray600)">${fmtDateTime(r.data_hora)}</td>
     <td>
-      <select class="status-quick-btn" style="font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);cursor:pointer;background:${r.estado==='Em curso'?'var(--amberl)':r.estado==='Resolvido'?'var(--gp)':'var(--gray100)'};color:${r.estado==='Em curso'?'var(--amber)':r.estado==='Resolvido'?'var(--gm)':'var(--gray600)'}" onchange="quickStatusChange('inc','${r.id}',this.value,this)">
+      <select class="status-quick-btn" style="font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);cursor:pointer;background:${r.estado==='Em curso'?'var(--amberl)':r.estado==='Resolvido'?'var(--gp)':'var(--gray100)'};color:${r.estado==='Em curso'?'var(--amber)':r.estado==='Resolvido'?'var(--gm)':'var(--gray600)'}" onclick="event.stopPropagation()" onchange="quickStatusChange('inc','${r.id}',this.value,this)">
         <option value="Em curso" ${r.estado==='Em curso'?'selected':''}>Em curso</option>
         <option value="Resolvido" ${r.estado==='Resolvido'?'selected':''}>Resolvido</option>
         <option value="Arquivado" ${r.estado==='Arquivado'?'selected':''}>Arquivado</option>
       </select>
     </td>
     <td><div style="display:flex;gap:4px">
-      <button class="btn btn-outline btn-sm" onclick="openEditIncidente('${r.id}')" title="Editar"><i class="fas fa-edit"></i></button>
+      <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})" title="Abrir caso"><i class="fas fa-edit"></i></button>
     </div></td>
   </tr>`).join('')}</tbody></table></div>`;
 }
@@ -3679,22 +3691,22 @@ function renderTableITP(){
   const el=document.getElementById('table-itp-wrap');
   if(!data.length){el.innerHTML='<div class="empty-state"><p>Sem resultados para os filtros selecionados.</p></div>';return;}
   el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Tipo</th><th>CTer</th><th>Localização</th><th>Data/Hora</th><th>Negociador</th><th>Sus.</th><th>Ref.</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
-  ${data.map(r=>`<tr>
-    <td style="font-weight:500;cursor:pointer" onclick="openRecord('itp',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.tipo}</td>
+  ${data.map(r=>`<tr style="cursor:pointer" onclick="openRecord('itp',${JSON.stringify(r).replace(/"/g,'&quot;')})">
+    <td style="font-weight:500;cursor:pointer">${r.tipo}</td>
     <td style="color:var(--gray600);font-size:12px">${r.cter||'—'}</td>
-    <td style="color:var(--gray600);cursor:pointer" onclick="openRecord('itp',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.cter||'—'}</td>
+    <td style="color:var(--gray600);cursor:pointer">${r.cter||'—'}</td>
     <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gray600)">${fmtDateTime(r.data_hora)}</td>
     <td>—</td>
     <td style="text-align:center;font-family:'IBM Plex Mono',monospace">${r.num_suspeitos}</td>
     <td style="text-align:center;font-family:'IBM Plex Mono',monospace">${r.num_refens}</td>
     <td>
-      <select class="status-quick-btn" style="font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);cursor:pointer;background:${r.estado==='Em curso'?'var(--amberl)':r.estado==='Resolvido'?'var(--gp)':'var(--gray100)'};color:${r.estado==='Em curso'?'var(--amber)':r.estado==='Resolvido'?'var(--gm)':'var(--gray600)'}" onchange="quickStatusChange('itp','${r.id}',this.value,this)">
+      <select class="status-quick-btn" style="font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);cursor:pointer;background:${r.estado==='Em curso'?'var(--amberl)':r.estado==='Resolvido'?'var(--gp)':'var(--gray100)'};color:${r.estado==='Em curso'?'var(--amber)':r.estado==='Resolvido'?'var(--gm)':'var(--gray600)'}" onclick="event.stopPropagation()" onchange="quickStatusChange('itp','${r.id}',this.value,this)">
         <option value="Em curso" ${r.estado==='Em curso'?'selected':''}>Em curso</option>
         <option value="Resolvido" ${r.estado==='Resolvido'?'selected':''}>Resolvido</option>
         <option value="Arquivado" ${r.estado==='Arquivado'?'selected':''}>Arquivado</option>
       </select>
     </td>
-    <td><button class="btn btn-outline btn-sm" onclick="openEditITP('${r.id}')" title="Editar"><i class="fas fa-edit"></i></button></td>
+    <td><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openRecord('itp',${JSON.stringify(r).replace(/"/g,'&quot;')})" title="Abrir caso"><i class="fas fa-edit"></i></button></td>
   </tr>`).join('')}</tbody></table></div>`;
 }
 
@@ -6644,14 +6656,14 @@ function avRenderFicha(){
   const voltar = F.origem==='individuais' ? `avVerIndividuais('${F.alunoId}',${F.uc})` : 'avRender()';
   const linhas = u.params.map(p=>{
     const n = F.niveis[p.k];
-    return `<tr>
-      <td style="min-width:260px"><div style="font-weight:600;font-size:13px;color:var(--gray900)">${_ppEsc(p.t)}</div>
+    return `<tr class="av-lin">
+      <td class="av-par" style="min-width:260px"><div style="font-weight:600;font-size:13px;color:var(--gray900)">${_ppEsc(p.t)}</div>
         <details style="margin-top:3px"><summary style="font-size:11.5px;color:var(--gl);cursor:pointer">Caracterização</summary><div style="font-size:12px;color:var(--gray600);line-height:1.5;margin-top:4px">${_ppEsc(p.c)}</div></details></td>
-      <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700">${p.coef}</td>
-      ${[1,2,3,4,5].map(v=>`<td style="text-align:center;padding:4px">${edit
+      <td class="av-coef" style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700">${p.coef}</td>
+      ${[1,2,3,4,5].map(v=>`<td class="av-niv" style="text-align:center;padding:4px">${edit
         ? `<label style="display:inline-flex;width:34px;height:34px;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;border:1.5px solid ${n===v?'var(--gl)':'var(--border)'};background:${n===v?'var(--gl)':'#fff'};color:${n===v?'#fff':'var(--gray600)'};font-weight:700"><input type="radio" name="av-${p.k}" value="${v}" ${n===v?'checked':''} onchange="avSetNivel('${p.k}',${v})" style="display:none">${v}</label>`
         : `<span style="display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:50%;${n===v?'background:var(--gl);color:#fff;font-weight:700':'color:var(--gray400)'}">${n===v?v:'·'}</span>`}</td>`).join('')}
-      <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700">${n?p.coef*n:''}</td>
+      <td class="av-tot" style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700">${n?p.coef*n:''}</td>
     </tr>`;
   }).join('');
   let acoes = '';
@@ -6680,7 +6692,7 @@ function avRenderFicha(){
       <div style="grid-column:1/-1"><strong>Duração do Curso:</strong> de ${dt(ed.data_inicio)} a ${dt(ed.data_fim)}</div>
     </div></div>
   <div class="form-section"><h3>2. Avaliação prática</h3>
-    <div class="table-wrap"><table>
+    <div class="table-wrap"><table class="av-ficha-tbl">
       <thead><tr><th rowspan="2">Parâmetros de Avaliação</th><th rowspan="2" style="text-align:center">Coef.<div style="font-weight:400">(a)</div></th><th colspan="5" style="text-align:center">Pontuação (Níveis) (b)</th><th rowspan="2" style="text-align:center">Total<div style="font-weight:400">(a × b)</div></th></tr>
         <tr>${[1,2,3,4,5].map(v=>`<th style="text-align:center">${v}</th>`).join('')}</tr></thead>
       <tbody>${linhas}
@@ -8588,24 +8600,24 @@ function renderTreinoTable() {
   const el = document.getElementById('treino-inc-wrap');
   if (!data.length) { el.innerHTML = '<div class="empty-state"><p>Sem registos de treino para este filtro. Cria o primeiro!</p></div>'; return; }
   el.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Classificação</th><th>Tipo</th><th>CTer</th><th>Localização</th><th>Data/Hora</th><th>Neg.</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
-  ${data.map(r => `<tr>
+  ${data.map(r => `<tr style="cursor:pointer" onclick="openTreinoRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">
     <td>${classBadge(r)}</td>
-    <td style="font-weight:500;cursor:pointer" onclick="openTreinoRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.tipo}</td>
+    <td style="font-weight:500;cursor:pointer">${r.tipo}</td>
     <td style="font-size:12px;color:var(--gray600)">${r.cter||'—'}</td>
-    <td style="color:var(--gray600);cursor:pointer" onclick="openTreinoRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">${r.local}</td>
+    <td style="color:var(--gray600);cursor:pointer">${r.local}</td>
     <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gray600)">${fmtDateTime(r.data_hora)}</td>
     <td style="font-size:12px;color:var(--gray600)">${r.is_itp ? (r.negociador||'—') : '—'}</td>
     <td>
-      <select style="font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);cursor:pointer" onchange="quickTreinoStatus('inc','${r.id}',this.value)">
+      <select style="font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);cursor:pointer" onclick="event.stopPropagation()" onchange="quickTreinoStatus('inc','${r.id}',this.value)">
         <option value="Em curso" ${r.estado==='Em curso'?'selected':''}>Em curso</option>
         <option value="Resolvido" ${r.estado==='Resolvido'?'selected':''}>Resolvido</option>
         <option value="Arquivado" ${r.estado==='Arquivado'?'selected':''}>Arquivado</option>
       </select>
     </td>
     <td><div style="display:flex;gap:4px">
-      <button class="btn btn-primary btn-sm" onclick="openTreinoRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})" title="Abrir formulários"><i class="fas fa-folder-open"></i></button>
-      <button class="btn btn-outline btn-sm" onclick="editTreinoIncidente('${r.id}')"><i class="fas fa-edit"></i></button>
-      <button class="btn btn-danger btn-sm" onclick="deleteTreino('inc','${r.id}')"><i class="fas fa-trash"></i></button>
+      <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openTreinoRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})" title="Abrir formulários"><i class="fas fa-folder-open"></i></button>
+      <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openTreinoRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})" title="Abrir caso"><i class="fas fa-edit"></i></button>
+      <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteTreino('inc','${r.id}')"><i class="fas fa-trash"></i></button>
     </div></td>
   </tr>`).join('')}</tbody></table></div>`;
 }
@@ -8811,21 +8823,21 @@ function mobRenderTreinoCards() {
     return;
   }
   list.innerHTML = data.map(r => `
-    <div style="background:#fff;padding:12px;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rl)">
-      <div onclick="mobOpenDetail('${r.is_itp?'itp':'inc'}','${r.id}',true)" style="cursor:pointer">
+    <div onclick="mobOpenDetail('${r.is_itp?'itp':'inc'}','${r.id}',true)" style="background:#fff;padding:12px;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer">
+      <div>
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">${classBadge(r)}</div>
         <div style="font-weight:600;font-size:15px;color:var(--gn);margin-bottom:2px">${r.tipo}</div>
         <div style="font-size:13px;color:var(--gray600)">${r.local || '—'}${r.cter ? ' · ' + r.cter : ''}</div>
         <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gray600);margin:2px 0 8px">${fmtDateTime(r.data_hora)}${(r.is_itp && r.negociador) ? (' · Neg: ' + r.negociador) : ''}</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <select style="font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);flex:1;min-width:120px" onchange="quickTreinoStatus('inc','${r.id}',this.value)">
+        <select style="font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);flex:1;min-width:120px" onclick="event.stopPropagation()" onchange="quickTreinoStatus('inc','${r.id}',this.value)">
           <option value="Em curso" ${r.estado === 'Em curso' ? 'selected' : ''}>Em curso</option>
           <option value="Resolvido" ${r.estado === 'Resolvido' ? 'selected' : ''}>Resolvido</option>
           <option value="Arquivado" ${r.estado === 'Arquivado' ? 'selected' : ''}>Arquivado</option>
         </select>
-        <button class="btn btn-outline btn-sm" onclick="${r.is_itp ? ("editTreinoITP('" + r.id + "')") : ("editTreinoIncidente('" + r.id + "')")}"><i class="fas fa-edit"></i></button>
-        <button class="btn btn-danger btn-sm" onclick="deleteTreino('inc','${r.id}')"><i class="fas fa-trash"></i></button>
+        <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();mobOpenDetail('${r.is_itp?'itp':'inc'}','${r.id}',true)" title="Abrir caso"><i class="fas fa-edit"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteTreino('inc','${r.id}')"><i class="fas fa-trash"></i></button>
       </div>
     </div>`).join('');
 }
