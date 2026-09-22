@@ -1280,47 +1280,83 @@ async function doRegister(){
 }
 
 async function doLogout(){
-  try { sessionStorage.removeItem('sgi_vista_aluno'); } catch(e){}
-  window.__sgiVistaAluno = false; window.__sgiPerfilReal = null;
+  try { sessionStorage.removeItem('sgi_vista_aluno'); sessionStorage.removeItem('sgi_vista'); } catch(e){}
+  window.__sgiVistaAluno = false; window.__sgiVista = 'admin'; window.__sgiPerfilReal = null;
   const _vb = document.getElementById('sgi-vista-btn'); if (_vb) _vb.remove();
+  const _vm = document.getElementById('sgi-vista-menu'); if (_vm) _vm.remove();
   await sb.auth.signOut();currentUser=null;currentProfile=null;allIncidentes=[];allITPs=[];
   if(window._chartTipo){window._chartTipo.destroy();window._chartTipo=null;}
   if(window._chartMensal){window._chartMensal.destroy();window._chartMensal=null;}
   showPage('login');
 }
 
-// ===== VISTA DE ALUNO (só para o admin) =====
-// Simula na interface o perfil de um formando (negociador com acesso só à Formação).
+// ===== VISTA DE ALUNO / EPQ / ADMIN (só para o admin) =====
+// Simula na interface o perfil de um formando (negociador com acesso só à Formação)
+// ou de um negociador EPQ (operacional, avaliador na Avaliação de Formandos).
 // A base de dados continua a tratar a sessão como admin.
+const SGI_VISTAS = {
+  admin: { t:'Admin', ic:'fa-user-shield',   d:'Vista normal de administrador' },
+  epq:   { t:'EPQ',   ic:'fa-clipboard-check', d:'Negociador operacional, avaliador EPQ' },
+  aluno: { t:'Aluno', ic:'fa-user-graduate', d:'Formando com acesso só à Formação' }
+};
 function sgiAplicarVistaAluno(){
   if (!currentProfile) return;
   if (!window.__sgiPerfilReal || window.__sgiPerfilReal.id !== currentProfile.id) {
     window.__sgiPerfilReal = { id: currentProfile.id, role: currentProfile.role, nivel_acesso: currentProfile.nivel_acesso, approved: currentProfile.approved };
   }
-  let on = false;
-  try { on = sessionStorage.getItem('sgi_vista_aluno') === '1'; } catch (e) {}
-  if (window.__sgiPerfilReal.role !== 'admin') on = false;
-  window.__sgiVistaAluno = on;
-  if (on) { currentProfile.role = 'negotiator'; currentProfile.nivel_acesso = 'formacao'; }
+  let v = 'admin';
+  try {
+    v = sessionStorage.getItem('sgi_vista') || (sessionStorage.getItem('sgi_vista_aluno') === '1' ? 'aluno' : 'admin');
+  } catch (e) {}
+  if (!SGI_VISTAS[v] || window.__sgiPerfilReal.role !== 'admin') v = 'admin';
+  window.__sgiVista = v;
+  window.__sgiVistaAluno = (v === 'aluno');
+  if (v === 'aluno') { currentProfile.role = 'negotiator'; currentProfile.nivel_acesso = 'formacao'; }
+  else if (v === 'epq') { currentProfile.role = 'negotiator'; currentProfile.nivel_acesso = 'operacional'; }
   sgiRenderBotaoVista();
 }
 function sgiRenderBotaoVista(){
   let b = document.getElementById('sgi-vista-btn');
   const real = window.__sgiPerfilReal;
-  if (!real || real.role !== 'admin') { if (b) b.remove(); return; }
-  if (!b) { b = document.createElement('button'); b.id = 'sgi-vista-btn'; b.type = 'button'; b.onclick = sgiAlternarVista; document.body.appendChild(b); }
-  const aluno = !!window.__sgiVistaAluno;
+  if (!real || real.role !== 'admin') { if (b) b.remove(); const m = document.getElementById('sgi-vista-menu'); if (m) m.remove(); return; }
+  if (!b) { b = document.createElement('button'); b.id = 'sgi-vista-btn'; b.type = 'button'; b.onclick = sgiMenuVista; document.body.appendChild(b); }
+  const v = window.__sgiVista || 'admin';
+  const simulada = v !== 'admin';
   const mob = (typeof isMobile !== 'undefined' && isMobile);
   b.style.cssText = 'position:fixed;z-index:450;left:12px;' + (mob ? 'bottom:calc(var(--mob-tab-h, 64px) + 10px);' : 'bottom:16px;')
     + 'display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:20px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.15);'
-    + (aluno ? 'background:var(--amberl);color:var(--amber);border:1.5px solid var(--gold);' : 'background:#fff;color:var(--gn);border:1.5px solid var(--border);');
-  b.innerHTML = aluno ? '<i class="fas fa-user-shield"></i> Vista de aluno · voltar a admin' : '<i class="fas fa-user-graduate"></i> Ver como aluno';
-  b.title = aluno ? 'Estás a ver a aplicação como um formando. Carrega para voltar à vista de administrador.' : 'Ver a aplicação como um formando (só na interface)';
+    + (simulada ? 'background:var(--amberl);color:var(--amber);border:1.5px solid var(--gold);' : 'background:#fff;color:var(--gn);border:1.5px solid var(--border);');
+  b.innerHTML = '<i class="fas ' + SGI_VISTAS[v].ic + '"></i> ' + (simulada ? 'Vista de ' + SGI_VISTAS[v].t : 'Ver como…') + ' <i class="fas fa-chevron-up" style="font-size:10px;opacity:.7"></i>';
+  b.title = simulada ? 'Estás a ver a aplicação como ' + SGI_VISTAS[v].t + ' (só na interface). Carrega para mudar de vista.' : 'Ver a aplicação como Aluno ou EPQ (só na interface)';
 }
-function sgiAlternarVista(){
-  const on = !window.__sgiVistaAluno;
-  try { if (on) sessionStorage.setItem('sgi_vista_aluno', '1'); else sessionStorage.removeItem('sgi_vista_aluno'); }
-  catch (e) { alert('Não foi possível alternar a vista neste navegador.'); return; }
+function sgiMenuVista(ev){
+  if (ev) ev.stopPropagation();
+  let m = document.getElementById('sgi-vista-menu');
+  if (m) { m.remove(); return; }
+  const b = document.getElementById('sgi-vista-btn'); if (!b) return;
+  const v = window.__sgiVista || 'admin';
+  const r = b.getBoundingClientRect();
+  m = document.createElement('div'); m.id = 'sgi-vista-menu';
+  m.style.cssText = 'position:fixed;z-index:451;left:12px;bottom:' + (window.innerHeight - r.top + 6) + 'px;background:#fff;border:1.5px solid var(--border);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);padding:6px;min-width:230px;font-family:inherit';
+  m.innerHTML = '<div style="font-size:10.5px;font-weight:700;color:var(--gray400);letter-spacing:.05em;padding:4px 8px 6px">VER COMO</div>'
+    + Object.keys(SGI_VISTAS).map(k => {
+        const o = SGI_VISTAS[k], at = k === v;
+        return '<button type="button" onclick="sgiDefinirVista(\'' + k + '\')" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;border-radius:8px;padding:8px 10px;cursor:pointer;font-family:inherit;'
+          + (at ? 'background:var(--gp);color:var(--gn);' : 'background:none;color:var(--gray700, #333);') + '">'
+          + '<i class="fas ' + o.ic + '" style="width:16px;text-align:center;color:var(--gn)"></i>'
+          + '<span style="flex:1"><span style="display:block;font-size:13px;font-weight:600">' + o.t + '</span><span style="display:block;font-size:11px;color:var(--gray600)">' + o.d + '</span></span>'
+          + (at ? '<i class="fas fa-check" style="color:var(--gn);font-size:12px"></i>' : '') + '</button>';
+      }).join('');
+  document.body.appendChild(m);
+  setTimeout(() => document.addEventListener('click', function f(e){ if (!m.contains(e.target)) { m.remove(); document.removeEventListener('click', f); } }), 0);
+}
+function sgiDefinirVista(v){
+  if (!SGI_VISTAS[v]) return;
+  if (v === (window.__sgiVista || 'admin')) { const m = document.getElementById('sgi-vista-menu'); if (m) m.remove(); return; }
+  try {
+    sessionStorage.removeItem('sgi_vista_aluno');
+    if (v === 'admin') sessionStorage.removeItem('sgi_vista'); else sessionStorage.setItem('sgi_vista', v);
+  } catch (e) { alert('Não foi possível alternar a vista neste navegador.'); return; }
   location.reload();
 }
 
@@ -6312,6 +6348,9 @@ async function avCarregarAcesso(){
     const { data } = await sb.from('aval_epq').select('user_id').eq('user_id', currentUser.id).maybeSingle();
     _av.epq = !!data;
   }catch(e){ console.warn('aval_epq', e); }
+  // Vista simulada pelo admin (só na interface)
+  if(window.__sgiVista === 'epq') _av.epq = true;
+  else if(window.__sgiVista === 'aluno') _av.epq = false;
 }
 function avTemAcesso(){ return _av.admin || _av.epq; }
 function avCardHtml(){
@@ -6717,6 +6756,7 @@ function avRenderFicha(){
 }
 function avSetNivel(k, v){ _av.ficha.niveis[k] = v; avRenderFicha(); }
 async function avGuardarFicha(estado){
+  if(window.__sgiVista === 'epq'){ alert('Estás na vista EPQ (simulação). As fichas não são guardadas nesta vista — ficariam registadas em teu nome como avaliação do Núcleo de Negociação. Volta à vista de Admin para avaliar.'); return; }
   const F = _av.ficha;
   const calc = avCalcular(F.uc, F.niveis);
   if(estado!=='rascunho' && !calc.completo){ alert('Atribui um nível a todos os parâmetros antes de '+(estado==='validada'?'validar':'submeter')+'.'); return; }
@@ -12167,12 +12207,12 @@ if(isMobile){
       var p = r && r.data;
       if (!p) return;
       // Em "vista de aluno" compara com o perfil real do admin, não com o perfil simulado
-      var ref = (window.__sgiVistaAluno && window.__sgiPerfilReal) ? window.__sgiPerfilReal : currentProfile;
+      var ref = (window.__sgiVista && window.__sgiVista !== 'admin' && window.__sgiPerfilReal) ? window.__sgiPerfilReal : currentProfile;
       var mudou = (p.role !== ref.role) ||
                   (p.nivel_acesso !== ref.nivel_acesso) ||
                   (p.approved !== ref.approved);
       if (!mudou) return;
-      try { sessionStorage.removeItem('sgi_vista_aluno'); } catch(e){}
+      try { sessionStorage.removeItem('sgi_vista_aluno'); sessionStorage.removeItem('sgi_vista'); } catch(e){}
       currentProfile.role = p.role;
       currentProfile.nivel_acesso = p.nivel_acesso;
       currentProfile.approved = p.approved;
