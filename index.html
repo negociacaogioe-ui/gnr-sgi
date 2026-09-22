@@ -8592,14 +8592,13 @@ function renderTreinoTable() {
   });
   const el = document.getElementById('treino-inc-wrap');
   if (!data.length) { el.innerHTML = '<div class="empty-state"><p>Sem registos de treino para este filtro. Cria o primeiro!</p></div>'; return; }
-  el.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Classificação</th><th>Tipo</th><th>CTer</th><th>Localização</th><th>Data/Hora</th><th>Neg.</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
+  el.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Classificação</th><th>Tipo</th><th>CTer</th><th>Localização</th><th>Data/Hora</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
   ${data.map(r => `<tr style="cursor:pointer" onclick="openTreinoRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">
     <td>${classBadge(r)}</td>
     <td style="font-weight:500;cursor:pointer">${r.tipo}</td>
     <td style="font-size:12px;color:var(--gray600)">${r.cter||'—'}</td>
     <td style="color:var(--gray600);cursor:pointer">${r.local}</td>
     <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gray600)">${fmtDateTime(r.data_hora)}</td>
-    <td style="font-size:12px;color:var(--gray600)">${r.is_itp ? (r.negociador||'—') : '—'}</td>
     <td>
       <select style="font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);cursor:pointer" onclick="event.stopPropagation()" onchange="quickTreinoStatus('inc','${r.id}',this.value)">
         <option value="Em curso" ${r.estado==='Em curso'?'selected':''}>Em curso</option>
@@ -8609,7 +8608,7 @@ function renderTreinoTable() {
     </td>
     <td><div style="display:flex;gap:4px">
       <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openTreinoRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})" title="Abrir formulários"><i class="fas fa-folder-open"></i></button>
-      <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openTreinoRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})" title="Abrir caso"><i class="fas fa-edit"></i></button>
+      <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();${r.is_itp?'editTreinoITP':'editTreinoIncidente'}('${r.id}')" title="Editar dados do caso"><i class="fas fa-edit"></i></button>
       <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteTreino('inc','${r.id}')"><i class="fas fa-trash"></i></button>
     </div></td>
   </tr>`).join('')}</tbody></table></div>`;
@@ -8821,7 +8820,7 @@ function mobRenderTreinoCards() {
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">${classBadge(r)}</div>
         <div style="font-weight:600;font-size:15px;color:var(--gn);margin-bottom:2px">${r.tipo}</div>
         <div style="font-size:13px;color:var(--gray600)">${r.local || '—'}${r.cter ? ' · ' + r.cter : ''}</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gray600);margin:2px 0 8px">${fmtDateTime(r.data_hora)}${(r.is_itp && r.negociador) ? (' · Neg: ' + r.negociador) : ''}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gray600);margin:2px 0 8px">${fmtDateTime(r.data_hora)}</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         <select style="font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);flex:1;min-width:120px" onclick="event.stopPropagation()" onchange="quickTreinoStatus('inc','${r.id}',this.value)">
@@ -8829,7 +8828,7 @@ function mobRenderTreinoCards() {
           <option value="Resolvido" ${r.estado === 'Resolvido' ? 'selected' : ''}>Resolvido</option>
           <option value="Arquivado" ${r.estado === 'Arquivado' ? 'selected' : ''}>Arquivado</option>
         </select>
-        <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();mobOpenDetail('${r.is_itp?'itp':'inc'}','${r.id}',true)" title="Abrir caso"><i class="fas fa-edit"></i></button>
+        <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();${r.is_itp?'editTreinoITP':'editTreinoIncidente'}('${r.id}')" title="Editar dados do caso"><i class="fas fa-edit"></i></button>
         <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteTreino('inc','${r.id}')"><i class="fas fa-trash"></i></button>
       </div>
     </div>`).join('');
