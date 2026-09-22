@@ -2182,9 +2182,13 @@ async function quadroAdd(k){
   const r=currentDetail.record;
   const q=JSON.parse(JSON.stringify(r.quadros||{}));
   if(!Array.isArray(q[k])) q[k]=[];
-  q[k].push({ t: inp.value.trim().toUpperCase(), a: currentProfile.nome, ts: new Date().toISOString() });
+  const txt = inp.value.trim().toUpperCase();
+  q[k].push({ t: txt, a: currentProfile.nome, ts: new Date().toISOString() });
   inp.value='';
-  if(await _postoUpdate({quadros:q})) renderPosto();
+  if(await _postoUpdate({quadros:q})){
+    if(k === 'posicao') await _pnPosicaoSync(null, txt);
+    renderPosto();
+  }
 }
 // Corrigir uma linha de quadro no sitio. A alteracao fica no historico,
 // para que uma correcao durante o contacto nao apague o que la estava.
@@ -2219,6 +2223,7 @@ async function quadroGuardarEdicao(k, i){
   if(await _postoUpdate({quadros: q})){
     const cab = (typeof QUADROS_CAB !== 'undefined') ? (QUADROS_CAB.find(x => x.k === k) || {}).t : k;
     sgiRegistarAlteracao('Quadros — ' + (cab || k), [{campo: cab || k, antes: antes, depois: novo}], 'correção de linha');
+    if(k === 'posicao') await _pnPosicaoSync(antes, novo);
     renderPosto();
   }
 }
@@ -2227,8 +2232,64 @@ async function quadroDel(k, i){
   const r=currentDetail.record;
   const q=JSON.parse(JSON.stringify(r.quadros||{}));
   if(!Array.isArray(q[k])) return;
-  q[k].splice(i,1);
-  if(await _postoUpdate({quadros:q})) renderPosto();
+  const rem = q[k].splice(i,1)[0];
+  if(await _postoUpdate({quadros:q})){
+    if(k === 'posicao' && rem) await _pnPosicaoSync(rem.t, null);
+    renderPosto();
+  }
+}
+// ---- Ligação do quadro Posição / Interesses (n.º 3) ao Plano de Negociação ----
+// O que o n.º 3 escreve nesse quadro passa para o campo Posição do PN, em linhas
+// "• TEXTO" (mesmo formato do botão de puxar dados). O alinhamento escolhido pelo
+// n.º 3 grava no PN. Nada é pré-selecionado: sem escolha, o campo fica vazio.
+async function _pnAtualizar(fn){
+  if(!currentDetail) return null;
+  const pt = currentDetail.type === 'inc' ? 'incidente' : 'itp';
+  const id = currentDetail.record.id;
+  const { data:ex, error:e1 } = await sb.from('plano_negociacao').select('*').eq('parent_type',pt).eq('parent_id',id).maybeSingle();
+  if(e1){ _sgiFalhou('Erro ao atualizar o Plano de Negociação: ' + e1.message); return null; }
+  const patch = fn(ex || {});
+  if(!patch) return ex;
+  const res = ex
+    ? await sb.from('plano_negociacao').update(patch).eq('id', ex.id)
+    : await sb.from('plano_negociacao').insert(Object.assign({parent_type:pt, parent_id:id, autor_id:currentUser.id, autor_nome:currentProfile.nome}, patch));
+  if(res.error){ _sgiFalhou('Erro ao atualizar o Plano de Negociação: ' + res.error.message); return null; }
+  return Object.assign({}, ex || {}, patch);
+}
+async function _pnPosicaoSync(antes, depois){
+  await _pnAtualizar(pn => {
+    const linhas = String(pn.posicao_adversario || '').split('\n').filter(l => l.trim() !== '');
+    const la = antes ? '• ' + antes : null, ld = depois ? '• ' + depois : null;
+    const i = la ? linhas.indexOf(la) : -1;
+    if(i > -1){ if(ld) linhas[i] = ld; else linhas.splice(i, 1); }
+    else if(ld){ if(linhas.indexOf(ld) > -1) return null; linhas.push(ld); }
+    else return null;
+    return { posicao_adversario: linhas.join('\n') };
+  });
+}
+const _N3_ALIN = [{k:'alinhados', t:'Alinhados'}, {k:'desalinhados', t:'Não alinhados'}];
+function _n3AlinhamentoHTML(v){
+  return '<div style="font-size:10px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.05em;margin:8px 0 5px">Posição e interesses</div>'
+    + '<div style="display:flex;gap:5px;flex-wrap:wrap">'
+    + _N3_ALIN.map(o => '<button type="button" class="btn btn-sm ' + (v === o.k ? 'btn-primary' : 'btn-outline') + '" onclick="n3AlinhamentoEscolher(\'' + o.k + '\')" style="font-size:11px;padding:3px 10px">' + o.t + '</button>').join('')
+    + '</div><div style="font-size:10.5px;color:var(--gray400);margin-top:4px">Fica gravado no Plano de Negociação.</div>';
+}
+async function n3AlinhamentoCarregar(){
+  const box = document.getElementById('n3-align');
+  if(!box || !currentDetail) return;
+  const pt = currentDetail.type === 'inc' ? 'incidente' : 'itp';
+  let v = '';
+  try{
+    const { data } = await sb.from('plano_negociacao').select('alinhamento').eq('parent_type',pt).eq('parent_id',currentDetail.record.id).maybeSingle();
+    v = (data && data.alinhamento) || '';
+  }catch(e){}
+  const b = document.getElementById('n3-align'); if(b) b.innerHTML = _n3AlinhamentoHTML(v);
+}
+async function n3AlinhamentoEscolher(k){
+  let novo = null;
+  const pn = await _pnAtualizar(ex => { novo = ex.alinhamento === k ? null : k; return { alinhamento: novo }; });
+  if(!pn) return;
+  const b = document.getElementById('n3-align'); if(b) b.innerHTML = _n3AlinhamentoHTML(novo || '');
 }
 // ---- Classificação por cor dos post-its do n.º 2 (notas ao n.º 1 e pedidos ao n.º 3) ----
 // Amarelo = sem classificação · Laranja = prioritário · Vermelho = urgente
@@ -2335,6 +2396,7 @@ function _quadrosHTML(editavel){
       + '<div style="font-size:11px;font-weight:700;color:'+cor+';text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">'+h.t+'</div>'
       + (itens.length ? itens.map((it,i)=>'<div id="q-row-'+h.k+'-'+i+'" style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start;font-size:12.5px;line-height:1.45;padding:5px 0;border-bottom:1px dashed var(--border)"><span style="font-family:\'IBM Plex Mono\',monospace;flex:1'+(editavel?';cursor:text" title="Clique para corrigir" onclick="quadroEditar(\''+h.k+'\','+i+')':'')+'">'+it.t+'</span>'+(editavel?'<button onclick="quadroEditar(\''+h.k+'\','+i+')" style="border:none;background:none;color:var(--gray400);cursor:pointer;padding:0 2px" title="Corrigir"><i class="fas fa-pen" style="font-size:10px"></i></button><button onclick="quadroDel(\''+h.k+'\','+i+')" style="border:none;background:none;color:var(--gray400);cursor:pointer;padding:0 2px" title="Remover"><i class="fas fa-xmark"></i></button>':'')+'</div>').join('')
                      : '<div style="font-size:12px;color:var(--gray400);font-style:italic">—</div>')
+      + (editavel && h.k==='posicao' ? '<div id="n3-align"></div>' : '')
       + (editavel && h.k==='indicadores' ? '<button type="button" class="btn btn-ghost btn-sm" onclick="indicadoresAbrir()" style="font-size:11px;padding:3px 9px;margin-bottom:6px"><i class="fas fa-list-check"></i> Ver opções</button><div id="ind-painel" class="hidden" style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:9px;margin-bottom:7px"></div>' : '')
       + '</div>';
   }).join('')+'</div>';
@@ -2684,10 +2746,12 @@ async function quadroRapidoAdd(){
   if(!inp || !inp.value.trim()) return;
   const q = JSON.parse(JSON.stringify(currentDetail.record.quadros || {}));
   if(!Array.isArray(q[_qRapidoDestino])) q[_qRapidoDestino] = [];
-  q[_qRapidoDestino].push({ t: inp.value.trim().toUpperCase(), a: currentProfile.nome, ts: new Date().toISOString() });
+  const txt = inp.value.trim().toUpperCase();
+  q[_qRapidoDestino].push({ t: txt, a: currentProfile.nome, ts: new Date().toISOString() });
   inp.value = '';
   const destino = _qRapidoDestino;
   if(await _postoUpdate({quadros: q})){
+    if(destino === 'posicao') await _pnPosicaoSync(null, txt);
     renderPosto();
     setTimeout(() => { _qRapidoDestino = destino; qRapidoDestino(destino); }, 60);
   }
@@ -2727,7 +2791,7 @@ async function renderQuadroCoordenador(){
   const lista = (titulo, itens, cor) =>
     '<div style="background:#fff;border:1px solid var(--border);border-top:3px solid ' + cor + ';border-radius:var(--r);padding:11px 13px">'
     + '<div style="font-size:10px;font-weight:700;color:' + cor + ';text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">' + titulo + '</div>'
-    + (itens.length ? itens.slice(0,5).map(x => '<div style="font-size:12.5px;line-height:1.5;color:var(--gray900);font-family:\'IBM Plex Mono\',monospace;padding:2px 0">• ' + (x.t||x) + '</div>').join('')
+    + (itens.length ? itens.map(x => '<div style="font-size:12.5px;line-height:1.5;color:var(--gray900);font-family:\'IBM Plex Mono\',monospace;padding:2px 0">• ' + (x.t||x) + '</div>').join('')
                     : '<div style="font-size:12px;color:var(--gray400);font-style:italic">—</div>')
     + '</div>';
 
@@ -2738,24 +2802,40 @@ async function renderQuadroCoordenador(){
   const ult = cts[0];
 
   // IRIS, Risco/Cooperação, Contactos e Decorrido já estão nos cartões de cima (cabeçalho comum às posições)
+  // Todos os quadros do n.º 3, mas só os que têm conteúdo
+  const qCor = k => (k === 'evitar' || k === 'exigencias') ? 'var(--red)' : k === 'acoes' ? 'var(--gl)' : 'var(--gn)';
+  const qPreenchidos = QUADROS_CAB.filter(h => Array.isArray(q[h.k]) && q[h.k].length);
+  const pnCampos = _pnCamposPreenchidos(plano);
   box.innerHTML =
-    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-bottom:10px">'
-    + lista('Exigências / ameaças', Array.isArray(q.exigencias) ? q.exigencias : [], 'var(--red)')
-    + lista('Ações positivas da GNR', Array.isArray(q.acoes) ? q.acoes : [], 'var(--gl)')
-    + lista('Evitar', Array.isArray(q.evitar) ? q.evitar : [], 'var(--red)')
-    + '</div>'
-    + '<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 14px">'
-    + '<div style="font-size:10px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px">Plano de Negociação</div>'
-    + (plano
-        ? '<div style="font-size:12.5px;line-height:1.7;color:var(--gray900)">'
-          + '<strong>Tipo de situação:</strong> ' + (plano.tipo_situacao || '—').toUpperCase() + ' &nbsp;·&nbsp; <strong>Alinhamento:</strong> ' + (plano.alinhamento || '—') + '<br>'
-          + '<strong>Objetivo principal:</strong> ' + (plano.objetivo_principal || '—') + '<br>'
-          + '<strong>Posição:</strong> ' + (plano.posicao_adversario || '—') + '<br>'
-          + '<strong>Interesses:</strong> ' + (plano.interesses_adversario || '—') + '<br>'
-          + '<strong>Tempo estimado:</strong> ' + (plano.tempo_estimado || '—')
-          + '</div>'
-        : '<div style="font-size:12px;color:var(--gray400);font-style:italic">Plano de Negociação por preencher.</div>')
-    + '</div>';
+    (qPreenchidos.length
+      ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-bottom:10px">'
+        + qPreenchidos.map(h => lista(h.t, q[h.k], qCor(h.k))).join('')
+        + '</div>'
+      : '')
+    + (pnCampos.length
+      ? '<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 14px">'
+        + '<div style="font-size:10px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px">Plano de Negociação</div>'
+        + '<div style="font-size:12.5px;line-height:1.7;color:var(--gray900)">'
+        + pnCampos.map(c => '<strong>' + c[0] + ':</strong> ' + String(c[1]).replace(/\n/g, '<br>')).join('<br>')
+        + '</div></div>'
+      : '')
+    + (!qPreenchidos.length && !pnCampos.length
+      ? '<div style="font-size:12px;color:var(--gray400);font-style:italic">Sem informação registada nos quadros nem no Plano de Negociação.</div>'
+      : '');
+}
+// Campos do Plano de Negociação com conteúdo (Quadro do Coordenador e PDF de briefing)
+function _pnCamposPreenchidos(plano){
+  if(!plano) return [];
+  const alin = {alinhados:'ALINHADOS', desalinhados:'NÃO ALINHADOS'};
+  return [
+    ['Tipo de situação', plano.tipo_situacao ? String(plano.tipo_situacao).toUpperCase() : ''],
+    ['Alinhamento', alin[plano.alinhamento] || plano.alinhamento || ''],
+    ['Objetivo principal', plano.objetivo_principal],
+    ['Posição', plano.posicao_adversario],
+    ['Interesses', plano.interesses_adversario],
+    ['Tempo estimado', plano.tempo_estimado],
+    ['Meios', plano.meios]
+  ].filter(c => c[1] != null && String(c[1]).trim() !== '');
 }
 
 
@@ -2797,7 +2877,7 @@ async function exportQuadroCoordenadorPDF(){
   };
   const bullets = it => {
     if(!it || !it.length){ nl(); doc.setFont('helvetica','italic'); doc.setTextColor(130,130,130); doc.text('—', 20, y); doc.setFont('helvetica','normal'); doc.setTextColor(20,20,20); y += 6; return; }
-    it.slice(0,8).forEach(x => { nl(); const l = doc.splitTextToSize('• ' + (x.t||x), 178); doc.text(l, 18, y); y += l.length*5; });
+    it.forEach(x => { nl(); const l = doc.splitTextToSize('• ' + (x.t||x), 178); doc.text(l, 18, y); y += l.length*5; });
     y += 2;
   };
   const ini = new Date(r.data_hora || r.created_at).getTime();
@@ -2822,20 +2902,13 @@ async function exportQuadroCoordenadorPDF(){
   EN_POSICOES.forEach(p => { if(eq[p.k] && eq[p.k].id) kv(p.nome, enNomeUtil(eq[p.k])); });
   kv('Conformidade (5.28)', eq.conformidade);
 
-  sec('Modalidade de ação proposta (PN)');
-  if(plano){
-    kv('Tipo de situação', (plano.tipo_situacao||'—').toUpperCase());
-    kv('Alinhamento', plano.alinhamento);
-    kv('Objetivo principal', plano.objetivo_principal);
-    kv('Posição', plano.posicao_adversario);
-    kv('Interesses', plano.interesses_adversario);
-    kv('Tempo estimado', plano.tempo_estimado);
-    kv('Meios', plano.meios);
-  } else { kv('Plano de Negociação', 'Por preencher'); }
+  const pnCampos = _pnCamposPreenchidos(plano);
+  if(pnCampos.length){
+    sec('Modalidade de ação proposta (PN)');
+    pnCampos.forEach(c => kv(c[0], c[1]));
+  }
 
-  sec('Exigências / ameaças'); bullets(q.exigencias);
-  sec('Ações positivas da GNR'); bullets(q.acoes);
-  sec('Evitar'); bullets(q.evitar);
+  QUADROS_CAB.forEach(h => { if(Array.isArray(q[h.k]) && q[h.k].length){ sec(h.t); bullets(q[h.k]); } });
 
   sec('Contactos');
   kv('Total', cts.length);
@@ -3034,6 +3107,7 @@ function renderPosto(){
   renderCabecalhoCoordenacao();
   if(eN1 || eN2) renderResumoPlanos();
   if(eNC) renderQuadroCoordenador();
+  if(eN3) n3AlinhamentoCarregar();
   if(_rec.caso !== r.id) rececoesCarregar();
   rececoesMarcar();
 }
