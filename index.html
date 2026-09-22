@@ -7015,11 +7015,6 @@ async function openFormacaoArea(area) {
         <h2 style="font-size:20px;font-weight:600;color:var(--gn)">${info.titulo}</h2>
         <p style="font-size:13px;color:var(--gray600)">${info.desc}</p>
       </div>
-      ${isAdmin ? `<button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="editFormacaoArea('${area}')"><i class="fas fa-edit"></i> Editar</button>` : ''}
-    </div>
-
-    <div class="formacao-editor" id="formacao-view-${area}">
-      <div class="formacao-content-view">${d.conteudo || '<p style="color:var(--gray400);font-style:italic">Sem conteúdo ainda.</p>'}</div>
     </div>
 
     ${renderLinksGrupado(links, area) ? `
@@ -7040,8 +7035,6 @@ async function openFormacaoArea(area) {
       </div>
       <div id="ficheiros-list-${area}"><div style="font-size:13px;color:var(--gray400);font-style:italic">A carregar...</div></div>
     </div>
-
-    <div id="formacao-edit-panel-${area}" class="hidden"></div>
   `;
   loadFicheirosArea(area);
 }
