@@ -380,6 +380,8 @@ body.is-mobile .modal .modal-body{flex:1 1 auto;overflow-y:auto;-webkit-overflow
 body.is-mobile .modal .modal-footer{flex:0 0 auto;position:sticky;bottom:0;z-index:2;box-shadow:0 -2px 8px rgba(0,0,0,.07)}
 body.is-mobile .modal .modal-footer .btn{flex:1;justify-content:center;padding:13px}
 body.is-mobile .modal-overlay{align-items:flex-end;padding:0;z-index:210}
+.toolbar-btn{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:5px 12px;font-size:13px;color:var(--gn);cursor:pointer;min-width:34px}
+.toolbar-btn:hover{background:var(--gray100);border-color:var(--gl)}
 </style>
 </head>
 <body>
@@ -7017,7 +7019,6 @@ async function openFormacaoArea(area) {
     </div>
 
     <div class="formacao-editor" id="formacao-view-${area}">
-      <h3><i class="fas fa-file-alt" style="color:var(--gl);margin-right:6px"></i>Conteúdo</h3>
       <div class="formacao-content-view">${d.conteudo || '<p style="color:var(--gray400);font-style:italic">Sem conteúdo ainda.</p>'}</div>
     </div>
 
@@ -7031,8 +7032,7 @@ async function openFormacaoArea(area) {
 
     <!-- Ficheiros section -->
     <div class="formacao-editor" id="formacao-ficheiros-${area}">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
-        <h3 style="margin:0"><i class="fas fa-paperclip" style="color:var(--gl);margin-right:6px"></i>Ficheiros</h3>
+      <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:.75rem">
         ${isAdmin ? `<label class="btn btn-outline btn-sm" style="cursor:pointer;margin:0">
           <i class="fas fa-upload"></i> Carregar Ficheiro
           <input type="file" accept=".pdf,.pptx,.ppt,.xlsx,.xls,.doc,.docx" style="display:none" onchange="uploadFicheiroFormacao('${area}', this)">
@@ -7044,7 +7044,6 @@ async function openFormacaoArea(area) {
     <div id="formacao-edit-panel-${area}" class="hidden"></div>
   `;
   loadFicheirosArea(area);
-  if (isAdmin) editFormacaoArea(area);
 }
 
 async function editFormacaoArea(area) {
@@ -7105,6 +7104,7 @@ async function editFormacaoArea(area) {
   renderPastasEditList(area);
   renderLinksEditList(area);
   atualizarSelectPastas(area);
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 let _tempLinks = {};
