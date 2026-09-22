@@ -3599,10 +3599,9 @@ function renderDashboard(){
     .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   const isAdmin = currentProfile.role === 'admin';
   (document.getElementById('dash-recent')||{}).innerHTML=recent.length?`
-    <table><thead><tr><th>Tipo</th><th>Localização</th><th>Data</th><th>Estado</th>${isAdmin?'<th></th>':''}</tr></thead><tbody>
+    <table><thead><tr><th>Tipo</th><th>Data</th><th>Estado</th>${isAdmin?'<th></th>':''}</tr></thead><tbody>
     ${recent.map(r=>`<tr style="cursor:pointer" onclick="openRecord('${r._t}',${JSON.stringify(r).replace(/"/g,'&quot;')})">
       <td style="cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:${r._t==='itp'?'var(--red)':'var(--gl)'}"></span>${r.tipo}</span></td>
-      <td style="color:var(--gray600);cursor:pointer">${r.local}</td>
       <td style="color:var(--gray600);font-family:'IBM Plex Mono',monospace;font-size:12px">${fmtDate(r.data_hora)}</td>
       <td>${estadoBadge(r.estado)}</td>
       ${isAdmin?`<td><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openRecord('${r._t}',${JSON.stringify(r).replace(/"/g,'&quot;')})" title="Abrir caso"><i class="fas fa-edit"></i></button></td>`:''}
@@ -3652,12 +3651,11 @@ function renderTableIncidentes(){
   document.getElementById('inc-count-label').textContent=data.length+' de '+base.length+' registo(s)';
   const el=document.getElementById('table-inc-wrap');
   if(!data.length){el.innerHTML='<div class="empty-state"><p>Sem resultados para os filtros selecionados.</p></div>';return;}
-  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Classificação</th><th>Tipo</th><th>CTer</th><th>Localização</th><th>Data/Hora</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
+  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Classificação</th><th>Tipo</th><th>CTer</th><th>Data/Hora</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
   ${data.map(r=>`<tr style="cursor:pointer" onclick="openRecord('inc',${JSON.stringify(r).replace(/"/g,'&quot;')})">
     <td>${classBadge(r)}</td>
     <td style="font-weight:500;cursor:pointer">${r.tipo}</td>
     <td style="color:var(--gray600);font-size:12px">${r.cter||'—'}</td>
-    <td style="color:var(--gray600);cursor:pointer">${r.cter||'—'}</td>
     <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gray600)">${fmtDateTime(r.data_hora)}</td>
     <td>
       <select class="status-quick-btn" style="font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);cursor:pointer;background:${r.estado==='Em curso'?'var(--amberl)':r.estado==='Resolvido'?'var(--gp)':'var(--gray100)'};color:${r.estado==='Em curso'?'var(--amber)':r.estado==='Resolvido'?'var(--gm)':'var(--gray600)'}" onclick="event.stopPropagation()" onchange="quickStatusChange('inc','${r.id}',this.value,this)">
@@ -3684,19 +3682,17 @@ function renderTableITP(){
   let data=allITPs.filter(r=>{
     if(estado && r.estado!==estado) return false;
     if(cter && r.cter!==cter) return false;
-    if(search && !(r.tipo.toLowerCase().includes(search)||r.local.toLowerCase().includes(search)||(r.negociador||'').toLowerCase().includes(search))) return false;
+    if(search && !((r.tipo||'').toLowerCase().includes(search)||(r.local||'').toLowerCase().includes(search)||(r.negociador||'').toLowerCase().includes(search))) return false;
     return true;
   });
   document.getElementById('itp-count-label').textContent=data.length+' de '+allITPs.length+' registo(s)';
   const el=document.getElementById('table-itp-wrap');
   if(!data.length){el.innerHTML='<div class="empty-state"><p>Sem resultados para os filtros selecionados.</p></div>';return;}
-  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Tipo</th><th>CTer</th><th>Localização</th><th>Data/Hora</th><th>Sus.</th><th>Ref.</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
+  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Tipo</th><th>CTer</th><th>Data/Hora</th><th>Ref.</th><th>Estado</th><th>Ações</th></tr></thead><tbody>
   ${data.map(r=>`<tr style="cursor:pointer" onclick="openRecord('itp',${JSON.stringify(r).replace(/"/g,'&quot;')})">
     <td style="font-weight:500;cursor:pointer">${r.tipo}</td>
     <td style="color:var(--gray600);font-size:12px">${r.cter||'—'}</td>
-    <td style="color:var(--gray600);cursor:pointer">${r.local||'—'}</td>
     <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gray600)">${fmtDateTime(r.data_hora)}</td>
-    <td style="text-align:center;font-family:'IBM Plex Mono',monospace">${r.num_suspeitos}</td>
     <td style="text-align:center;font-family:'IBM Plex Mono',monospace">${r.num_refens}</td>
     <td>
       <select class="status-quick-btn" style="font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);cursor:pointer;background:${r.estado==='Em curso'?'var(--amberl)':r.estado==='Resolvido'?'var(--gp)':'var(--gray100)'};color:${r.estado==='Em curso'?'var(--amber)':r.estado==='Resolvido'?'var(--gm)':'var(--gray600)'}" onclick="event.stopPropagation()" onchange="quickStatusChange('itp','${r.id}',this.value,this)">
