@@ -7268,6 +7268,28 @@ function renderLinksView(links, area) {
   }
 
   // Default view (non-categorized links)
+  // Apresentações: links da Google Drive/Slides aparecem como miniatura clicável
+  if (area === 'apresentacoes') {
+    const cards = links.map(l => {
+      const _id = _driveFileId(l.url);
+      if (!_id || linkIncorporado(l, area)) return `<div style="grid-column:1/-1">${renderLinksView([l], '_')}</div>`;
+      const _oc = (_isAdmin && l.publicado === false)
+        ? `<span style="font-size:10px;background:var(--amber,#b45309);color:#fff;padding:1px 7px;border-radius:10px;margin-left:6px">OCULTO</span>` : '';
+      const _dl = urlTransferir(l.url);
+      const _nome = l.label || 'Apresentação';
+      return `<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;transition:border-color .15s,box-shadow .15s" onmouseover="this.style.borderColor='var(--gl)';this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+        <a href="${l.url}" target="_blank" rel="noopener" title="Abrir ${_escAttr(_nome)}" style="display:block;aspect-ratio:16/9;background:var(--gray100);position:relative;overflow:hidden">
+          <img src="https://drive.google.com/thumbnail?id=${encodeURIComponent(_id)}&sz=w640" alt="${_escAttr(_nome)}" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--gray400)"><i class="fas fa-file-powerpoint" style="font-size:34px;color:#d24726"></i><span style="font-size:11px">Pré-visualização indisponível</span></div>
+        </a>
+        <div style="display:flex;align-items:flex-start;gap:6px;padding:8px 10px">
+          <a href="${l.url}" target="_blank" rel="noopener" style="flex:1;min-width:0;font-size:12.5px;font-weight:500;color:var(--gn);text-decoration:none;line-height:1.35">${_nome}${_oc}</a>
+          ${_dl ? `<a href="${_dl}" target="_blank" rel="noopener" download title="Transferir" style="color:var(--gl);font-size:13px;text-decoration:none;flex-shrink:0"><i class="fas fa-download"></i></a>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:.5rem">${cards}</div>`;
+  }
   return links.map(l => {
     const isEmbed = linkIncorporado(l, area);
     const embedUrl = getEmbedUrl(l.url);
@@ -7319,6 +7341,13 @@ function urlTransferir(url) {
        : `https://docs.google.com/presentation/d/${m[2]}/export/pptx`;
   if (url.includes('supabase.co/storage') || /\.(pdf|docx?|xlsx?|pptx?)(\?|$)/i.test(url)) return url;
   return null;
+}
+// ID do ficheiro em links da Google Drive/Docs (para miniaturas)
+function _driveFileId(url) {
+  if (!url) return null;
+  const m = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/) || url.match(/drive\.google\.com\/open\?id=([^&#]+)/)
+    || url.match(/docs\.google\.com\/(?:presentation|document|spreadsheets)\/d\/([^/?#]+)/);
+  return m ? m[1] : null;
 }
 function isEmbedUrl(url) {
   if (!url) return false;
