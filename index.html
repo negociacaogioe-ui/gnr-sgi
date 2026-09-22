@@ -1473,7 +1473,7 @@ function _postoRealtime(nov, treino){
       } else if(document.getElementById('mob-posto-content')) _renderPostoPreservando();
     } else {
       if(contMudou){
-        const sb0 = document.querySelector('#sidebar-vitima-display')?.closest('[style*="width:230px"]');
+        const sb0 = document.querySelector('#sidebar-vitima-display')?.closest('#contactos-topo');
         const edicaoAberta = ['sidebar-vitima-edit','sidebar-agressor-edit'].some(id => { const e = document.getElementById(id); return e && !e.classList.contains('hidden'); });
         if(sb0 && !edicaoAberta){
           const tmp = document.createElement('div');
@@ -4508,13 +4508,11 @@ function buildContactosSidebarHTML(cvitima, cagressor) {
   const callBtnA = cagressor
     ? `<a href="tel:${cagressor.replace(/\s/g,'')}" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:8px;background:linear-gradient(135deg,var(--red),#6b1414);color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-size:12px;font-weight:600;margin-top:6px;transition:opacity .15s;text-decoration:none" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'"><i class="fas fa-phone-alt"></i> Ligar</a>` : '';
   return `
-    <div style="width:230px;flex-shrink:0">
-      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;position:sticky;top:1rem">
-        <div style="background:var(--gn);padding:10px 14px">
-          <div style="font-size:11px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.07em"><i class="fas fa-address-book"></i> Contactos</div>
-        </div>
+    <div id="contactos-topo" style="margin-bottom:1rem">
+      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--rl);overflow:hidden">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
         <!-- VÍTIMA -->
-        <div style="padding:12px 14px;border-bottom:1px solid var(--border)">
+        <div style="padding:12px 14px;border-right:1px solid var(--border)">
           <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px"><i class="fas fa-user" style="color:var(--gm)"></i> Vítima</div>
           <div id="sidebar-vitima-display">
             ${_nomeContactoHTML(nvitima,'var(--gn)')}
@@ -4553,6 +4551,7 @@ function buildContactosSidebarHTML(cvitima, cagressor) {
           <button class="btn btn-ghost btn-sm" style="margin-top:6px;width:100%;font-size:11px;color:var(--gray400)" onclick="toggleContactosSidebarEdit(true,'agressor')"><i class="fas fa-pencil-alt"></i> ${(cagressor||nagressor)?'Editar':'Adicionar'}</button>
           ${callBtnA}
         </div>
+        </div>
         <div id="sidebar-contactos-msg" class="hidden" style="padding:8px 14px;font-size:12px;text-align:center"></div>
       </div>
     </div>`;
@@ -4590,7 +4589,7 @@ async function saveContactosSidebar() {
   const arr = type==='inc' ? allIncidentes : allITPs;
   const idx = arr.findIndex(x=>x.id===r.id);
   if (idx>=0) { arr[idx].contacto_vitima=vitima; arr[idx].contacto_agressor=agressor; }
-  const sidebarWrapper = document.querySelector('#sidebar-vitima-display')?.closest('[style*="width:230px"]');
+  const sidebarWrapper = document.querySelector('#sidebar-vitima-display')?.closest('#contactos-topo');
   if (sidebarWrapper) {
     const tmp = document.createElement('div');
     tmp.innerHTML = buildContactosSidebarHTML(vitima, agressor);
@@ -4815,7 +4814,7 @@ async function renderRNRV(){
   const cagressor = r.contacto_agressor || '';
   const contactosSidebar = buildContactosSidebarHTML(cvitima, cagressor);
 
-  el.innerHTML=`<div style="display:flex;gap:16px;align-items:flex-start"><div style="flex:1;min-width:0">`+`
+  el.innerHTML=`<div>`+`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
       <h3 style="font-size:16px;font-weight:600;color:var(--gn)"><i class="fas fa-phone-alt" style="color:var(--gl)"></i> Monitorização de Contactos</h3>
       <div style="display:flex;gap:8px">
@@ -4930,17 +4929,7 @@ async function renderRNRV(){
 
     <div class="form-section" style="background:var(--gp)">
       <h3>Registar novo contacto</h3>
-      ${(r.contacto_vitima||r.contacto_agressor)?`
-      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
-        ${r.contacto_vitima?`
-        <a href="tel:${r.contacto_vitima}" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--gp);border:1px solid #b8d4bb;border-radius:var(--r);text-decoration:none;color:var(--gn);font-size:13px;font-weight:500">
-          <i class="fas fa-phone" style="color:var(--gm)"></i> Vítima: ${r.contacto_vitima}
-        </a>`:''}
-        ${r.contacto_agressor?`
-        <a href="tel:${r.contacto_agressor}" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--redl);border:1px solid #f5c6c6;border-radius:var(--r);text-decoration:none;color:var(--red);font-size:13px;font-weight:500">
-          <i class="fas fa-phone" style="color:var(--red)"></i> Agressor: ${r.contacto_agressor}
-        </a>`:''}
-      </div>`:''}
+      ${contactosSidebar}
       <div class="form-grid">
         <div class="field"><label>Data e Hora</label><input type="datetime-local" id="rnrv-dt" value="${localNow}"></div>
         <div class="field"><label>Duração (min)</label><input type="number" id="rnrv-dur" value="5" min="1" max="240"></div>
@@ -5002,7 +4991,7 @@ async function renderRNRV(){
       </table></div>
     </div>`:'<div class="empty-state"><p>Sem contactos registados. Regista o primeiro contacto acima.</p></div>'}
 
-  </div>${contactosSidebar}</div>
+  </div>
   `;
   renderRNRVChart();
 }
