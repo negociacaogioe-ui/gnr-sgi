@@ -733,13 +733,13 @@ body.is-mobile .filter-bar input,body.is-mobile .filter-bar select{flex:1 1 45%;
       <div id="barra-posto" class="barra-posto" style="display:none"></div>
       <div class="tabs-nav" id="tabs-nav">
         <button class="tab-btn active" onclick="showTab('tab-resumo')"><i class="fas fa-clipboard"></i> Constituição de EN</button>
-        <button class="tab-btn" onclick="showTab('tab-info')"><i class="fas fa-info-circle"></i> Informações</button>
         <button class="tab-btn" onclick="showTab('tab-iris')"><i class="fas fa-heartbeat"></i> IRIS</button>
         <button class="tab-btn" id="tab-visado-btn" onclick="showTab('tab-visado')"><i class="fas fa-user-tag"></i> Descrição do Visado</button>
-        <button class="tab-btn" id="tab-posto-btn" onclick="showTab('tab-posto')"><i class="fas fa-user-shield"></i> Coordenação</button>
-        <button class="tab-btn" id="tab-pd-btn" onclick="showTab('tab-pd')"><i class="fas fa-comments"></i> Plano de Diálogo</button>
         <button class="tab-btn" onclick="showTab('tab-sari')"><i class="fas fa-shield-alt"></i> Aval. Risco/Coop.</button>
         <button class="tab-btn" onclick="showTab('tab-plano')"><i class="fas fa-clipboard-list"></i> Plano</button>
+        <button class="tab-btn" id="tab-pd-btn" onclick="showTab('tab-pd')"><i class="fas fa-comments"></i> Plano de Diálogo</button>
+        <button class="tab-btn" id="tab-posto-btn" onclick="showTab('tab-posto')"><i class="fas fa-user-shield"></i> Coordenação</button>
+        <button class="tab-btn" onclick="showTab('tab-info')"><i class="fas fa-info-circle"></i> Informações</button>
         <button class="tab-btn" onclick="showTab('tab-rnrv')"><i class="fas fa-phone-alt"></i> Contactos</button>
         <button class="tab-btn" onclick="showTab('tab-hist')"><i class="fas fa-history"></i> Histórico</button>
       </div>
@@ -1644,7 +1644,7 @@ function showTab(tabId){
   document.getElementById(tabId).classList.add('active');
   var _vb=document.getElementById('tab-visado-btn'); if(_vb) _vb.style.display=(currentDetail&&currentDetail.isTreino)?'none':'';
   aplicarFiltroPosto();
-  const idx=['tab-resumo','tab-info','tab-iris','tab-visado','tab-posto','tab-pd','tab-sari','tab-plano','tab-rnrv','tab-hist'].indexOf(tabId);
+  const idx=['tab-resumo','tab-iris','tab-visado','tab-sari','tab-plano','tab-pd','tab-posto','tab-info','tab-rnrv','tab-hist'].indexOf(tabId);
   document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
   if(tabId==='tab-resumo')renderResumo();
   if(tabId==='tab-info')renderInfo();
@@ -2504,7 +2504,7 @@ const EN_TABS = {
   n4: ['tab-posto','tab-resumo','tab-info','tab-pd','tab-plano','tab-iris','tab-sari','tab-visado','tab-hist'],
   nc: ['tab-posto','tab-resumo','tab-info','tab-plano','tab-pd','tab-iris','tab-sari','tab-rnrv','tab-hist']
 };
-const TAB_BTN_ORDEM = ['tab-resumo','tab-info','tab-iris','tab-visado','tab-posto','tab-pd','tab-sari','tab-plano','tab-rnrv','tab-hist'];
+const TAB_BTN_ORDEM = ['tab-resumo','tab-iris','tab-visado','tab-sari','tab-plano','tab-pd','tab-posto','tab-info','tab-rnrv','tab-hist'];
 
 // Posição que o militar declarou ocupar neste caso (só nesta sessão, não é gravada).
 let _postoEscolhido = null;
