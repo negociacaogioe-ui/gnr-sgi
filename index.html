@@ -3134,7 +3134,6 @@ async function puxarDadosPN(){
   const vis=_pxVisado(); if(vis) partes.push('VISADO:\n'+vis);
   _pxPreencher({
     'plano-desc': partes.join('\n\n'),
-    'plano-sit': [r.tipo, r.local, r.cter].filter(Boolean).join(' · '),
     'plano-pos': _pxQuadro('posicao')
   });
 }
@@ -5317,10 +5316,6 @@ async function renderPlano(){
   const{data:ex}=await sb.from('plano_negociacao').select('*').eq('parent_type',type==='inc'?'incidente':'itp').eq('parent_id',r.id).maybeSingle();
   const v=ex||{};
 
-  const cvitima = r.contacto_vitima || '';
-  const cagressor = r.contacto_agressor || '';
-  const contactosSidebar = buildContactosSidebarHTML(cvitima, cagressor);
-
   el.innerHTML=`<div style="display:flex;gap:16px;align-items:flex-start"><div style="flex:1;min-width:0">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
       <h3 style="font-size:16px;font-weight:600;color:var(--gn)"><i class="fas fa-clipboard-list" style="color:var(--gm)"></i> Plano de Negociação</h3>
@@ -5334,14 +5329,15 @@ async function renderPlano(){
     </div>
     <div class="form-section"><h3>Tipo de Situação</h3>
       <div class="situation-type-btns">
-        <div class="sit-btn ${(v.tipo_situacao||'crise')==='crise'?'selected':''}" id="sit-crise" onclick="selectSit('crise')">
+        <div class="sit-btn ${v.tipo_situacao==='crise'?'selected':''}" id="sit-crise" onclick="selectSit('crise')">
           <h4>CRISE</h4><p>Situação não planeada ou resultante de descontrolo emocional</p>
         </div>
         <div class="sit-btn ${v.tipo_situacao==='conflito'?'selected':''}" id="sit-conflito" onclick="selectSit('conflito')">
           <h4>CONFLITO</h4><p>Ações planeadas e conscientes que preveem o confronto</p>
         </div>
       </div>
-      <input type="hidden" id="plano-sit" value="${v.tipo_situacao||'crise'}">
+      <input type="hidden" id="plano-sit" value="${(v.tipo_situacao==='crise'||v.tipo_situacao==='conflito')?v.tipo_situacao:''}">
+      ${consultaPNHTML('sit')}
     </div>
     <div class="form-section red"><h3>Posição e Interesses do Adversário</h3>
       <div class="form-grid">
@@ -5350,14 +5346,15 @@ async function renderPlano(){
       </div>
       <div class="field"><label>Alinhamento entre Posição e Interesses</label>
         <div class="situation-type-btns">
-          <div class="sit-btn ${(v.alinhamento||'desalinhados')==='desalinhados'?'selected':''}" id="align-desalinhados" onclick="selectAlign('desalinhados')">
+          <div class="sit-btn ${v.alinhamento==='desalinhados'?'selected':''}" id="align-desalinhados" onclick="selectAlign('desalinhados')">
             <h4>NÃO ALINHADOS</h4><p><strong>✅ Favorável:</strong> focar nos interesses subjacentes para encontrar soluções alternativas que satisfaçam as necessidades reais.</p>
           </div>
           <div class="sit-btn ${v.alinhamento==='alinhados'?'selected':''}" id="align-alinhados" onclick="selectAlign('alinhados')">
             <h4>ALINHADOS</h4><p><strong>⚠️ Desfavorável:</strong> adversário tem objetivos claros e coerentes — procurar criar valor adicional ou explorar contradições.</p>
           </div>
         </div>
-        <input type="hidden" id="plano-align" value="${v.alinhamento||'desalinhados'}">
+        <input type="hidden" id="plano-align" value="${(v.alinhamento==='alinhados'||v.alinhamento==='desalinhados')?v.alinhamento:''}">
+        ${consultaPNHTML('align')}
       </div>
     </div>
     <div class="form-section"><h3>Objetivos</h3>
@@ -5381,10 +5378,80 @@ async function renderPlano(){
       <button class="btn btn-outline btn-sm" onclick="puxarDadosPN()" style="flex-shrink:0"><i class="fas fa-download"></i> Puxar dados do caso</button>
     </div>
     ${sgiBarraHTML('plano','Guardar Plano')}
-  </div>${contactosSidebar}</div>
+  </div></div>
   `;
   updateAlignBox();
   sgiAutosaveLigar('plano');
+}
+
+// ===== CONSULTA DE APOIO — Tipo de situação / Alinhamento =====
+// Só ajuda a raciocinar: não seleciona nada nem é gravada. A decisão é sempre da EN.
+const CONSULTA_PN = {
+  sit: {
+    titulo: 'Consulta de apoio — Crise ou Conflito?',
+    a: { k:'crise', t:'Indicadores de CRISE', cor:'var(--gm)', itens:[
+      'A situação surgiu de forma súbita, sem preparação aparente',
+      'Foi desencadeada por um acontecimento recente (separação, perda, despedimento, discussão)',
+      'Forte carga emocional (choro, gritos, discurso desorganizado ou incoerente)',
+      'Não há exigências concretas, ou são vagas / irrealistas',
+      'Ideação suicida, ameaças de autolesão ou desespero',
+      'As pessoas envolvidas são próximas do visado (família, companheiro/a)',
+      'Consumo de álcool ou estupefacientes associado ao episódio'
+    ]},
+    b: { k:'conflito', t:'Indicadores de CONFLITO', cor:'var(--red)', itens:[
+      'Ação preparada previamente (armas trazidas, local escolhido, meios de fuga)',
+      'Exigências concretas e negociáveis (dinheiro, transporte, libertação de alguém)',
+      'Discurso racional e controlado, orientado para objetivos',
+      'Reféns / vítimas usados como moeda de troca',
+      'Contexto criminal (assalto frustrado, fuga à detenção) ou motivação ideológica',
+      'O visado conta com o confronto com a força e preparou-se para ele'
+    ]},
+    nota: 'Uma situação pode evoluir de crise para conflito (ou o inverso) — revê a caracterização ao longo do incidente.'
+  },
+  align: {
+    titulo: 'Consulta de apoio — Posição e interesses estão alinhados?',
+    a: { k:'alinhados', t:'Indicadores de ALINHAMENTO', cor:'var(--red)', itens:[
+      'Satisfazer a exigência resolveria, de facto, o problema do visado',
+      'A exigência mantém-se estável e coerente ao longo dos contactos',
+      'O visado explica de forma lógica porque quer o que pede',
+      'Recusa alternativas que satisfariam a mesma necessidade'
+    ]},
+    b: { k:'desalinhados', t:'Indicadores de NÃO ALINHAMENTO', cor:'var(--gm)', itens:[
+      'A exigência é um meio para outra coisa (ex.: pede um carro, mas o que quer é não ser preso ou ser ouvido)',
+      'As exigências mudam, contradizem-se ou são irrealistas',
+      'O discurso centra-se em emoções, reconhecimento, respeito ou em ser ouvido',
+      'Mostra abertura a outras formas de resolver',
+      'O que escreveste em «Posição» e em «Interesses» não coincide'
+    ]},
+    nota: 'Não alinhados = favorável (trabalhar os interesses para encontrar alternativas). Alinhados = desfavorável (criar valor adicional ou explorar contradições).'
+  }
+};
+function consultaPNHTML(tipo, pref){
+  const c = CONSULTA_PN[tipo]; if(!c) return '';
+  const id = (pref||'pn') + '-cons-' + tipo;
+  const col = g => `<div style="flex:1;min-width:220px">
+      <div style="font-size:11px;font-weight:600;color:${g.cor};text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${g.t}</div>
+      ${g.itens.map(t=>`<label style="display:flex;gap:7px;align-items:flex-start;font-size:12px;color:var(--gray600);line-height:1.4;margin-bottom:5px;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:400">
+        <input type="checkbox" class="${id}-${g.k}" onchange="consultaPNAtualizar('${tipo}','${id}')" style="width:15px;height:15px;min-width:15px;padding:0;margin:2px 0 0;accent-color:var(--gm);flex:0 0 15px"> <span style="flex:1">${t}</span></label>`).join('')}
+    </div>`;
+  return `<details id="${id}" style="margin-top:10px;background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px">
+    <summary style="font-size:12px;font-weight:600;color:var(--gn);cursor:pointer"><i class="fas fa-circle-question" style="color:var(--gl)"></i> ${c.titulo}</summary>
+    <div style="font-size:11.5px;color:var(--gray600);margin:8px 0 10px;line-height:1.5">Assinala o que se verifica. É apenas uma ajuda ao raciocínio: não seleciona nada e não fica gravada — a decisão é sempre da EN.</div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap">${col(c.a)}${col(c.b)}</div>
+    <div id="${id}-res" style="margin-top:8px;font-size:12px;font-weight:600;color:var(--gray600)">Nenhum indicador assinalado.</div>
+    <div style="margin-top:6px;font-size:11px;color:var(--gray400);line-height:1.5">${c.nota}</div>
+  </details>`;
+}
+function consultaPNAtualizar(tipo, id){
+  const c = CONSULTA_PN[tipo]; const res = document.getElementById(id + '-res'); if(!c || !res) return;
+  const na = document.querySelectorAll('.' + id + '-' + c.a.k + ':checked').length;
+  const nb = document.querySelectorAll('.' + id + '-' + c.b.k + ':checked').length;
+  const nome = g => g.t.replace(/^Indicadores de /,'');
+  let txt;
+  if(!na && !nb) txt = 'Nenhum indicador assinalado.';
+  else if(na === nb) txt = `${na} / ${nb} — indicadores equilibrados. Recolhe mais informação antes de decidir.`;
+  else { const g = na > nb ? c.a : c.b; txt = `${nome(c.a)}: ${na} · ${nome(c.b)}: ${nb} — os indicadores apontam para <span style="color:${g.cor}">${nome(g)}</span>. A seleção é feita pela EN.`; }
+  res.innerHTML = txt;
 }
 
 function selectSit(val){
@@ -5401,8 +5468,8 @@ function selectAlign(val){
   updateAlignBox();
 }
 function updateAlignBox(){
-  const v=document.getElementById('plano-align')?.value||'desalinhados';
-  document.getElementById('align-desalinhados')?.classList.toggle('selected',v!=='alinhados');
+  const v=document.getElementById('plano-align')?.value||'';
+  document.getElementById('align-desalinhados')?.classList.toggle('selected',v==='desalinhados');
   document.getElementById('align-alinhados')?.classList.toggle('selected',v==='alinhados');
 }
 
@@ -5412,8 +5479,8 @@ async function savePlano(){
   const payload={
     parent_type:type==='inc'?'incidente':'itp',parent_id:r.id,
     descricao:get('plano-desc'),identificacao_problema:get('plano-prob'),
-    tipo_situacao:get('plano-sit'),posicao_adversario:get('plano-pos'),
-    interesses_adversario:get('plano-int'),alinhamento:get('plano-align'),
+    tipo_situacao:get('plano-sit')||null,posicao_adversario:get('plano-pos'),
+    interesses_adversario:get('plano-int'),alinhamento:get('plano-align')||null,
     objetivo_principal:get('plano-obj'),'objetivos_intermédios':get('plano-obji'),
     tempo_estimado:get('plano-tempo'),meios:get('plano-meios'),
     autor_id:currentUser.id,autor_nome:currentProfile.nome
@@ -5443,10 +5510,10 @@ function exportPlanoPDF(){
   };
   add('DESCRIÇÃO',get('plano-desc'));
   add('IDENTIFICAÇÃO DO PROBLEMA',get('plano-prob'));
-  add('TIPO DE SITUAÇÃO',(get('plano-sit')==='crise'?'CRISE — Situação não planeada ou resultante de descontrolo emocional':'CONFLITO — Ações planeadas e conscientes que preveem o confronto'));
+  add('TIPO DE SITUAÇÃO',(get('plano-sit')==='crise'?'CRISE — Situação não planeada ou resultante de descontrolo emocional':get('plano-sit')==='conflito'?'CONFLITO — Ações planeadas e conscientes que preveem o confronto':'Não selecionado'));
   add('POSIÇÃO DO ADVERSÁRIO',get('plano-pos'));
   add('INTERESSES DO ADVERSÁRIO',get('plano-int'));
-  add('ALINHAMENTO',(get('plano-align')==='alinhados'?'ALINHADOS — Adversário tem objetivos claros e coerentes':'NÃO ALINHADOS — Focar nos interesses subjacentes'));
+  add('ALINHAMENTO',(get('plano-align')==='alinhados'?'ALINHADOS — Adversário tem objetivos claros e coerentes':get('plano-align')==='desalinhados'?'NÃO ALINHADOS — Focar nos interesses subjacentes':'Não selecionado'));
   add('OBJETIVO PRINCIPAL',get('plano-obj'));
   add('OBJETIVOS INTERMÉDIOS',get('plano-obji'));
   add('TEMPO ESTIMADO',get('plano-tempo'));
@@ -8981,11 +9048,11 @@ function buildContactosSummary(iris, sari, plano, record) {
   if (plano) {
     const sit = plano.tipo_situacao || '—';
     const align = plano.alinhamento || '';
-    const alignOk = align !== 'alinhados';
-    const alignIcon = alignOk ? '✅' : '⚠️';
-    const alignLabel = alignOk ? 'Favorável' : 'Desfavorável';
-    const alignColor = alignOk ? 'var(--gm)' : 'var(--red)';
-    const sitColor = sit === 'crise' ? 'var(--gm)' : 'var(--red)';
+    const alignOk = align === 'desalinhados';
+    const alignIcon = align ? (alignOk ? '✅' : '⚠️') : '';
+    const alignLabel = align ? (alignOk ? 'Favorável' : 'Desfavorável') : 'Alinhamento por selecionar';
+    const alignColor = align ? (alignOk ? 'var(--gm)' : 'var(--red)') : 'var(--gray400)';
+    const sitColor = sit === 'crise' ? 'var(--gm)' : sit === 'conflito' ? 'var(--red)' : 'var(--gray400)';
     const pos = (plano.posicao_adversario || '').slice(0, 60) + ((plano.posicao_adversario||'').length > 60 ? '…' : '');
     const int_ = (plano.interesses_adversario || '').slice(0, 60) + ((plano.interesses_adversario||'').length > 60 ? '…' : '');
     planoHtml = '<div style="background:#fff;border:2px solid var(--border);border-radius:var(--r);padding:12px 16px;cursor:pointer" onclick="showTab(\'tab-plano\')" title="Ver Plano">'
@@ -10957,10 +11024,11 @@ async function mobAbrirForm(form) {
           <div style="margin-bottom:12px">
             <div style="font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Tipo de Situação</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-              <button id="mob-sit-crise" onclick="mobSelectSit('crise')" style="padding:14px;border-radius:var(--r);border:2px solid ${(p.tipo_situacao||'crise')==='crise'?'var(--gm)':'var(--border)'};background:${(p.tipo_situacao||'crise')==='crise'?'var(--gp)':'#fff'};cursor:pointer;font-size:14px;font-weight:600;font-family:'IBM Plex Sans',sans-serif">CRISE</button>
+              <button id="mob-sit-crise" onclick="mobSelectSit('crise')" style="padding:14px;border-radius:var(--r);border:2px solid ${p.tipo_situacao==='crise'?'var(--gm)':'var(--border)'};background:${p.tipo_situacao==='crise'?'var(--gp)':'#fff'};cursor:pointer;font-size:14px;font-weight:600;font-family:'IBM Plex Sans',sans-serif">CRISE</button>
               <button id="mob-sit-conflito" onclick="mobSelectSit('conflito')" style="padding:14px;border-radius:var(--r);border:2px solid ${p.tipo_situacao==='conflito'?'var(--red)':'var(--border)'};background:${p.tipo_situacao==='conflito'?'var(--redl)':'#fff'};cursor:pointer;font-size:14px;font-weight:600;font-family:'IBM Plex Sans',sans-serif">CONFLITO</button>
             </div>
-            <input type="hidden" id="mob-plano-sit" value="${p.tipo_situacao||'crise'}">
+            <input type="hidden" id="mob-plano-sit" value="${(p.tipo_situacao==='crise'||p.tipo_situacao==='conflito')?p.tipo_situacao:''}">
+            ${consultaPNHTML('sit','mob')}
           </div>
           ${ta('Posição (o que diz que quer)','mob-plano-pos',p.posicao_adversario)}
           ${ta('Interesses (necessidades reais)','mob-plano-int',p.interesses_adversario)}
@@ -11216,7 +11284,7 @@ async function mobSavePlano() {
   const payload={
     parent_type:type==='inc'?'incidente':'itp', parent_id:r.id,
     descricao:g('mob-plano-desc'), identificacao_problema:g('mob-plano-prob'),
-    tipo_situacao:g('mob-plano-sit')||'crise', posicao_adversario:g('mob-plano-pos'),
+    tipo_situacao:g('mob-plano-sit')||null, posicao_adversario:g('mob-plano-pos'),
     interesses_adversario:g('mob-plano-int'), objetivo_principal:g('mob-plano-obj'),
     'objetivos_intermédios':g('mob-plano-obji'), tempo_estimado:g('mob-plano-tempo'), meios:g('mob-plano-meios')
   };
