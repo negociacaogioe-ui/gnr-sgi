@@ -1017,7 +1017,6 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0;z-index:210}
           <option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option>
         </select></div>
         <div class="field"><label>Data e hora</label><input type="datetime-local" id="itp-data"></div>
-        <div class="field"><label>Negociador</label><input type="text" id="itp-neg" placeholder="Nome do negociador"></div>
         <div class="field"><label>Nº suspeitos</label><input type="number" id="itp-sus" min="0" value="0"></div>
         <div class="field"><label>Nº reféns</label><input type="number" id="itp-ref" min="0" value="0"></div>
         <div class="field"><label>Estado</label><select id="itp-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
@@ -3695,7 +3694,7 @@ function renderTableITP(){
   ${data.map(r=>`<tr style="cursor:pointer" onclick="openRecord('itp',${JSON.stringify(r).replace(/"/g,'&quot;')})">
     <td style="font-weight:500;cursor:pointer">${r.tipo}</td>
     <td style="color:var(--gray600);font-size:12px">${r.cter||'—'}</td>
-    <td style="color:var(--gray600);cursor:pointer">${r.cter||'—'}</td>
+    <td style="color:var(--gray600);cursor:pointer">${r.local||'—'}</td>
     <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gray600)">${fmtDateTime(r.data_hora)}</td>
     <td style="text-align:center;font-family:'IBM Plex Mono',monospace">${r.num_suspeitos}</td>
     <td style="text-align:center;font-family:'IBM Plex Mono',monospace">${r.num_refens}</td>
@@ -3739,7 +3738,7 @@ async function saveITP(){
   const tipo=sgiTipoValor('itp-tipo')||'Por definir',
     local=document.getElementById('itp-local').value.trim()||'Por definir',
     data=document.getElementById('itp-data').value||nowFallback,
-    neg=document.getElementById('itp-neg').value.trim()||currentProfile.nome,
+    neg=currentProfile.nome,
     sus=parseInt(document.getElementById('itp-sus').value)||0,
     ref=parseInt(document.getElementById('itp-ref').value)||0,
     estado=document.getElementById('itp-estado').value,
@@ -3754,7 +3753,7 @@ async function saveITP(){
   btn.innerHTML='Guardar';btn.disabled=false;
   if(error){showAlert('itp-alert','error','Erro: '+error.message);return;}
   closeModal('modal-itp');
-  ['itp-tipo','itp-tipo-outro','itp-local','itp-cter','itp-neg','itp-desc','itp-contacto-vitima','itp-contacto-agressor','itp-nome-vitima','itp-nome-agressor'].forEach(function(id){var e=document.getElementById(id); if(e) e.value='';});
+  ['itp-tipo','itp-tipo-outro','itp-local','itp-cter','itp-desc','itp-contacto-vitima','itp-contacto-agressor','itp-nome-vitima','itp-nome-agressor'].forEach(function(id){var e=document.getElementById(id); if(e) e.value='';});
   document.getElementById('itp-sus').value='0';document.getElementById('itp-ref').value='0';
   await loadData();showSection('dashboard');
 }
@@ -7957,7 +7956,6 @@ async function openEditITP(id) {
   document.getElementById('edit-itp-cter').value = r.cter || '';
   const dt = new Date(r.data_hora); dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
   document.getElementById('edit-itp-data').value = dt.toISOString().slice(0,16);
-  document.getElementById('edit-itp-neg').value = r.negociador || '';
   document.getElementById('edit-itp-sus').value = r.num_suspeitos || 0;
   document.getElementById('edit-itp-ref').value = r.num_refens || 0;
   document.getElementById('edit-itp-estado').value = r.estado;
@@ -7972,7 +7970,6 @@ async function updateITP() {
   const local = document.getElementById('edit-itp-local').value.trim();
   const cter = document.getElementById('edit-itp-cter').value;
   const data = document.getElementById('edit-itp-data').value;
-  const neg = document.getElementById('edit-itp-neg').value.trim();
   const sus = parseInt(document.getElementById('edit-itp-sus').value)||0;
   const ref = parseInt(document.getElementById('edit-itp-ref').value)||0;
   const estado = document.getElementById('edit-itp-estado').value;
@@ -7981,7 +7978,7 @@ async function updateITP() {
   showAlert('edit-itp-alert','','');
   btn.innerHTML='<span class="spinner"></span>'; btn.disabled=true;
   const old = allITPs.find(x => x.id === id);
-  const { error } = await sb.from('incidentes').update({ tipo, local, cter, data_hora: new Date(data).toISOString(), negociador:neg, num_suspeitos:sus, num_refens:ref, gravidade:'', gravidade_criterios: collectGravCriterios('edit-itp-grav-criterios'), estado, descricao:desc }).eq('id', id);
+  const { error } = await sb.from('incidentes').update({ tipo, local, cter, data_hora: new Date(data).toISOString(), num_suspeitos:sus, num_refens:ref, gravidade:'', gravidade_criterios: collectGravCriterios('edit-itp-grav-criterios'), estado, descricao:desc }).eq('id', id);
   btn.innerHTML='Guardar Alterações'; btn.disabled=false;
   if (error) { showAlert('edit-itp-alert','error','Erro: '+error.message); return; }
   await sb.from('historico').insert({ tabela:'incidentes', registo_id:id, acao:'editado', campos_alterados: { antes:{tipo:old.tipo,estado:old.estado}, depois:{tipo,estado} }, autor_id:currentUser.id, autor_nome:currentProfile.nome });
@@ -10334,7 +10331,6 @@ setImages();
             <option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option>
             <option>CTer Açores</option><option>CTer Madeira</option><option>CTer Curso</option></select></div>
         <div class="field"><label>Data e hora</label><input type="datetime-local" id="edit-itp-data"></div>
-        <div class="field"><label>Negociador</label><input type="text" id="edit-itp-neg"></div>
         <div class="field"><label>Nº suspeitos</label><input type="number" id="edit-itp-sus" min="0"></div>
         <div class="field"><label>Nº reféns</label><input type="number" id="edit-itp-ref" min="0"></div>
         <div class="field"><label>Estado</label><select id="edit-itp-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
@@ -11057,7 +11053,6 @@ function mobAbrirEditar() {
       document.getElementById('edit-itp-id').value = r.id;
       sgiTipoSet('edit-itp-tipo', r.tipo||'');
       document.getElementById('edit-itp-local').value = r.local||'';
-      document.getElementById('edit-itp-neg').value = r.negociador||'';
       document.getElementById('edit-itp-estado').value = r.estado||'Em curso';
       document.getElementById('edit-itp-desc').value = r.descricao||'';
       if(r.data_hora){const d=new Date(r.data_hora);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());document.getElementById('edit-itp-data').value=d.toISOString().slice(0,16);}
@@ -11824,7 +11819,6 @@ function mobBuildForms(){
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">CTer</label>
       <select id="mob-itp-cter"><option value="">Selecionar...</option><option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option><option>CTer Castelo Branco</option><option>CTer Coimbra</option><option>CTer Évora</option><option>CTer Faro</option><option>CTer Guarda</option><option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option><option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option><option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option><option>CTer Curso</option></select></div>
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Data e Hora *</label><input type="datetime-local" id="mob-itp-data"></div>
-    <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Negociador</label><input type="text" id="mob-itp-neg" placeholder="Nome do negociador"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
       <div><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Nº Suspeitos</label><input type="number" id="mob-itp-sus" value="0" min="0"></div>
       <div><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Nº Reféns</label><input type="number" id="mob-itp-ref" value="0" min="0"></div>
@@ -11894,7 +11888,7 @@ async function mobSaveITP(){
     tipo,local,
     cter:document.getElementById('mob-itp-cter')?.value||'',
     data_hora:new Date(data).toISOString(),
-    negociador:document.getElementById('mob-itp-neg')?.value.trim()||currentProfile.nome,
+    negociador:currentProfile.nome,
     num_suspeitos:parseInt(document.getElementById('mob-itp-sus')?.value)||0,
     num_refens:parseInt(document.getElementById('mob-itp-ref')?.value)||0,
     gravidade:'',
