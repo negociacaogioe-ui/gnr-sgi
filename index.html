@@ -452,8 +452,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0;z-index:210}
       <div class="nav-title">SGI <span>GUARDA NACIONAL REPUBLICANA</span></div>
     </div>
     <div class="nav-links">
-      <button class="nav-link active" id="nav-dashboard" onclick="showSection('dashboard')">Dashboard</button>
-      <button class="nav-link" id="nav-incidentes" onclick="showSection('incidentes')">Incidentes</button>
+      <button class="nav-link active" id="nav-incidentes" onclick="showSection('incidentes')">Incidentes</button>
       <button class="nav-link hidden" id="nav-sinalizacoes" onclick="showSection('sinalizacoes')"><i class="fas fa-exclamation-triangle" style="font-size:10px;color:var(--amber)"></i> Sinalizar VD</button>
       <button class="nav-link hidden" id="nav-stats" class="nav-link hidden" onclick="showSection('stats')"><i class="fas fa-chart-bar" style="font-size:11px"></i> Estatísticas</button>
       <button class="nav-link" id="nav-formacao" onclick="showSection('formacao')"><i class="fas fa-graduation-cap" style="font-size:11px"></i> Formação</button>
@@ -607,9 +606,10 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0;z-index:210}
     </div>
   </div>
 
-  <div id="section-dashboard" class="page">
+  <!-- INCIDENTES LIST -->
+  <div id="section-incidentes" class="page">
     <div class="page-header">
-      <div><div class="page-title" id="dash-greeting">Dashboard</div><div class="page-sub" id="dash-date"></div></div>
+      <div><div class="page-title" id="dash-greeting">Incidentes</div><div class="page-sub" id="dash-date"></div></div>
     </div>
     <div class="stats-grid">
       <div class="stat-card"><div class="s-label">Incidentes</div><div class="s-num green" id="s-inc">0</div></div>
@@ -617,20 +617,6 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0;z-index:210}
       <div class="stat-card"><div class="s-label">Este mês</div><div class="s-num" id="s-mes">0</div></div>
       <div class="stat-card"><div class="s-label">Em curso</div><div class="s-num amber" id="s-curso">0</div></div>
     </div>
-    <div class="action-cards">
-      <div class="action-card inc" onclick="openModal('modal-inc')">
-        <div class="action-icon green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2a7a36" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
-        <h3>Registar Novo Incidente</h3>
-      </div>
-    </div>
-    <div class="table-card">
-      <div class="table-card-header"><span style="font-size:14px;font-weight:600;color:var(--gn)">Registos recentes</span><button class="btn btn-ghost btn-sm" onclick="showSection('incidentes')">Ver todos →</button></div>
-      <div id="dash-recent"></div>
-    </div>
-  </div>
-
-  <!-- INCIDENTES LIST -->
-  <div id="section-incidentes" class="page hidden">
     <div class="page-header">
       <div><div class="page-title">Incidentes</div><div class="page-sub" id="inc-count-label"></div></div>
       <button class="btn btn-primary" onclick="openModal('modal-inc')"><i class="fas fa-plus"></i> Abrir Novo Incidente</button>
@@ -1537,14 +1523,14 @@ function showPage(p){
 }
 
 function showSection(s){
-  ['dashboard','incidentes','itp','sinalizacoes','detail','formacao','formacao-detalhe','admin','treino','stats'].forEach(x=>{
+  if(s==='dashboard') s='incidentes'; // Dashboard eliminado — a página inicial passa a ser Incidentes
+  ['incidentes','itp','sinalizacoes','detail','formacao','formacao-detalhe','admin','treino','stats'].forEach(x=>{
     document.getElementById('section-'+x).classList.add('hidden');
     const nb=document.getElementById('nav-'+x);if(nb)nb.classList.remove('active');
   });
   document.getElementById('section-'+s).classList.remove('hidden');
   const nb=document.getElementById('nav-'+s);if(nb)nb.classList.add('active');
-  if(s==='dashboard')renderDashboard();
-  if(s==='incidentes')renderTableIncidentes();
+  if(s==='incidentes'){renderDashboard();renderTableIncidentes();}
   if(s==='itp')renderTableITP();
   if(s==='admin')renderAdmin();
   if(s==='formacao')renderFormacao();
@@ -1746,7 +1732,7 @@ function _sgiFalhou(msg){ _sgiLastError = msg; if(!_sgiSilent) alert(msg); }
 function _sgiGuardou(msg){ _sgiLastError = null; if(!_sgiSilent) alert(msg); }
 
 const SGI_LABELS = {
-  iris: {'iris-name':'Nome do visado','iris-pid':'N.º identificação','iris-date':'Data da avaliação',
+  iris: {'iris-name':'Nome do visado','iris-date':'Data da avaliação',
          'iris-gender':'Sexo','iris-age':'Idade','iris-rel':'Religiosidade',
          'iris-isolation':'Vive só / sem apoio','iris-loss':'Perda recente','iris-phys':'Doença física',
          'iris-subs':'Abuso de substâncias','iris-psych':'Doença psiquiátrica',
@@ -3530,7 +3516,7 @@ function renderDashboard(){
     .filter(r=>new Date(r.created_at).toDateString()===todayStr)
     .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   const isAdmin = currentProfile.role === 'admin';
-  document.getElementById('dash-recent').innerHTML=recent.length?`
+  (document.getElementById('dash-recent')||{}).innerHTML=recent.length?`
     <table><thead><tr><th>Tipo</th><th>Localização</th><th>Data</th><th>Estado</th>${isAdmin?'<th></th>':''}</tr></thead><tbody>
     ${recent.map(r=>`<tr>
       <td style="cursor:pointer" onclick="openRecord('${r._t}',${JSON.stringify(r).replace(/"/g,'&quot;')})"><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:${r._t==='itp'?'var(--red)':'var(--gl)'}"></span>${r.tipo}</span></td>
@@ -3769,7 +3755,6 @@ async function renderIRIS(){
     </div>
     <div class="form-grid">
       <div class="field"><label>Nome do visado</label><input type="text" id="iris-name" value="${vals.patient_name||''}"></div>
-      <div class="field"><label>Nº Identificação</label><input type="text" id="iris-pid" value="${vals.patient_id||''}"></div>
       <div class="field"><label>Data da avaliação</label><input type="date" id="iris-date" value="${vals.assessment_date||''}"></div>
     </div>
     <div class="form-section"><h3>Sociodemografia <small style="font-weight:400;text-transform:none">(1 ponto por item)</small></h3>
@@ -3849,7 +3834,6 @@ async function saveIRIS(){
   const payload={
     parent_type:type==='inc'?'incidente':'itp',parent_id:r.id,
     patient_name:document.getElementById('iris-name').value,
-    patient_id:document.getElementById('iris-pid').value,
     assessment_date:document.getElementById('iris-date').value||null,
     gender:document.getElementById('iris-gender').value,
     age_group:document.getElementById('iris-age').value,
@@ -4072,7 +4056,7 @@ function _relatorioPDF(r, type, iris, sari, plano, contactos, hist){
   // ---------------- 5. IRIS
   sec('5. Anexo A — IRIS (Índice de Risco de Suicídio)');
   if(iris){
-    kv('Visado', iris.patient_name); kv('N.º identificação', iris.patient_id);
+    kv('Visado', iris.patient_name);
     kv('Data da avaliação', iris.assessment_date);
     kv('Score', (iris.score != null ? iris.score : '—') + ' pontos');
     kv('Nível de risco', iris.risk_level);
@@ -4195,7 +4179,7 @@ function exportIRISPDF(){
   doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(26,58,31);
   doc.text('Registo: '+r.tipo+' — '+r.local,15,y+8);
   doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(74,90,74);
-  doc.text('Visado: '+(document.getElementById('iris-name')?.value||'—')+'   |   Nº ID: '+(document.getElementById('iris-pid')?.value||'—'),15,y+16);
+  doc.text('Visado: '+(document.getElementById('iris-name')?.value||'—'),15,y+16);
   y+=28;
   // Score highlight
   const score=document.getElementById('iris-score-val')?.textContent||'0';
@@ -10925,7 +10909,6 @@ async function mobAbrirForm(form) {
         </div>
         <div style="padding:16px">
           ${field('Nome','text','mob-iris-name',d.patient_name)}
-          ${field('Nº Identificação','text','mob-iris-pid',d.patient_id)}
           ${field('Data avaliação','date','mob-iris-date',d.assessment_date)}
           ${secHdr('Sociodemografia — 1 pt/item','var(--gn)')}
           ${sel('Sexo','mob-iris-gender',[['','Selecionar...'],['male','Masculino (1 pt)'],['female','Feminino (0 pts)']],d.gender)}
@@ -11211,7 +11194,7 @@ async function mobSaveIRIS() {
   const _mRisk=_mScore>=10?'Elevado':_mScore>=5?'Intermédio':'Reduzido';
   const payload={
     parent_type:type==='inc'?'incidente':'itp', parent_id:r.id,
-    patient_name:g('mob-iris-name'), patient_id:g('mob-iris-pid'), assessment_date:g('mob-iris-date')||null,
+    patient_name:g('mob-iris-name'), assessment_date:g('mob-iris-date')||null,
     gender:g('mob-iris-gender'), age_group:g('mob-iris-age'), religiosity:g('mob-iris-rel'),
     isolation:c('mob-iris-iso'), recent_loss:c('mob-iris-loss'), physical_illness:c('mob-iris-phys'),
     substance_abuse:c('mob-iris-subs'), psychiatric_illness:c('mob-iris-psych'), psychiatric_history:c('mob-iris-pshist'),
