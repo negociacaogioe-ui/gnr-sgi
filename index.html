@@ -380,6 +380,9 @@ body.is-mobile .modal .modal-body{flex:1 1 auto;overflow-y:auto;-webkit-overflow
 body.is-mobile .modal .modal-footer{flex:0 0 auto;position:sticky;bottom:0;z-index:2;box-shadow:0 -2px 8px rgba(0,0,0,.07)}
 body.is-mobile .modal .modal-footer .btn{flex:1;justify-content:center;padding:13px}
 body.is-mobile .modal-overlay{align-items:flex-end;padding:0;z-index:210}
+.filter-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:1rem}
+.filter-bar input,.filter-bar select{width:auto;min-width:170px;max-width:220px;font-size:13px;padding:6px 10px}
+body.is-mobile .filter-bar input,body.is-mobile .filter-bar select{flex:1 1 45%;max-width:none;min-width:0}
 .toolbar-btn{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:5px 12px;font-size:13px;color:var(--gn);cursor:pointer;min-width:34px}
 .toolbar-btn:hover{background:var(--gray100);border-color:var(--gl)}
 </style>
@@ -638,8 +641,8 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0;z-index:210}
     <div class="filter-bar">
       <input type="text" id="filter-inc-search" placeholder="🔍 Pesquisar..." style="max-width:220px" oninput="renderTableIncidentes()">
       <select id="filter-inc-class" onchange="renderTableIncidentes()"><option value="">Todas as classificações</option><option value="inc">Incidente de Segurança</option><option value="itp">ITP</option></select>
-      <select id="filter-inc-estado" onchange="renderTableIncidentes()"><option value="">Todos os estados</option><option>Em curso</option><option>Resolvido</option><option>Arquivado</option></select>
-      <select id="filter-inc-cter" onchange="renderTableIncidentes()"><option value="">Todos os CTer</option><option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option><option>CTer Castelo Branco</option><option>CTer Coimbra</option><option>CTer Évora</option><option>CTer Faro</option><option>CTer Guarda</option><option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option><option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option><option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option><option>CTer Curso</option></select>
+      <select id="filter-inc-estado" onchange="renderTableIncidentes()"><option value="">Todos os estados</option><option>Em curso</option><option>Resolvido</option></select>
+      <select id="filter-inc-cter" onchange="renderTableIncidentes()"><option value="">Todos os CTer</option><option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option><option>CTer Castelo Branco</option><option>CTer Coimbra</option><option>CTer Évora</option><option>CTer Faro</option><option>CTer Guarda</option><option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option><option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option><option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option></select>
       <button class="btn btn-outline btn-sm" onclick="clearFilters('inc')"><i class="fas fa-times"></i> Limpar</button>
     </div>
     <div class="table-card"><div id="table-inc-wrap"></div></div>
@@ -703,8 +706,8 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0;z-index:210}
     </div>
     <div class="filter-bar">
       <input type="text" id="filter-itp-search" placeholder="🔍 Pesquisar..." style="max-width:220px" oninput="renderTableITP()">
-      <select id="filter-itp-estado" onchange="renderTableITP()"><option value="">Todos os estados</option><option>Em curso</option><option>Resolvido</option><option>Arquivado</option></select>
-      <select id="filter-itp-cter" onchange="renderTableITP()"><option value="">Todos os CTer</option><option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option><option>CTer Castelo Branco</option><option>CTer Coimbra</option><option>CTer Évora</option><option>CTer Faro</option><option>CTer Guarda</option><option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option><option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option><option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option><option>CTer Curso</option></select>
+      <select id="filter-itp-estado" onchange="renderTableITP()"><option value="">Todos os estados</option><option>Em curso</option><option>Resolvido</option></select>
+      <select id="filter-itp-cter" onchange="renderTableITP()"><option value="">Todos os CTer</option><option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option><option>CTer Castelo Branco</option><option>CTer Coimbra</option><option>CTer Évora</option><option>CTer Faro</option><option>CTer Guarda</option><option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option><option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option><option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option></select>
       <button class="btn btn-outline btn-sm" onclick="clearFilters('itp')"><i class="fas fa-times"></i> Limpar</button>
     </div>
     <div class="table-card"><div id="table-itp-wrap"></div></div>
@@ -923,7 +926,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0;z-index:210}
           <option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option>
         </select></div>
         <div class="field"><label>Data e hora</label><input type="datetime-local" id="inc-data"></div>
-        <div class="field"><label>Estado</label><select id="inc-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
+        <div class="field"><label>Estado</label><select id="inc-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option></select></div>
         <div class="field"><label><i class="fas fa-user" style="color:var(--gm)"></i> Nome da Vítima</label><input type="text" id="inc-nome-vitima" placeholder="Nome..."></div>
         <div class="field"><label><i class="fas fa-user-slash" style="color:var(--red)"></i> Nome do Agressor</label><input type="text" id="inc-nome-agressor" placeholder="Nome..."></div>
         <div class="field"><label><i class="fas fa-user" style="color:var(--gm)"></i> Contacto Vítima</label><input type="text" id="inc-contacto-vitima" placeholder="Nº telefone ou contacto..."></div>
@@ -951,7 +954,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0;z-index:210}
         <div class="field form-full"><label>Localização</label><input type="text" id="treino-inc-local" placeholder="Ex: Lisboa, Rua..."></div>
         <div class="field form-full"><label>CTer</label><select id="treino-inc-cter"><option value="">Selecionar CTer...</option><option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option><option>CTer Castelo Branco</option><option>CTer Coimbra</option><option>CTer Évora</option><option>CTer Faro</option><option>CTer Guarda</option><option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option><option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option><option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option><option>CTer Curso</option></select></div>
         <div class="field"><label>Data e hora</label><input type="datetime-local" id="treino-inc-data"></div>
-        <div class="field"><label>Estado</label><select id="treino-inc-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
+        <div class="field"><label>Estado</label><select id="treino-inc-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option></select></div>
         <div class="field"><label><i class="fas fa-user" style="color:var(--gm)"></i> Nome da Vítima</label><input type="text" id="treino-inc-nome-vitima" placeholder="Nome..."></div>
         <div class="field"><label><i class="fas fa-user-slash" style="color:var(--red)"></i> Nome do Agressor</label><input type="text" id="treino-inc-nome-agressor" placeholder="Nome..."></div>
         <div class="field"><label><i class="fas fa-user" style="color:var(--gm)"></i> Contacto Vítima</label><input type="text" id="treino-inc-contacto-vitima" placeholder="Nº telefone ou contacto..."></div>
@@ -984,7 +987,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0;z-index:210}
         <div class="field"><label>Data e hora</label><input type="datetime-local" id="treino-itp-data"></div>
         <div class="field"><label>Nº suspeitos</label><input type="number" id="treino-itp-sus" min="0" value="0"></div>
         <div class="field"><label>Nº reféns</label><input type="number" id="treino-itp-ref" min="0" value="0"></div>
-        <div class="field"><label>Estado</label><select id="treino-itp-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
+        <div class="field"><label>Estado</label><select id="treino-itp-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option></select></div>
         <div class="field"><label><i class="fas fa-user" style="color:var(--gm)"></i> Nome da Vítima</label><input type="text" id="treino-itp-nome-vitima" placeholder="Nome..."></div>
         <div class="field"><label><i class="fas fa-user-slash" style="color:var(--red)"></i> Nome do Agressor</label><input type="text" id="treino-itp-nome-agressor" placeholder="Nome..."></div>
         <div class="field"><label><i class="fas fa-user" style="color:var(--gm)"></i> Contacto Vítima</label><input type="text" id="treino-itp-contacto-vitima" placeholder="Nº telefone ou contacto..."></div>
@@ -1019,7 +1022,7 @@ body.is-mobile .modal-overlay{align-items:flex-end;padding:0;z-index:210}
         <div class="field"><label>Data e hora</label><input type="datetime-local" id="itp-data"></div>
         <div class="field"><label>Nº suspeitos</label><input type="number" id="itp-sus" min="0" value="0"></div>
         <div class="field"><label>Nº reféns</label><input type="number" id="itp-ref" min="0" value="0"></div>
-        <div class="field"><label>Estado</label><select id="itp-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
+        <div class="field"><label>Estado</label><select id="itp-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option></select></div>
         <div class="field"><label><i class="fas fa-user" style="color:var(--gm)"></i> Nome da Vítima</label><input type="text" id="itp-nome-vitima" placeholder="Nome..."></div>
         <div class="field"><label><i class="fas fa-user-slash" style="color:var(--red)"></i> Nome do Agressor</label><input type="text" id="itp-nome-agressor" placeholder="Nome..."></div>
         <div class="field"><label><i class="fas fa-user" style="color:var(--gm)"></i> Contacto Vítima</label><input type="text" id="itp-contacto-vitima" placeholder="Nº telefone ou contacto..."></div>
@@ -1944,7 +1947,7 @@ function avisoResolvidoHTML(){
 function enNomeUtil(u){ return ((u.posto?u.posto+' ':'')+(u.nome||'')).trim(); }
 // Elegíveis: negociadores do CTer da ocorrência. A UI/GIOE só entra quando o caso é ITP
 // (a UI é o apoio especialista requerido pelo critério de capacidade que define o ITP).
-const CTER_LISTA = ['CTer Aveiro','CTer Beja','CTer Braga','CTer Bragança','CTer Castelo Branco','CTer Coimbra','CTer Évora','CTer Faro','CTer Guarda','CTer Leiria','CTer Lisboa','CTer Portalegre','CTer Porto','CTer Santarém','CTer Setúbal','CTer Viana do Castelo','CTer Vila Real','CTer Viseu','CTer Açores','CTer Madeira','CTer Curso','UCCF'];
+const CTER_LISTA = ['CTer Aveiro','CTer Beja','CTer Braga','CTer Bragança','CTer Castelo Branco','CTer Coimbra','CTer Évora','CTer Faro','CTer Guarda','CTer Leiria','CTer Lisboa','CTer Portalegre','CTer Porto','CTer Santarém','CTer Setúbal','CTer Viana do Castelo','CTer Vila Real','CTer Viseu','CTer Açores','CTer Madeira','UCCF'];
 let _enWork = {};        // estado de trabalho da escalação (não perde ao trocar de CTer)
 let _enEmpenhados = new Set(); // formandos (CTer Curso) já escalados noutro exercício em curso
 async function enCarregarEmpenhados(){
@@ -3661,7 +3664,6 @@ function renderTableIncidentes(){
       <select class="status-quick-btn" style="font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);cursor:pointer;background:${r.estado==='Em curso'?'var(--amberl)':r.estado==='Resolvido'?'var(--gp)':'var(--gray100)'};color:${r.estado==='Em curso'?'var(--amber)':r.estado==='Resolvido'?'var(--gm)':'var(--gray600)'}" onclick="event.stopPropagation()" onchange="quickStatusChange('inc','${r.id}',this.value,this)">
         <option value="Em curso" ${r.estado==='Em curso'?'selected':''}>Em curso</option>
         <option value="Resolvido" ${r.estado==='Resolvido'?'selected':''}>Resolvido</option>
-        <option value="Arquivado" ${r.estado==='Arquivado'?'selected':''}>Arquivado</option>
       </select>
     </td>
     <td><div style="display:flex;gap:4px">
@@ -3698,7 +3700,6 @@ function renderTableITP(){
       <select class="status-quick-btn" style="font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);cursor:pointer;background:${r.estado==='Em curso'?'var(--amberl)':r.estado==='Resolvido'?'var(--gp)':'var(--gray100)'};color:${r.estado==='Em curso'?'var(--amber)':r.estado==='Resolvido'?'var(--gm)':'var(--gray600)'}" onclick="event.stopPropagation()" onchange="quickStatusChange('itp','${r.id}',this.value,this)">
         <option value="Em curso" ${r.estado==='Em curso'?'selected':''}>Em curso</option>
         <option value="Resolvido" ${r.estado==='Resolvido'?'selected':''}>Resolvido</option>
-        <option value="Arquivado" ${r.estado==='Arquivado'?'selected':''}>Arquivado</option>
       </select>
     </td>
     <td><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openRecord('itp',${JSON.stringify(r).replace(/"/g,'&quot;')})" title="Abrir caso"><i class="fas fa-edit"></i></button></td>
@@ -8594,7 +8595,6 @@ function renderTreinoTable() {
       <select style="font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);cursor:pointer" onclick="event.stopPropagation()" onchange="quickTreinoStatus('inc','${r.id}',this.value)">
         <option value="Em curso" ${r.estado==='Em curso'?'selected':''}>Em curso</option>
         <option value="Resolvido" ${r.estado==='Resolvido'?'selected':''}>Resolvido</option>
-        <option value="Arquivado" ${r.estado==='Arquivado'?'selected':''}>Arquivado</option>
       </select>
     </td>
     <td><div style="display:flex;gap:4px">
@@ -8814,7 +8814,6 @@ function mobRenderTreinoCards() {
         <select style="font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);flex:1;min-width:120px" onclick="event.stopPropagation()" onchange="quickTreinoStatus('inc','${r.id}',this.value)">
           <option value="Em curso" ${r.estado === 'Em curso' ? 'selected' : ''}>Em curso</option>
           <option value="Resolvido" ${r.estado === 'Resolvido' ? 'selected' : ''}>Resolvido</option>
-          <option value="Arquivado" ${r.estado === 'Arquivado' ? 'selected' : ''}>Arquivado</option>
         </select>
         <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();${r.is_itp?'editTreinoITP':'editTreinoIncidente'}('${r.id}')" title="Editar dados do caso"><i class="fas fa-edit"></i></button>
         <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteTreino('inc','${r.id}')"><i class="fas fa-trash"></i></button>
@@ -10293,9 +10292,9 @@ setImages();
             <option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option>
             <option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option>
             <option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option>
-            <option>CTer Açores</option><option>CTer Madeira</option><option>CTer Curso</option></select></div>
+            <option>CTer Açores</option><option>CTer Madeira</option></select></div>
         <div class="field"><label>Data e hora</label><input type="datetime-local" id="edit-inc-data"></div>
-        <div class="field"><label>Estado</label><select id="edit-inc-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
+        <div class="field"><label>Estado</label><select id="edit-inc-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option></select></div>
         <div class="field form-full"><label>Descrição</label><textarea id="edit-inc-desc"></textarea></div>
       </div>
     </div>
@@ -10325,11 +10324,11 @@ setImages();
             <option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option>
             <option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option>
             <option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option>
-            <option>CTer Açores</option><option>CTer Madeira</option><option>CTer Curso</option></select></div>
+            <option>CTer Açores</option><option>CTer Madeira</option></select></div>
         <div class="field"><label>Data e hora</label><input type="datetime-local" id="edit-itp-data"></div>
         <div class="field"><label>Nº suspeitos</label><input type="number" id="edit-itp-sus" min="0"></div>
         <div class="field"><label>Nº reféns</label><input type="number" id="edit-itp-ref" min="0"></div>
-        <div class="field"><label>Estado</label><select id="edit-itp-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option><option value="Arquivado">Arquivado</option></select></div>
+        <div class="field"><label>Estado</label><select id="edit-itp-estado"><option value="Em curso">Em curso</option><option value="Resolvido">Resolvido</option></select></div>
         <div class="field form-full"><label>Descrição tática</label><textarea id="edit-itp-desc"></textarea></div>
       </div>
     </div>
@@ -11794,7 +11793,7 @@ function mobBuildForms(){
       <select id="mob-inc-tipo" onchange="sgiTipoOutro('mob-inc-tipo')"><option value="">Selecionar...</option><option>Violência Doméstica</option><option>Sequestro</option><option>Tentativa de Suicídio</option><option>Atirador Ativo</option><option>Outro</option></select><div id="mob-inc-tipo-outro-wrap" class="hidden" style="margin-top:6px"><input type="text" id="mob-inc-tipo-outro" maxlength="60" placeholder="ESPECIFIQUE O TIPO DE SITUAÇÃO" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase"></div></div>
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Localização</label><input type="text" id="mob-inc-local" placeholder="Morada ou localidade"></div>
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">CTer *</label>
-      <select id="mob-inc-cter"><option value="">Selecionar...</option><option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option><option>CTer Castelo Branco</option><option>CTer Coimbra</option><option>CTer Évora</option><option>CTer Faro</option><option>CTer Guarda</option><option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option><option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option><option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option><option>CTer Curso</option></select></div>
+      <select id="mob-inc-cter"><option value="">Selecionar...</option><option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option><option>CTer Castelo Branco</option><option>CTer Coimbra</option><option>CTer Évora</option><option>CTer Faro</option><option>CTer Guarda</option><option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option><option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option><option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option></select></div>
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Data e Hora *</label><input type="datetime-local" id="mob-inc-data"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
       <div><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Nome da Vítima</label><input type="text" id="mob-inc-nv" placeholder="Nome..."></div>
@@ -11813,7 +11812,7 @@ function mobBuildForms(){
       <select id="mob-itp-tipo" onchange="sgiTipoOutro('mob-itp-tipo')"><option value="">Selecionar...</option><option>Violência Doméstica</option><option>Sequestro</option><option>Tentativa de Suicídio</option><option>Atirador Ativo</option><option>Outro</option></select><div id="mob-itp-tipo-outro-wrap" class="hidden" style="margin-top:6px"><input type="text" id="mob-itp-tipo-outro" maxlength="60" placeholder="ESPECIFIQUE O TIPO DE SITUAÇÃO" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase"></div></div>
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Localização</label><input type="text" id="mob-itp-local" placeholder="Morada ou referência"></div>
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">CTer</label>
-      <select id="mob-itp-cter"><option value="">Selecionar...</option><option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option><option>CTer Castelo Branco</option><option>CTer Coimbra</option><option>CTer Évora</option><option>CTer Faro</option><option>CTer Guarda</option><option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option><option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option><option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option><option>CTer Curso</option></select></div>
+      <select id="mob-itp-cter"><option value="">Selecionar...</option><option>CTer Aveiro</option><option>CTer Beja</option><option>CTer Braga</option><option>CTer Bragança</option><option>CTer Castelo Branco</option><option>CTer Coimbra</option><option>CTer Évora</option><option>CTer Faro</option><option>CTer Guarda</option><option>CTer Leiria</option><option>CTer Lisboa</option><option>CTer Portalegre</option><option>CTer Porto</option><option>CTer Santarém</option><option>CTer Setúbal</option><option>CTer Viana do Castelo</option><option>CTer Vila Real</option><option>CTer Viseu</option><option>CTer Açores</option><option>CTer Madeira</option></select></div>
     <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Data e Hora *</label><input type="datetime-local" id="mob-itp-data"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
       <div><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Nº Suspeitos</label><input type="number" id="mob-itp-sus" value="0" min="0"></div>
