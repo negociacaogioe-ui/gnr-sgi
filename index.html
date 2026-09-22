@@ -1347,7 +1347,8 @@ async function enterApp(){
     document.getElementById('lang-toggle-btn')?.classList.add('hidden');
   }
   // Mostrar/ocultar itens de navegação conforme nível de acesso
-  ['dashboard','incidentes','itp','sinalizacoes','stats'].forEach(id => {
+  // 'sinalizacoes' (Sinalizar VD) omitido por enquanto — o botão fica sempre oculto
+  ['dashboard','incidentes','itp','stats'].forEach(id => {
     const el = document.getElementById('nav-'+id);
     if(el) el.classList.toggle('hidden', !isOperacional);
   });
