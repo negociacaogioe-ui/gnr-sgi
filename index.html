@@ -9554,6 +9554,145 @@ function formatBytes(bytes) {
   return (bytes/(1024*1024)).toFixed(1) + ' MB';
 }
 
+// ===== PRÉ-VISUALIZAÇÃO DE FICHEIROS (miniatura + abrir na app, sem transferir) =====
+// PDF → pdf.js; DOCX → docx-preview. Tudo é desenhado no próprio browser (o ficheiro não passa por serviços externos).
+const _ficheirosCache = {};
+const _scriptsCarregados = {};
+function _carregarScript(src) {
+  if (!_scriptsCarregados[src]) _scriptsCarregados[src] = new Promise((ok, ko) => {
+    const s = document.createElement('script'); s.src = src; s.onload = ok;
+    s.onerror = () => { delete _scriptsCarregados[src]; ko(new Error('Falha ao carregar ' + src)); };
+    document.head.appendChild(s);
+  });
+  return _scriptsCarregados[src];
+}
+async function _libPdf() {
+  await _carregarScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  return window.pdfjsLib;
+}
+async function _libDocx() {
+  await _carregarScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
+  await _carregarScript('https://cdn.jsdelivr.net/npm/docx-preview@0.3.5/dist/docx-preview.min.js');
+  return window.docx;
+}
+function _extFicheiro(f) { return (f.tipo || (f.nome || '').split('.').pop() || '').toLowerCase(); }
+function _podePreVisualizar(f) { return ['pdf', 'docx'].includes(_extFicheiro(f)); }
+let _docxSeq = 0;
+
+async function _gerarMiniaturaFicheiro(f, box) {
+  const ext = _extFicheiro(f);
+  const w = box.clientWidth || 240;
+  if (ext === 'pdf') {
+    const pdfjs = await _libPdf();
+    const pdf = await pdfjs.getDocument({ url: f.url }).promise;
+    const page = await pdf.getPage(1);
+    const vp1 = page.getViewport({ scale: 1 });
+    const vp = page.getViewport({ scale: (w * 2) / vp1.width });
+    const cv = document.createElement('canvas');
+    cv.width = vp.width; cv.height = vp.height;
+    cv.style.cssText = 'width:100%;display:block';
+    await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+    box.innerHTML = ''; box.appendChild(cv);
+  } else if (ext === 'docx') {
+    const docx = await _libDocx();
+    const buf = await (await fetch(f.url)).arrayBuffer();
+    const inner = document.createElement('div');
+    inner.style.cssText = 'transform-origin:top left;position:absolute;top:0;left:0;pointer-events:none';
+    box.innerHTML = ''; box.appendChild(inner);
+    await docx.renderAsync(buf, inner, null, { className: 'dxmini' + (++_docxSeq), inWrapper: false, ignoreFonts: true, renderHeaders: true, renderFooters: false });
+    const secs = inner.querySelectorAll('section');
+    secs.forEach((s, i) => { if (i > 0) s.remove(); });
+    const pag = secs[0] || inner;
+    pag.style.margin = '0'; pag.style.boxShadow = 'none';
+    inner.style.transform = 'scale(' + (w / (pag.offsetWidth || 794)) + ')';
+  }
+}
+
+function _gerarMiniaturasFicheiros(area) {
+  (_ficheirosCache[area] || []).forEach((f, i) => {
+    const box = document.getElementById('fthumb-' + area + '-' + i);
+    if (!box || !_podePreVisualizar(f)) return;
+    _gerarMiniaturaFicheiro(f, box).catch(() => {
+      box.innerHTML = `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--gray400)"><span style="font-size:34px">${getFicheiroIcon(f.nome)}</span><span style="font-size:11px">Pré-visualização indisponível</span></div>`;
+    });
+  });
+}
+
+async function abrirFicheiroViewer(area, idx) {
+  const f = (_ficheirosCache[area] || [])[idx];
+  if (!f) return;
+  let ov = document.getElementById('ficheiro-viewer');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'ficheiro-viewer';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:300;background:rgba(10,20,10,.6);display:flex;align-items:stretch;justify-content:center;padding:2vh 2vw';
+    ov.addEventListener('click', e => { if (e.target === ov) fecharFicheiroViewer(); });
+    document.body.appendChild(ov);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.getElementById('ficheiro-viewer')?.style.display !== 'none') fecharFicheiroViewer(); });
+  }
+  ov.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  ov.innerHTML = `<div style="background:#fff;border-radius:var(--r);width:100%;max-width:1100px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.25)">
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border)">
+      <span style="font-size:20px">${getFicheiroIcon(f.nome)}</span>
+      <div style="flex:1;min-width:0;font-size:13.5px;font-weight:600;color:var(--gn);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.nome}</div>
+      <a href="${f.url}" target="_blank" rel="noopener" download class="btn btn-outline btn-sm" title="Transferir"><i class="fas fa-download"></i></a>
+      <button class="btn btn-outline btn-sm" onclick="fecharFicheiroViewer()" title="Fechar"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="ficheiro-viewer-body" style="flex:1;overflow:auto;background:var(--gray100);padding:14px">
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--gm)"><span class="spinner"></span> A abrir documento...</div>
+    </div>
+  </div>`;
+  const body = document.getElementById('ficheiro-viewer-body');
+  const ext = _extFicheiro(f);
+  try {
+    if (ext === 'pdf') {
+      const pdfjs = await _libPdf();
+      const pdf = await pdfjs.getDocument({ url: f.url }).promise;
+      body.innerHTML = '';
+      const larg = Math.min(body.clientWidth - 28, 900);
+      for (let p = 1; p <= pdf.numPages; p++) {
+        if (!document.getElementById('ficheiro-viewer-body')) return; // viewer fechado
+        const page = await pdf.getPage(p);
+        const vp1 = page.getViewport({ scale: 1 });
+        const vp = page.getViewport({ scale: (larg / vp1.width) * (window.devicePixelRatio || 1) });
+        const cv = document.createElement('canvas');
+        cv.width = vp.width; cv.height = vp.height;
+        cv.style.cssText = 'display:block;margin:0 auto 12px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.15);width:' + larg + 'px;max-width:100%';
+        body.appendChild(cv);
+        await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+      }
+    } else if (ext === 'docx') {
+      const docx = await _libDocx();
+      const buf = await (await fetch(f.url)).arrayBuffer();
+      body.innerHTML = '';
+      body.style.padding = '0';
+      await docx.renderAsync(buf, body, null, { className: 'dxview' + (++_docxSeq), inWrapper: true, ignoreLastRenderedPageBreak: false });
+      // Em ecrãs estreitos, reduz as páginas para caberem na largura
+      const wrap = body.querySelector('.dxview' + _docxSeq + '-wrapper');
+      const sec = body.querySelector('section');
+      if (wrap && sec && sec.offsetWidth > body.clientWidth) {
+        const k = body.clientWidth / (sec.offsetWidth + 40);
+        wrap.style.zoom = k;
+      }
+    } else {
+      body.innerHTML = `<div style="text-align:center;padding:3rem 1rem;color:var(--gray600);font-size:13px">
+        <div style="font-size:40px;margin-bottom:10px">${getFicheiroIcon(f.nome)}</div>
+        Este tipo de ficheiro (.${ext}) não pode ser pré-visualizado na aplicação.<br><br>
+        <a href="${f.url}" target="_blank" rel="noopener" download class="btn btn-primary btn-sm"><i class="fas fa-download"></i> Transferir</a></div>`;
+    }
+  } catch (e) {
+    body.innerHTML = `<div style="text-align:center;padding:3rem 1rem;color:var(--gray600);font-size:13px">Não foi possível abrir o documento na aplicação.<br><br>
+      <a href="${f.url}" target="_blank" rel="noopener" download class="btn btn-primary btn-sm"><i class="fas fa-download"></i> Transferir</a></div>`;
+  }
+}
+function fecharFicheiroViewer() {
+  const ov = document.getElementById('ficheiro-viewer');
+  if (ov) { ov.style.display = 'none'; ov.innerHTML = ''; }
+  document.body.style.overflow = '';
+}
+
 async function loadFicheirosArea(area) {
   const el = document.getElementById('ficheiros-list-' + area);
   if (!el) return;
@@ -9569,23 +9708,25 @@ async function loadFicheirosArea(area) {
       return;
     }
 
-    el.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px">' +
-      ficheiros.map(f => `
-        <div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;transition:all .15s" onmouseover="this.style.boxShadow='var(--sh)'" onmouseout="this.style.boxShadow=''">
-          <span style="font-size:24px;flex-shrink:0">${getFicheiroIcon(f.nome)}</span>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:600;color:var(--gn);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.nome}</div>
-            ${f.descricao ? `<div style="font-size:12px;color:var(--gray600);margin-top:2px">${f.descricao}</div>` : ''}
-            <div style="font-size:11px;color:var(--gray400);margin-top:2px">${f.autor_nome || '—'} · ${new Date(f.created_at).toLocaleDateString('pt-PT')}${f.tamanho ? ' · ' + formatBytes(f.tamanho) : ''}</div>
+    _ficheirosCache[area] = ficheiros;
+    el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">' +
+      ficheiros.map((f, i) => `
+        <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;transition:border-color .15s,box-shadow .15s" onmouseover="this.style.borderColor='var(--gl)';this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+          <div id="fthumb-${area}-${i}" onclick="abrirFicheiroViewer('${area}',${i})" title="Abrir" style="cursor:pointer;aspect-ratio:4/3;background:#fff;border-bottom:1px solid var(--border);position:relative;overflow:hidden">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--gray400)"><span style="font-size:34px">${getFicheiroIcon(f.nome)}</span>${_podePreVisualizar(f) ? '<span class="spinner"></span>' : ''}</div>
           </div>
-          <div style="display:flex;gap:6px;flex-shrink:0">
-            <a href="${f.url}" target="_blank" rel="noopener" class="btn btn-primary btn-sm" title="Abrir/Download">
-              <i class="fas fa-download"></i>
-            </a>
-            ${isAdmin ? `<button class="btn btn-danger btn-sm" onclick="deleteFicheiro('${f.id}','${area}','${f.storage_path}')" title="Eliminar"><i class="fas fa-trash"></i></button>` : ''}
+          <div style="display:flex;align-items:flex-start;gap:6px;padding:8px 10px">
+            <div style="flex:1;min-width:0;cursor:pointer" onclick="abrirFicheiroViewer('${area}',${i})">
+              <div style="font-size:12.5px;font-weight:600;color:var(--gn);line-height:1.35;word-break:break-word">${f.nome}</div>
+              ${f.descricao ? `<div style="font-size:12px;color:var(--gray600);margin-top:2px">${f.descricao}</div>` : ''}
+              <div style="font-size:11px;color:var(--gray400);margin-top:2px">${f.autor_nome || '—'} · ${new Date(f.created_at).toLocaleDateString('pt-PT')}${f.tamanho ? ' · ' + formatBytes(f.tamanho) : ''}</div>
+            </div>
+            <a href="${f.url}" target="_blank" rel="noopener" download title="Transferir" style="color:var(--gl);font-size:13px;text-decoration:none;flex-shrink:0;padding:2px"><i class="fas fa-download"></i></a>
+            ${isAdmin ? `<button onclick="deleteFicheiro('${f.id}','${area}','${f.storage_path}')" title="Eliminar" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;flex-shrink:0;padding:2px"><i class="fas fa-trash"></i></button>` : ''}
           </div>
         </div>`).join('') +
     '</div>';
+    _gerarMiniaturasFicheiros(area);
   } catch(e) {
     el.innerHTML = '<div style="font-size:13px;color:var(--gray400)">Erro ao carregar ficheiros.</div>';
   }
