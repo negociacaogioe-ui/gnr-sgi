@@ -3101,7 +3101,7 @@ function _seletorPostoHTML(){
 // No mobile, os botões do posto abrem os formulários em ecrã inteiro (não há separadores).
 function _postoIrTab(t){
   if(typeof isMobile!=='undefined' && isMobile){
-    const m = {'tab-info':'info','tab-plano':'plano'};
+    const m = {'tab-info':'info','tab-plano':'plano','tab-pd':'pd'};
     if(m[t]) mobAbrirForm(m[t]);
     return;
   }
@@ -3169,7 +3169,7 @@ function renderPosto(){
   if(eN4){
     h+='<div class="form-section"><h3><i class="fas fa-filter" style="color:var(--gl)"></i> Posto n.º 4 — gestão da informação e doutrina</h3>'
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Gere a informação a introduzir na CN e garante o cumprimento da doutrina, do PN e do PD (5.25-5.27).</p>'
-      +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="_postoIrTab(\'tab-info\')"><i class="fas fa-inbox"></i> Registos de informação</button>'+(_mob?'':'<button class="btn btn-outline btn-sm" onclick="showTab(\'tab-pd\')"><i class="fas fa-comments"></i> Plano de Diálogo</button>')+'</div></div>';
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="_postoIrTab(\'tab-info\')"><i class="fas fa-inbox"></i> Registos de informação</button>'+'<button class="btn btn-outline btn-sm" onclick="_postoIrTab(\'tab-pd\')"><i class="fas fa-comments"></i> Plano de Diálogo</button>'+'</div></div>';
   }
   if(eNC){
     h+='<div class="form-section"><h3><i class="fas fa-star" style="color:var(--gold)"></i> Quadro do Coordenador</h3>'
@@ -11412,10 +11412,25 @@ function mobRenderDetalhe() {
           <div style="font-size:13px;font-weight:600;color:var(--gn)">Plano</div>
           <div style="font-size:11px;color:var(--gray600)">Negociação</div>
         </button>
+        <button onclick="mobAbrirForm('pd')" style="padding:14px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif">
+          <i class="fas fa-comments" style="font-size:24px;color:var(--gold);display:block;margin-bottom:6px"></i>
+          <div style="font-size:13px;font-weight:600;color:var(--gn)">Plano</div>
+          <div style="font-size:11px;color:var(--gray600)">Diálogo</div>
+        </button>
+        <button onclick="mobAbrirForm('info')" style="padding:14px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif">
+          <i class="fas fa-info-circle" style="font-size:24px;color:var(--gl);display:block;margin-bottom:6px"></i>
+          <div style="font-size:13px;font-weight:600;color:var(--gn)">Informações</div>
+          <div style="font-size:11px;color:var(--gray600)">Registos do caso</div>
+        </button>
         <button onclick="mobAbrirForm('rnrv')" style="padding:14px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif">
           <i class="fas fa-phone-alt" style="font-size:24px;color:var(--gm);display:block;margin-bottom:6px"></i>
           <div style="font-size:13px;font-weight:600;color:var(--gn)">Contactos</div>
           <div style="font-size:11px;color:var(--gray600)">Registo RNRV</div>
+        </button>
+        <button onclick="mobAbrirForm('hist')" style="padding:14px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif;grid-column:span 2">
+          <i class="fas fa-history" style="font-size:24px;color:var(--gray600);display:block;margin-bottom:6px"></i>
+          <div style="font-size:13px;font-weight:600;color:var(--gn)">Histórico</div>
+          <div style="font-size:11px;color:var(--gray600)">Alterações ao caso</div>
         </button>
       </div>
 
@@ -11484,6 +11499,11 @@ function mobDevolverSari() {
   if (home && el && !home.contains(el)) home.appendChild(el);
   const homeI = document.getElementById('tab-iris'), elI = document.getElementById('iris-content');
   if (homeI && elI && !homeI.contains(elI)) homeI.appendChild(elI);
+  // Plano de Negociação, Plano de Diálogo e Informações: mesmos formulários do desktop
+  [['tab-plano','plano-content'],['tab-pd','pd-content'],['tab-info','info-content'],['tab-hist','hist-content']].forEach(([t,c]) => {
+    const home = document.getElementById(t), el = document.getElementById(c);
+    if (home && el && !home.contains(el)) home.appendChild(el);
+  });
 }
 function mobMostrarSeletorFormularios() {
   mobDevolverSari();
@@ -11538,6 +11558,11 @@ function mobMostrarSeletorFormularios() {
         <div style="font-size:15px;font-weight:600;color:var(--gn)">Plano</div>
         <div style="font-size:11px;color:var(--gray600);margin-top:4px">Negociação</div>
       </button>
+      <button onclick="mobAbrirForm('pd')" style="padding:22px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+        <i class="fas fa-comments" style="font-size:32px;color:var(--gold);display:block;margin-bottom:10px"></i>
+        <div style="font-size:15px;font-weight:600;color:var(--gn)">Plano</div>
+        <div style="font-size:11px;color:var(--gray600);margin-top:4px">Diálogo</div>
+      </button>
       <button onclick="mobAbrirForm('rnrv')" style="padding:22px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.08)">
         <i class="fas fa-phone-alt" style="font-size:32px;color:var(--gl);display:block;margin-bottom:10px"></i>
         <div style="font-size:15px;font-weight:600;color:var(--gn)">Contactos</div>
@@ -11547,6 +11572,11 @@ function mobMostrarSeletorFormularios() {
         <i class="fas fa-info-circle" style="font-size:32px;color:var(--gl);display:block;margin-bottom:10px"></i>
         <div style="font-size:15px;font-weight:600;color:var(--gn)">Informações</div>
         <div style="font-size:11px;color:var(--gray600);margin-top:4px">Registo de informações do caso</div>
+      </button>
+      <button onclick="mobAbrirForm('hist')" style="padding:22px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.08);grid-column:span 2">
+        <i class="fas fa-history" style="font-size:32px;color:var(--gray600);display:block;margin-bottom:10px"></i>
+        <div style="font-size:15px;font-weight:600;color:var(--gn)">Histórico</div>
+        <div style="font-size:11px;color:var(--gray600);margin-top:4px">Alterações ao caso</div>
       </button>
     </div>
   </div>`;
@@ -11567,7 +11597,7 @@ async function mobAbrirForm(form) {
   overlay.scrollTop = 0;
 
   // Header back button
-  const titles = {iris:'IRIS',sari:'Risco e Cooperação',plano:'Plano de Negociação',rnrv:'Registar Contacto'};
+  const titles = {iris:'IRIS',sari:'Risco e Cooperação',plano:'Plano de Negociação',pd:'Plano de Diálogo',info:'Informações',hist:'Histórico',rnrv:'Registar Contacto'};
   document.getElementById('mob-header-title').textContent = titles[form]||'Formulário';
   document.getElementById('mob-header-sub').textContent = mobDetail?.record?.tipo||'';
   const backBtn = document.getElementById('mob-back-btn');
@@ -11612,34 +11642,18 @@ async function mobAbrirForm(form) {
     if (sariEl) { document.getElementById('mob-sari-wrap').appendChild(sariEl); await renderSARI(); }
 
   } else if (form === 'plano') {
-    const {data:v} = await sb.from('plano_negociacao').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle();
-    const p = v||{};
-    overlay.innerHTML = `<div style="padding:.875rem">
-      <div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);overflow:hidden;margin-bottom:12px">
-        <div style="padding:14px;background:var(--gp)"><span style="font-size:15px;font-weight:600;color:var(--gn)"><i class="fas fa-clipboard-list"></i> Plano de Negociação</span></div>
-        <div style="padding:16px">
-          ${ta('Descrição / Info recolhida','mob-plano-desc',p.descricao)}
-          ${ta('Identificação do Problema','mob-plano-prob',p.identificacao_problema)}
-          <div style="margin-bottom:12px">
-            <div style="font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Tipo de Situação</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-              <button id="mob-sit-crise" onclick="mobSelectSit('crise')" style="padding:14px;border-radius:var(--r);border:2px solid ${p.tipo_situacao==='crise'?'var(--gm)':'var(--border)'};background:${p.tipo_situacao==='crise'?'var(--gp)':'#fff'};cursor:pointer;font-size:14px;font-weight:600;font-family:'IBM Plex Sans',sans-serif">CRISE</button>
-              <button id="mob-sit-conflito" onclick="mobSelectSit('conflito')" style="padding:14px;border-radius:var(--r);border:2px solid ${p.tipo_situacao==='conflito'?'var(--red)':'var(--border)'};background:${p.tipo_situacao==='conflito'?'var(--redl)':'#fff'};cursor:pointer;font-size:14px;font-weight:600;font-family:'IBM Plex Sans',sans-serif">CONFLITO</button>
-            </div>
-            <input type="hidden" id="mob-plano-sit" value="${(p.tipo_situacao==='crise'||p.tipo_situacao==='conflito')?p.tipo_situacao:''}">
-            ${consultaPNHTML('sit','mob')}
-          </div>
-          ${ta('Posição (o que diz que quer)','mob-plano-pos',p.posicao_adversario)}
-          ${ta('Interesses (necessidades reais)','mob-plano-int',p.interesses_adversario)}
-          ${ta('Objetivo Principal','mob-plano-obj',p.objetivo_principal)}
-          ${ta('Objetivos Intermédios','mob-plano-obji',p.objetivos_intermédios)}
-          ${ta('Tempo Estimado','mob-plano-tempo',p.tempo_estimado)}
-          ${ta('Meios a Utilizar','mob-plano-meios',p.meios)}
-          ${saveBtn('Guardar Plano','var(--gm)','mobSavePlano()')}
-          ${msg('mob-plano-msg')}
-        </div>
-      </div>
-    </div>`;
+    // Mesmo formulário do desktop (renderPlano/savePlano): todos os campos, consulta de apoio e gravação automática
+    currentDetail = { type, record:r, isTreino: mobDetail.isTreino };
+    overlay.innerHTML = `<div style="padding:.875rem"><div id="mob-plano-wrap" style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px"></div></div>`;
+    const planoEl = document.getElementById('plano-content');
+    if (planoEl) { document.getElementById('mob-plano-wrap').appendChild(planoEl); await renderPlano(); }
+
+  } else if (form === 'pd') {
+    // Mesmo formulário do desktop (renderPD/guardarPD)
+    currentDetail = { type, record:r, isTreino: mobDetail.isTreino };
+    overlay.innerHTML = `<div style="padding:.875rem"><div id="mob-pd-wrap" style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px"></div></div>`;
+    const pdEl = document.getElementById('pd-content');
+    if (pdEl) { document.getElementById('mob-pd-wrap').appendChild(pdEl); renderPD(); }
 
   } else if (form === 'rnrv') {
     const now = new Date(); now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
@@ -11673,50 +11687,18 @@ async function mobAbrirForm(form) {
     </div>`;
 
   } else if (form === 'info') {
-    const { data:ex } = await sb.from('info_registos').select('*')
-      .eq('parent_type',parentType).eq('parent_id',r.id)
-      .order('created_at',{ascending:false});
-    const registos = ex || [];
-    const now = new Date(); now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
-    overlay.innerHTML = `<div style="padding:.875rem">
-      <div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);overflow:hidden;margin-bottom:12px">
-        <div style="padding:14px;background:var(--gp)"><span style="font-size:15px;font-weight:600;color:var(--gn)"><i class="fas fa-info-circle"></i> Registar Informação</span></div>
-        <div style="padding:16px">
-          ${field('Data e Hora','datetime-local','mob-info-dt',now.toISOString().slice(0,16))}
-          <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Categoria</label>
-            <select id="mob-info-cat" style="width:100%;padding:12px;font-size:16px;border:1px solid var(--border);border-radius:var(--r)">
-              <option value="geral">Geral</option><option value="tatica">Tática / Operacional</option>
-              <option value="psicologica">Psicológica</option><option value="familiar">Familiar / Social</option>
-              <option value="medica">Médica</option><option value="judicial">Judicial / Legal</option>
-              <option value="media">Média</option><option value="outro">Outro</option>
-            </select></div>
-          ${field('Fonte','text','mob-info-fonte','')}
-          <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Fiabilidade</label>
-            <select id="mob-info-fiab" style="width:100%;padding:12px;font-size:16px;border:1px solid var(--border);border-radius:var(--r)">
-              <option value="confirmada">✅ Confirmada</option><option value="provavel">🟡 Provável</option>
-              <option value="incerta">⚠️ Incerta</option><option value="nao_confirmada" selected>❓ Não confirmada</option>
-            </select></div>
-          <div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Informação</label>
-            <textarea id="mob-info-texto" rows="4" style="width:100%;padding:12px;font-size:16px;border:1px solid var(--border);border-radius:var(--r);box-sizing:border-box" placeholder="Descreve a informação recolhida..."></textarea></div>
-          <div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Impacto na Negociação</label>
-            <select id="mob-info-impacto" style="width:100%;padding:12px;font-size:16px;border:1px solid var(--border);border-radius:var(--r)">
-              <option value="neutro">— Neutro</option><option value="favoravel">✅ Favorável</option>
-              <option value="desfavoravel">❌ Desfavorável</option><option value="critico">🔴 Crítico</option>
-            </select></div>
-          <button onclick="mobSaveInfo()" style="width:100%;padding:15px;background:var(--gm);color:#fff;border:none;border-radius:var(--r);font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:'IBM Plex Sans',sans-serif"><i class="fas fa-plus"></i> Registar Informação</button>
-          <div id="mob-info-msg" style="display:none;margin-top:10px;text-align:center;font-size:14px;padding:10px;border-radius:var(--r)"></div>
-        </div>
-      </div>
-      ${registos.length ? registos.map(i=>`
-      <div style="background:#fff;border:1px solid var(--border);border-left:4px solid ${i.impacto==='critico'?'var(--red)':i.impacto==='desfavoravel'?'var(--amber)':i.impacto==='favoravel'?'var(--gm)':'var(--gray300)'};border-radius:var(--r);padding:14px;margin-bottom:10px">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-          <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--gp);color:var(--gm)">${{geral:'Geral',tatica:'Tática',psicologica:'Psicológica',familiar:'Familiar',medica:'Médica',judicial:'Judicial',media:'Média',outro:'Outro'}[i.categoria]||i.categoria}</span>
-          <span style="font-size:11px;color:var(--gray400);font-family:'IBM Plex Mono',monospace">${fmtDateTime(i.data_hora)}</span>
-        </div>
-        <p style="font-size:14px;margin:0;line-height:1.6;color:var(--gray900)">${i.texto}</p>
-        <div style="margin-top:6px;font-size:11px;color:var(--gray400)">${i.autor_nome}${i.fonte?' · '+i.fonte:''}</div>
-      </div>`).join('') : '<div style="text-align:center;padding:2rem;color:var(--gray400);font-size:13px">Sem informações registadas</div>'}
-    </div>`;
+    // Mesmo formulário do desktop (renderInfo/saveInfo): registos, Anexo B e restantes campos
+    currentDetail = { type, record:r, isTreino: mobDetail.isTreino };
+    overlay.innerHTML = `<div style="padding:.875rem"><div id="mob-info-wrap" style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px"></div></div>`;
+    const infoEl = document.getElementById('info-content');
+    if (infoEl) { document.getElementById('mob-info-wrap').appendChild(infoEl); await renderInfo(); }
+
+  } else if (form === 'hist') {
+    // Mesmo histórico do desktop (renderHistorico)
+    currentDetail = { type, record:r, isTreino: mobDetail.isTreino };
+    overlay.innerHTML = `<div style="padding:.875rem"><div id="mob-hist-wrap" style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px"></div></div>`;
+    const histEl = document.getElementById('hist-content');
+    if (histEl) { document.getElementById('mob-hist-wrap').appendChild(histEl); await renderHistorico(); }
   }
 }
 
