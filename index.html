@@ -1426,6 +1426,29 @@ async function loadNegociadores(){
     const{data}=await sb.from('profiles').select('id,nome,posto,cter,role,nivel_acesso,approved').eq('approved',true).order('nome');
     allNegociadores=data||[];
   }catch(e){ allNegociadores=[]; }
+  await loadEpqIds();
+}
+// ===== CTer EPQ (treino) =====
+// Os negociadores marcados como EPQ (tabela aval_epq) formam o «CTer EPQ»: podem abrir casos de treino
+// deste CTer e, na Constituição da EN, veem todos os negociadores EPQ.
+const CTER_EPQ = 'CTer EPQ';
+let epqIds = [];
+async function loadEpqIds(){
+  try{
+    let { data, error } = await sb.rpc('epq_membros');
+    if(error){ ({ data, error } = await sb.from('aval_epq').select('user_id')); }
+    epqIds = (data||[]).map(x => typeof x === 'string' ? x : (x.user_id || x.epq_membros)).filter(Boolean);
+  }catch(e){ console.warn('epq_membros', e); epqIds = []; }
+}
+function sgiEEpq(){ return !!currentUser && (epqIds.includes(currentUser.id) || window.__sgiVista === 'epq'); }
+function sgiPodeCterEpq(){ return currentProfile?.role === 'admin' || sgiEEpq(); }
+// Acrescenta (ou retira) a opção «CTer EPQ» a um select de CTer do treino; mantém-na se o caso já é do CTer EPQ
+function treinoCterEpqOpcao(selId, cterAtual){
+  const sel = document.getElementById(selId); if(!sel) return;
+  const op = Array.from(sel.options).find(o => o.value === CTER_EPQ);
+  const mostrar = sgiPodeCterEpq() || cterAtual === CTER_EPQ;
+  if(mostrar && !op){ const o = document.createElement('option'); o.value = o.textContent = CTER_EPQ; sel.appendChild(o); }
+  else if(!mostrar && op){ op.remove(); }
 }
 async function loadData(){
   const incRes = await sb.rpc('incidentes_lista');
@@ -2001,14 +2024,17 @@ function enCtersDisponiveis(){
   if(enPodeUI()) l.push('UI/GIOE');
   // No treino/curso, o CTer Curso está sempre disponível para escalar formandos
   if(currentDetail && currentDetail.isTreino && l.indexOf('CTer Curso')<0) l.push('CTer Curso');
+  // No treino, o CTer EPQ fica disponível para os EPQ/admin e sempre que o caso é do CTer EPQ
+  if(currentDetail && currentDetail.isTreino && (sgiPodeCterEpq() || currentDetail.record?.cter === CTER_EPQ) && l.indexOf(CTER_EPQ)<0) l.push(CTER_EPQ);
   return l;
 }
 function enNegociadoresDe(cter){
   if(!cter) return [];
   if(cter === '__itp__'){
     const cc = currentDetail?.record?.cter || '';
-    return (allNegociadores||[]).filter(u => (cc && u.cter === cc) || u.cter === 'UI/GIOE');
+    return (allNegociadores||[]).filter(u => (cc && (cc === CTER_EPQ ? epqIds.includes(u.id) : u.cter === cc)) || u.cter === 'UI/GIOE');
   }
+  if(cter === CTER_EPQ) return (allNegociadores||[]).filter(u => epqIds.includes(u.id));
   return (allNegociadores||[]).filter(u => u.cter === cter);
 }
 function enCterDe(id){
@@ -6615,6 +6641,7 @@ async function avMarcarEpq(uid, on){
     : await sb.from('aval_epq').delete().eq('user_id', uid);
   if(error){ alert('Erro: '+error.message); return; }
   if(on) _av.epqIds.push(uid); else _av.epqIds = _av.epqIds.filter(x=>x!==uid);
+  if(on){ if(!epqIds.includes(uid)) epqIds.push(uid); } else epqIds = epqIds.filter(x=>x!==uid);
 }
 async function avCriarEdicao(){
   const nome = document.getElementById('av-ed-nome').value.trim();
@@ -8828,6 +8855,7 @@ function openTreinoModal(type) {
     document.getElementById('treino-inc-id').value = '';
     sgiTipoSet('treino-inc-tipo', '');
     document.getElementById('treino-inc-local').value = '';
+    treinoCterEpqOpcao('treino-inc-cter', '');
     document.getElementById('treino-inc-cter').value = '';
     document.getElementById('treino-inc-data').value = now.toISOString().slice(0,16);
     document.getElementById('treino-inc-estado').value = 'Em curso';
@@ -8841,6 +8869,7 @@ function openTreinoModal(type) {
     document.getElementById('treino-itp-id').value = '';
     sgiTipoSet('treino-itp-tipo', '');
     document.getElementById('treino-itp-local').value = '';
+    treinoCterEpqOpcao('treino-itp-cter', '');
     document.getElementById('treino-itp-cter').value = '';
     document.getElementById('treino-itp-data').value = now.toISOString().slice(0,16);
     document.getElementById('treino-itp-sus').value = 0;
@@ -8910,6 +8939,7 @@ function editTreinoIncidente(id) {
   document.getElementById('treino-inc-id').value = r.id;
   sgiTipoSet('treino-inc-tipo', r.tipo);
   document.getElementById('treino-inc-local').value = r.local;
+  treinoCterEpqOpcao('treino-inc-cter', r.cter||'');
   document.getElementById('treino-inc-cter').value = r.cter||'';
   const dt = new Date(r.data_hora); dt.setMinutes(dt.getMinutes()-dt.getTimezoneOffset());
   document.getElementById('treino-inc-data').value = dt.toISOString().slice(0,16);
@@ -8928,6 +8958,7 @@ function editTreinoITP(id) {
   document.getElementById('treino-itp-id').value = r.id;
   sgiTipoSet('treino-itp-tipo', r.tipo);
   document.getElementById('treino-itp-local').value = r.local;
+  treinoCterEpqOpcao('treino-itp-cter', r.cter||'');
   document.getElementById('treino-itp-cter').value = r.cter||'';
   const dt = new Date(r.data_hora); dt.setMinutes(dt.getMinutes()-dt.getTimezoneOffset());
   document.getElementById('treino-itp-data').value = dt.toISOString().slice(0,16);
