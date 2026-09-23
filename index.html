@@ -9701,7 +9701,9 @@ async function loadFicheirosArea(area) {
   try {
     const { data, error } = await sb.from('formacao_ficheiros').select('*').eq('area', area).order('created_at', { ascending: false });
     if (error) throw error;
-    const ficheiros = data || [];
+    let ficheiros = data || [];
+    // Libertação progressiva: o formando não recebe ficheiros ocultos
+    if (!isAdmin) ficheiros = ficheiros.filter(f => f.publicado !== false);
 
     if (!ficheiros.length) {
       el.innerHTML = '<div style="font-size:13px;color:var(--gray400);font-style:italic">Sem ficheiros carregados.' + (isAdmin ? ' Usa o botão "Carregar Ficheiro" para adicionar.' : '') + '</div>';
@@ -9717,11 +9719,12 @@ async function loadFicheirosArea(area) {
           </div>
           <div style="display:flex;align-items:flex-start;gap:6px;padding:8px 10px">
             <div style="flex:1;min-width:0;cursor:pointer" onclick="abrirFicheiroViewer('${area}',${i})">
-              <div style="font-size:12.5px;font-weight:600;color:var(--gn);line-height:1.35;word-break:break-word">${f.nome}</div>
+              <div style="font-size:12.5px;font-weight:600;color:var(--gn);line-height:1.35;word-break:break-word">${f.nome}${(isAdmin && f.publicado === false) ? `<span style="font-size:10px;background:var(--amber,#b45309);color:#fff;padding:1px 7px;border-radius:10px;margin-left:6px">OCULTO</span>` : ''}</div>
               ${f.descricao ? `<div style="font-size:12px;color:var(--gray600);margin-top:2px">${f.descricao}</div>` : ''}
               <div style="font-size:11px;color:var(--gray400);margin-top:2px">${f.autor_nome || '—'} · ${new Date(f.created_at).toLocaleDateString('pt-PT')}${f.tamanho ? ' · ' + formatBytes(f.tamanho) : ''}</div>
             </div>
             <a href="${f.url}" target="_blank" rel="noopener" download title="Transferir" style="color:var(--gl);font-size:13px;text-decoration:none;flex-shrink:0;padding:2px"><i class="fas fa-download"></i></a>
+            ${isAdmin ? `<button type="button" onclick="toggleFicheiroVis('${f.id}','${area}',${f.publicado === false ? 'false' : 'true'})" title="${f.publicado === false ? 'Tornar visível aos formandos' : 'Ocultar dos formandos'}" style="background:none;border:none;font-size:13px;cursor:pointer;flex-shrink:0;padding:2px">${f.publicado === false ? '🚫' : '👁️'}</button>` : ''}
             ${isAdmin ? `<button onclick="deleteFicheiro('${f.id}','${area}','${f.storage_path}')" title="Eliminar" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;flex-shrink:0;padding:2px"><i class="fas fa-trash"></i></button>` : ''}
           </div>
         </div>`).join('') +
@@ -9782,7 +9785,8 @@ async function uploadFicheiroFormacao(area, input) {
     const { error: dbError } = await sb.from('formacao_ficheiros').insert({
       area, nome: file.name, descricao, tipo: ext,
       tamanho: file.size, storage_path: path, url,
-      autor_id: currentUser.id, autor_nome: currentProfile.nome
+      autor_id: currentUser.id, autor_nome: currentProfile.nome,
+      publicado: false
     });
 
     if (dbError) throw dbError;
@@ -9794,6 +9798,12 @@ async function uploadFicheiroFormacao(area, input) {
     alert('Erro ao carregar ficheiro: ' + (e.message || e));
     input.value = '';
   }
+}
+
+async function toggleFicheiroVis(id, area, estadoAtual) {
+  const { error } = await sb.from('formacao_ficheiros').update({ publicado: !estadoAtual }).eq('id', id);
+  if (error) { alert('Erro ao alterar visibilidade: ' + error.message); return; }
+  await loadFicheirosArea(area);
 }
 
 async function deleteFicheiro(id, area, storagePath) {
