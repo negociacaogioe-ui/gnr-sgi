@@ -4034,7 +4034,8 @@ function _irisPintar(){
   const st=_irisEstado;
   const atual = st.id ? st.lista.find(x=>String(x.id)===String(st.id)) : null;
   // avaliação nova: só o nome do visado vem da avaliação anterior
-  const vals = atual || { patient_name: irisNomeVisado(st.lista, st.visado) };
+  const _rcN = (currentDetail && currentDetail.record) || {};
+  const vals = atual || { patient_name: irisNomeVisado(st.lista, st.visado) || (st.visado === 1 ? (_rcN.nome_agressor || '') : '') };
   el.innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
       <h3 style="font-size:16px;font-weight:600;color:var(--gn)"><i class="fas fa-heartbeat" style="color:var(--red)"></i> IRIS — Índice de Risco de Suicídio</h3>
@@ -4042,7 +4043,7 @@ function _irisPintar(){
     </div>
     <div id="iris-nav">${_irisNavHTML()}</div>
     <div class="form-grid">
-      <div class="field"><label>Nome do visado</label><input type="text" id="iris-name" value="${vals.patient_name||''}"></div>
+      <div class="field"><label>Nome do visado</label><input type="text" id="iris-name" list="iris-nomes-caso" value="${_escHtml(vals.patient_name||'')}"><datalist id="iris-nomes-caso">${[_rcN.nome_agressor,_rcN.nome_vitima].filter(Boolean).map(n=>`<option value="${_escHtml(n)}">`).join('')}</datalist></div>
       <div class="field"><label>Data da avaliação</label><input type="date" id="iris-date" value="${vals.assessment_date||''}"></div>
     </div>
     <div class="form-section"><h3>Sociodemografia <small style="font-weight:400;text-transform:none">(1 ponto por item)</small></h3>
@@ -8394,7 +8395,7 @@ async function renderInfo(){
         <div class="form-section" style="background:var(--gp);margin-bottom:1rem">
           <h3 style="color:var(--gn);border-bottom:2px solid var(--gold);padding-bottom:6px;margin-bottom:1rem;text-transform:uppercase;font-size:13px;letter-spacing:.05em">1. Identificação do Indivíduo / Suspeito</h3>
           <div class="form-grid">
-            <div class="field"><label>Nome Completo</label><input type="text" id="ab-nome" value="${ab.nome||''}"></div>
+            <div class="field"><label>Nome Completo</label><input type="text" id="ab-nome" value="${_escHtml(ab.nome||r.nome_agressor||'')}"></div>
             <div class="field"><label>Alcunha / Apelido</label><input type="text" id="ab-alcunha" value="${ab.alcunha||''}"></div>
             <div class="field"><label>Data de Nascimento</label><input type="date" id="ab-nasc" value="${ab.data_nascimento||''}"></div>
             <div class="field"><label>Idade</label><input type="number" id="ab-idade" value="${ab.idade||''}" min="0" max="120"></div>
