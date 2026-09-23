@@ -6247,7 +6247,7 @@ async function openFormacaoAdmin(area) {
 
     el.innerHTML = `
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:1.5rem">
-        <div style="width:56px;height:56px;background:var(--gn);border-radius:var(--rl);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;border:2px solid var(--gold)">📋</div>
+        <div style="width:56px;height:56px;background:var(--gn);border-radius:var(--rl);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;border:2px solid var(--gold)">${_fa('fa-clipboard-list','var(--gold)')}</div>
         <div>
           <h2 style="font-size:20px;font-weight:600;color:var(--gn)">Exercícios de Formação</h2>
           <p style="font-size:13px;color:var(--gray600)">Banco de cenários táticos para negociadores — acesso restrito a administradores</p>
@@ -6273,7 +6273,7 @@ async function openFormacaoAdmin(area) {
     const el = document.getElementById('formacao-detalhe-content');
     el.innerHTML = `
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:1.5rem">
-        <div style="width:56px;height:56px;background:var(--gn);border-radius:var(--rl);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;border:2px solid var(--gold)">🎯</div>
+        <div style="width:56px;height:56px;background:var(--gn);border-radius:var(--rl);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;border:2px solid var(--gold)">${_fa('fa-bullseye','var(--gold)')}</div>
         <div>
           <h2 style="font-size:20px;font-weight:600;color:var(--gn)">${info.titulo}</h2>
           <p style="font-size:13px;color:var(--gray600)">${info.desc}</p>
@@ -6386,7 +6386,7 @@ function avCardHtml(){
   if(!avTemAcesso()) return '';
   return `<div style="grid-column:1/-1;margin-bottom:4px">
     <div onclick="abrirAvaliacao()" style="display:flex;align-items:center;gap:14px;background:var(--goldl);border:1.5px solid var(--gold);border-radius:var(--rl);padding:1rem 1.25rem;cursor:pointer">
-      <div style="width:48px;height:48px;background:#fff;border:1px solid var(--goldp);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">🎓</div>
+      <div style="width:48px;height:48px;background:#fff;border:1px solid var(--goldp);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">${_fa('fa-graduation-cap','var(--gold)')}</div>
       <div style="flex:1">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:15px;font-weight:700;color:var(--gn)">Avaliação de Formandos</span>
           <span style="background:var(--gold);color:#fff;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;letter-spacing:.05em">${_av.admin?'ADMIN':'EPQ'}</span></div>
@@ -6459,7 +6459,7 @@ function avRender(){
     ? [['resumo','Resumo'],['avaliador','Por avaliador'],['minhas','As minhas avaliações'],['config','Configuração']]
     : [['minhas','As minhas avaliações']];
   let head = `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:1rem">
-    <div><div class="page-title" style="font-size:20px">🎓 Avaliação de Formandos</div>
+    <div><div class="page-title" style="font-size:20px">${_fa('fa-graduation-cap','var(--gold)')} Avaliação de Formandos</div>
       <div class="page-sub">Fichas de Avaliação das Provas Práticas — Regulamento do CNeg, Anexo B</div></div>
     ${_av.edicoes.length ? `<div style="display:flex;align-items:center;gap:6px"><label style="font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em">Edição</label>
       <select onchange="_av.edicaoId=this.value;abrirAvaliacao()" style="width:auto;font-size:13px">${_av.edicoes.map(e=>`<option value="${e.id}" ${e.id===_av.edicaoId?'selected':''}>${_ppEsc(e.nome)}${e.ativa?' (ativa)':''}</option>`).join('')}</select></div>` : ''}
@@ -6814,21 +6814,23 @@ async function avDecidir(estado){
 
 // ===== FORMAÇÃO =====
 window.__SGI_BUILD = 'pastas-dnd-select-autoedit-2026';
+// Ícones da Formação: Font Awesome (iguais em todos os telemóveis), em vez de emojis que cada sistema desenha à sua maneira
+const _fa = (c, cor) => '<i class="fas ' + c + '"' + (cor ? ' style="color:' + cor + '"' : '') + '></i>';
 const FORMACAO_AREAS = [
-  { area:'horario',       titulo:'Horário',               icon:'📅', color:'#EBF4FB', accent:'#1e5094', desc:'Horário do curso de formação' },
-  { area:'apresentacoes', titulo:'Apresentações',          icon:'📊', color:'#EAF3DE', accent:'#1e5c28', desc:'Apresentações e materiais teóricos' },
-  { area:'exercicios',    titulo:'Exercícios',             icon:'🚔', color:'#FEF3D6', accent:'#7a4a00', desc:'Exercícios práticos e simulações' },
-  { area:'avaliacao',     titulo:'Avaliação',              icon:'📝', color:'#FEF3D6', accent:'#854f0b', desc:'Critérios e instrumentos de avaliação' },
-  { area:'manual',        titulo:'Manual',                 icon:'📖', color:'#E6F1FB', accent:'#1e5094', desc:'Manual do negociador' },
-  { area:'legislacao',    titulo:'Legislação',             icon:'⚖️', color:'#EAF3DE', accent:'#1e5c28', desc:'Enquadramento legal e normativo' },
-  { area:'refeicoes',     titulo:'Refeições',              icon:'🍽️', color:'#FDEAEA', accent:'#8b1a1a', desc:'Refeições e alojamento' },
-  { area:'questoes',      titulo:'Questões e Sugestões',   icon:'💬', color:'#EEEDFE', accent:'#3c3489', desc:'Questões e sugestões dos formandos' },
-  { area:'videoteca',     titulo:'Videoteca',              icon:'🎬', color:'#2d1515', accent:'#e50914', desc:'Vídeos de formação e referência sobre negociação' },
+  { area:'horario',       titulo:'Horário',               icon:_fa('fa-calendar-alt','#1e5094'), color:'#EBF4FB', accent:'#1e5094', desc:'Horário do curso de formação' },
+  { area:'apresentacoes', titulo:'Apresentações',          icon:_fa('fa-chalkboard-teacher','#1e5c28'), color:'#EAF3DE', accent:'#1e5c28', desc:'Apresentações e materiais teóricos' },
+  { area:'exercicios',    titulo:'Exercícios',             icon:_fa('fa-car','#7a4a00'), color:'#FEF3D6', accent:'#7a4a00', desc:'Exercícios práticos e simulações' },
+  { area:'avaliacao',     titulo:'Avaliação',              icon:_fa('fa-clipboard-check','#854f0b'), color:'#FEF3D6', accent:'#854f0b', desc:'Critérios e instrumentos de avaliação' },
+  { area:'manual',        titulo:'Manual',                 icon:_fa('fa-book','#1e5094'), color:'#E6F1FB', accent:'#1e5094', desc:'Manual do negociador' },
+  { area:'legislacao',    titulo:'Legislação',             icon:_fa('fa-balance-scale','#1e5c28'), color:'#EAF3DE', accent:'#1e5c28', desc:'Enquadramento legal e normativo' },
+  { area:'refeicoes',     titulo:'Refeições',              icon:_fa('fa-utensils','#8b1a1a'), color:'#FDEAEA', accent:'#8b1a1a', desc:'Refeições e alojamento' },
+  { area:'questoes',      titulo:'Questões e Sugestões',   icon:_fa('fa-comments','#3c3489'), color:'#EEEDFE', accent:'#3c3489', desc:'Questões e sugestões dos formandos' },
+  { area:'videoteca',     titulo:'Videoteca',              icon:_fa('fa-film','#e50914'), color:'#2d1515', accent:'#e50914', desc:'Vídeos de formação e referência sobre negociação' },
 ];
 
 const FORMACAO_AREAS_ADMIN = [
-  { area:'apresentacao_gioe', titulo:'Apresentação Núcleo de Negociação GIOE', icon:'🎯', color:'#1A3A1F', accent:'#C8A84B', desc:'Apresentação exclusiva — Estrutura e Recursos Humanos' },
-  { area:'exercicios_admin',  titulo:'Exercícios de Formação',                  icon:'📋', color:'#1A1A3A', accent:'#C8A84B', desc:'Banco de exercícios e cenários táticos — acesso restrito' },
+  { area:'apresentacao_gioe', titulo:'Apresentação Núcleo de Negociação GIOE', icon:_fa('fa-bullseye','#C8A84B'), color:'#1A3A1F', accent:'#C8A84B', desc:'Apresentação exclusiva — Estrutura e Recursos Humanos' },
+  { area:'exercicios_admin',  titulo:'Exercícios de Formação',                  icon:_fa('fa-clipboard-list','#C8A84B'), color:'#1A1A3A', accent:'#C8A84B', desc:'Banco de exercícios e cenários táticos — acesso restrito' },
 ];
 
 let formacaoData = {};
@@ -6933,7 +6935,7 @@ function renderPastasFormacao(isAdmin) {
     return `
       <div class="formacao-card" style="${oculta ? 'opacity:.6;' : ''}">
         <div class="formacao-card-img" style="background:#EEF2F7" onclick="openFormacaoArea('${p.area}')">
-          <span style="font-size:60px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.15))">📁</span>
+          <span style="font-size:60px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.15))">${_fa('fa-folder','#3c5a78')}</span>
           ${vl.length ? `<span style="position:absolute;top:10px;right:10px;background:#3c5a78;color:#fff;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600">${vl.length} link${vl.length>1?'s':''}</span>` : ''}
           ${isAdmin && oculta ? `<span style="position:absolute;top:10px;left:10px;background:var(--amber,#b45309);color:#fff;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600">OCULTA</span>` : ''}
         </div>
@@ -6941,9 +6943,9 @@ function renderPastasFormacao(isAdmin) {
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
             <div class="formacao-card-title">${p.titulo || 'Pasta'}</div>
             ${isAdmin ? `<div style="display:flex;gap:6px;flex-shrink:0">
-              <button type="button" title="${oculta ? 'Tornar visível aos formandos' : 'Ocultar dos formandos'}" onclick="event.stopPropagation();togglePastaVis('${p.area}',${p.publicado === false ? 'false' : 'true'})" style="border:none;background:none;cursor:pointer;font-size:14px;padding:2px">${oculta ? '🚫' : '👁️'}</button>
-              <button type="button" title="Renomear pasta" onclick="event.stopPropagation();renomearPastaFormacao('${p.area}')" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px">✏️</button>
-              <button type="button" title="Apagar pasta" onclick="event.stopPropagation();apagarPastaFormacao('${p.area}')" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px;color:var(--red,#b91c1c)">🗑️</button>
+              <button type="button" title="${oculta ? 'Tornar visível aos formandos' : 'Ocultar dos formandos'}" onclick="event.stopPropagation();togglePastaVis('${p.area}',${p.publicado === false ? 'false' : 'true'})" style="border:none;background:none;cursor:pointer;font-size:14px;padding:2px">${oculta ? _fa('fa-eye-slash','var(--gray400)') : _fa('fa-eye','var(--gl)')}</button>
+              <button type="button" title="Renomear pasta" onclick="event.stopPropagation();renomearPastaFormacao('${p.area}')" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px">${_fa('fa-pen','var(--gl)')}</button>
+              <button type="button" title="Apagar pasta" onclick="event.stopPropagation();apagarPastaFormacao('${p.area}')" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px;color:var(--red,#b91c1c)">${_fa('fa-trash')}</button>
             </div>` : ''}
           </div>
           <div class="formacao-card-meta">Pasta temática · Atualizado: ${dt}</div>
@@ -6958,7 +6960,7 @@ function renderPastasFormacao(isAdmin) {
     html += `
       <div class="formacao-card" style="border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;min-height:180px;cursor:pointer;background:var(--gp)" onclick="criarPastaFormacao()">
         <div style="text-align:center;color:var(--gm)">
-          <div style="font-size:40px;line-height:1">➕</div>
+          <div style="font-size:40px;line-height:1">${_fa('fa-folder-plus','var(--gl)')}</div>
           <div style="font-size:13px;font-weight:600;margin-top:8px">Nova Pasta</div>
         </div>
       </div>`;
@@ -7014,7 +7016,7 @@ async function apagarPastaFormacao(area) {
 async function openFormacaoArea(area) {
   const d = formacaoData[area] || { area, titulo: 'Pasta', conteudo: '', links: [] };
   const info = FORMACAO_AREAS.find(a => a.area === area)
-    || { area, titulo: d.titulo || 'Pasta', desc: 'Pasta temática', icon: '📁', color: '#EEF2F7', accent: '#3c5a78' };
+    || { area, titulo: d.titulo || 'Pasta', desc: 'Pasta temática', icon: _fa('fa-folder','#3c5a78'), color: '#EEF2F7', accent: '#3c5a78' };
   const links = d.links ? (typeof d.links === 'string' ? JSON.parse(d.links) : d.links) : [];
   const isAdmin = currentProfile.role === 'admin';
 
@@ -7042,7 +7044,7 @@ async function openFormacaoArea(area) {
     el.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
         <div style="display:flex;align-items:center;gap:14px">
-          <div style="width:56px;height:56px;background:#1a1a2e;border-radius:var(--rl);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0">🎬</div>
+          <div style="width:56px;height:56px;background:#1a1a2e;border-radius:var(--rl);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0">${_fa('fa-film','#e50914')}</div>
           <div><h2 style="font-size:20px;font-weight:600;color:var(--gn)">Videoteca</h2><p style="font-size:13px;color:var(--gray600)">Vídeos de formação e referência sobre negociação</p></div>
         </div>
         ${isAdmin ? `<div style="display:flex;gap:8px">
@@ -7131,7 +7133,7 @@ async function openFormacaoArea(area) {
 async function editFormacaoArea(area) {
   const d = formacaoData[area] || { area, titulo: 'Pasta', conteudo: '', links: [] };
   const info = FORMACAO_AREAS.find(a => a.area === area)
-    || { area, titulo: d.titulo || 'Pasta', desc: 'Pasta temática', icon: '📁', color: '#EEF2F7', accent: '#3c5a78' };
+    || { area, titulo: d.titulo || 'Pasta', desc: 'Pasta temática', icon: _fa('fa-folder','#3c5a78'), color: '#EEF2F7', accent: '#3c5a78' };
   const links = d.links ? (typeof d.links === 'string' ? JSON.parse(d.links) : d.links) : [];
 
   const panel = document.getElementById(`formacao-edit-panel-${area}`);
@@ -7217,7 +7219,7 @@ function gerirLinksPastas(area) {
           </label>
           <button class="btn btn-primary btn-sm" onclick="addFormacaoLink('${area}')"><i class="fas fa-plus"></i></button>
         </div>
-        <div style="font-size:11px;color:var(--gray400);margin-top:4px"><i class="fas fa-info-circle"></i> Cole o link da Google Drive, escolha a pasta (ou "Sem pasta") e carregue em +. Os novos conteúdos ficam ocultos até os tornar visíveis (👁️).</div>
+        <div style="font-size:11px;color:var(--gray400);margin-top:4px"><i class="fas fa-info-circle"></i> Cole o link da Google Drive, escolha a pasta (ou "Sem pasta") e carregue em +. Os novos conteúdos ficam ocultos até os tornar visíveis (<i class="fas fa-eye"></i>).</div>
         <div style="font-size:11.5px;color:var(--gray600);margin-top:6px"><i class="fas fa-bolt" style="color:var(--gl)"></i> Pastas e links são gravados automaticamente. <span id="links-autosave-${area}"></span></div>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)">
@@ -7553,8 +7555,8 @@ function itemArrastavel(area, l, idx) {
     <span draggable="true" ondragstart="dragStartConteudo(event,'${area}',${idx})" ondragend="dragEndConteudo(event)" style="color:var(--gray400);cursor:grab" title="Arraste para uma pasta (ou use o seletor)">⠿</span>
     <span style="flex:1;font-size:13px;min-width:0"><strong>${l.label || '—'}</strong> — <a href="${url}" target="_blank" draggable="false" style="color:var(--gl)">${url.slice(0, 40)}${url.length > 40 ? '...' : ''}</a></span>
     <select onchange="setLinkPasta('${area}',${idx},this.value)" title="Pasta do conteúdo" style="font-size:12px;max-width:140px">${opts}</select>
-    <button type="button" onclick="editarFormacaoLink('${area}',${idx})" title="Editar nome e link" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:var(--gl)">✏️</button>
-    <button type="button" onclick="toggleFormacaoLinkVis('${area}',${idx})" title="Visibilidade do link" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:${oculto ? 'var(--gray400)' : 'var(--gl)'}">${oculto ? '🚫' : '👁️'}</button>
+    <button type="button" onclick="editarFormacaoLink('${area}',${idx})" title="Editar nome e link" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:var(--gl)">${_fa('fa-pen')}</button>
+    <button type="button" onclick="toggleFormacaoLinkVis('${area}',${idx})" title="Visibilidade do link" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:${oculto ? 'var(--gray400)' : 'var(--gl)'}">${oculto ? _fa('fa-eye-slash') : _fa('fa-eye')}</button>
     <button class="link-del" onclick="removeFormacaoLink('${area}',${idx})">×</button>
   </div>`;
 }
@@ -7576,10 +7578,10 @@ function renderPastasEditList(area) {
       : '<div style="font-size:12px;color:var(--gray400);font-style:italic;padding:6px 8px">Arraste conteúdos para aqui.</div>';
     return `<div style="border:1px solid var(--border);border-radius:var(--r);margin-bottom:.6rem;${oculta ? 'opacity:.65;' : ''}">
       <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--gp);border-radius:var(--r) var(--r) 0 0">
-        <span style="font-size:15px">📁</span>
+        <span style="font-size:15px">${_fa('fa-folder','#3c5a78')}</span>
         <span style="flex:1;font-size:13px;font-weight:600">${l.nome} <span style="color:var(--gray400);font-weight:400">· ${itens.length} link${itens.length !== 1 ? 's' : ''}</span></span>
-        <button type="button" onclick="renomearPastaNaArea('${area}',${i})" title="Renomear pasta" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:var(--gl)">✏️</button>
-        <button type="button" onclick="togglePastaEditVis('${area}',${i})" title="Visibilidade da pasta" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:${oculta ? 'var(--gray400)' : 'var(--gl)'}">${oculta ? '🚫 Oculta' : '👁️ Visível'}</button>
+        <button type="button" onclick="renomearPastaNaArea('${area}',${i})" title="Renomear pasta" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:var(--gl)">${_fa('fa-pen')}</button>
+        <button type="button" onclick="togglePastaEditVis('${area}',${i})" title="Visibilidade da pasta" style="border:none;background:none;cursor:pointer;font-size:13px;padding:2px 6px;color:${oculta ? 'var(--gray400)' : 'var(--gl)'}">${oculta ? _fa('fa-eye-slash') + ' Oculta' : _fa('fa-eye') + ' Visível'}</button>
         <button class="link-del" onclick="removePastaNaArea('${area}',${i})" title="Apagar pasta">×</button>
       </div>
       <div ondragover="dropZoneOver(event)" ondragleave="dropZoneLeave(event)" ondrop="dropNaPasta(event,'${area}',${i})" style="padding:6px;min-height:40px">
@@ -9277,7 +9279,7 @@ async function renderVideoGrid(skipReload) {
 
   if (!videotecaData.length) {
     el.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
-      <p style="font-size:24px;margin-bottom:.5rem">🎬</p>
+      <p style="font-size:24px;margin-bottom:.5rem">${_fa('fa-film','#e50914')}</p>
       <p>Sem vídeos ainda.${isAdmin ? ' Clica em "Adicionar Vídeo" para começar.' : 'Sem vídeos disponíveis.'}</p>
     </div>`;
     return;
@@ -9294,7 +9296,7 @@ async function renderVideoGrid(skipReload) {
       reorderHtml += '<div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:10px 14px">';
       reorderHtml += '<span style="font-size:13px;font-weight:700;color:var(--gray400);font-family:monospace;width:24px;flex-shrink:0">' + (i+1) + '</span>';
       reorderHtml += '<div style="width:60px;height:38px;background:#000;border-radius:4px;overflow:hidden;flex-shrink:0">';
-      reorderHtml += thumb ? '<img src="' + thumb + '" style="width:100%;height:100%;object-fit:cover">' : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#fff">🎬</div>';
+      reorderHtml += thumb ? '<img src="' + thumb + '" style="width:100%;height:100%;object-fit:cover">' : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#fff"><i class="fas fa-film"></i></div>';
       reorderHtml += '</div>';
       reorderHtml += '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--gn);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + v.titulo + '</div>';
       reorderHtml += '<div style="font-size:11px;color:var(--gray400)">' + (CAT_LABELS[v.categoria||'geral']||'') + '</div></div>';
@@ -9329,7 +9331,7 @@ async function renderVideoGrid(skipReload) {
           return `
             <div style="background:#fff;border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;transition:box-shadow .15s" onmouseover="this.style.boxShadow='var(--shm)'" onmouseout="this.style.boxShadow=''">
               <div style="position:relative;padding-top:56.25%;background:#000;cursor:pointer" id="video-thumb-${v.id}" onclick="playVideo('${v.id}','${embedUrl}')">
-                ${thumb ? `<img src="${thumb}" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover">` : '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:32px">🎬</div>'}
+                ${thumb ? `<img src="${thumb}" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover">` : '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:32px"><i class="fas fa-film"></i></div>'}
                 <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3)">
                   <div style="width:54px;height:54px;background:rgba(229,9,20,.9);border-radius:50%;display:flex;align-items:center;justify-content:center">
                     <i class="fas fa-play" style="color:#fff;font-size:20px;margin-left:4px"></i>
@@ -9573,8 +9575,9 @@ function buildContactosSummary(iris, sari, plano, record) {
 
 // ===== FICHEIROS DE FORMAÇÃO =====
 const FICHEIRO_ICONS = {
-  pdf: '📄', pptx: '📊', ppt: '📊', xlsx: '📈', xls: '📈',
-  docx: '📝', doc: '📝', default: '📎'
+  pdf: _fa('fa-file-pdf','#c0392b'), pptx: _fa('fa-file-powerpoint','#d24726'), ppt: _fa('fa-file-powerpoint','#d24726'),
+  xlsx: _fa('fa-file-excel','#1d6f42'), xls: _fa('fa-file-excel','#1d6f42'),
+  docx: _fa('fa-file-word','#2b579a'), doc: _fa('fa-file-word','#2b579a'), default: _fa('fa-paperclip','var(--gray400)')
 };
 
 function getFicheiroIcon(nome) {
@@ -10012,7 +10015,7 @@ async function loadFicheirosArea(area) {
               <div style="font-size:11px;color:var(--gray400);margin-top:2px">${f.autor_nome || '—'} · ${new Date(f.created_at).toLocaleDateString('pt-PT')}${f.tamanho ? ' · ' + formatBytes(f.tamanho) : ''}</div>
             </div>
             <a href="${f.url}" target="_blank" rel="noopener" download title="Transferir" style="color:var(--gl);font-size:13px;text-decoration:none;flex-shrink:0;padding:2px"><i class="fas fa-download"></i></a>
-            ${isAdmin ? `<button type="button" onclick="toggleFicheiroVis('${f.id}','${area}',${f.publicado === false ? 'false' : 'true'})" title="${f.publicado === false ? 'Tornar visível aos formandos' : 'Ocultar dos formandos'}" style="background:none;border:none;font-size:13px;cursor:pointer;flex-shrink:0;padding:2px">${f.publicado === false ? '🚫' : '👁️'}</button>` : ''}
+            ${isAdmin ? `<button type="button" onclick="toggleFicheiroVis('${f.id}','${area}',${f.publicado === false ? 'false' : 'true'})" title="${f.publicado === false ? 'Tornar visível aos formandos' : 'Ocultar dos formandos'}" style="background:none;border:none;font-size:13px;cursor:pointer;flex-shrink:0;padding:2px">${f.publicado === false ? _fa('fa-eye-slash','var(--gray400)') : _fa('fa-eye','var(--gl)')}</button>` : ''}
             ${isAdmin ? `<button onclick="deleteFicheiro('${f.id}','${area}','${f.storage_path}')" title="Eliminar" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;flex-shrink:0;padding:2px"><i class="fas fa-trash"></i></button>` : ''}
           </div>
         </div>`).join('') +
