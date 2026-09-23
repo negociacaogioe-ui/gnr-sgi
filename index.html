@@ -1725,6 +1725,8 @@ function sgiModaisAbertos(){
 (function(){
   function _overlayForm(){ var o=document.getElementById('mob-form-fullscreen'); return (o && o.style.display!=='none' && o.style.display!=='') ? o : null; }
   window.addEventListener('popstate', function(ev){
+    // 0) visualizador de documentos aberto -> fechá-lo
+    if(typeof sgiDocumentoAberto==='function' && sgiDocumentoAberto()){ sgiFecharDocumento(); history.pushState({sgiGuard:1}, ''); return; }
     // 1) modal aberto -> fechá-lo
     var abertos = (typeof sgiModaisAbertos==='function') ? sgiModaisAbertos() : [];
     if(abertos.length){ closeModal(abertos[abertos.length-1], true); history.pushState({sgiGuard:1}, ''); return; }
@@ -2992,7 +2994,7 @@ async function exportQuadroCoordenadorPDF(){
   kv('Último contacto', cts[0] ? fmtDateTime(cts[0].contact_datetime) : '—');
 
   addPDFFooter(doc);
-  doc.save('QuadroCoordenador_' + String(r.local||'').replace(/[^\w]+/g,'_').slice(0,20) + '_' + new Date().toISOString().slice(0,16).replace(/[:T]/g,'') + '.pdf');
+  sgiMostrarPDFGerado(doc, 'QuadroCoordenador_' + String(r.local||'').replace(/[^\w]+/g,'_').slice(0,20) + '_' + new Date().toISOString().slice(0,16).replace(/[:T]/g,'') + '.pdf');
 }
 
 
@@ -4493,7 +4495,7 @@ function _relatorioPDF(r, type, iris, sari, plano, contactos, hist){
 
   addPDFFooter(doc);
   const nome = 'Relatorio_' + (isItp ? 'ITP' : 'Incidente') + '_' + String(r.local || '').replace(/[^\w]+/g, '_').slice(0, 24) + '_' + new Date().toISOString().slice(0,10) + '.pdf';
-  doc.save(nome);
+  sgiMostrarPDFGerado(doc, nome);
 }
 
 function exportIRISPDF(){
@@ -4554,7 +4556,7 @@ function exportIRISPDF(){
     y+=8; // gap after section
   });
   addPDFFooter(doc);
-  doc.save('IRIS_GNR_'+new Date().getTime()+'.pdf');
+  sgiMostrarPDFGerado(doc, 'IRIS_GNR_'+new Date().getTime()+'.pdf');
 }
 
 // ===== NOMES DA VÍTIMA E DO AGRESSOR (colunas nome_vitima / nome_agressor) =====
@@ -5201,7 +5203,7 @@ function exportRNRVPDF(){
   }
   doc.setFontSize(7);doc.setTextColor(120,120,120);
   doc.text('Documento confidencial — Guarda Nacional Republicana — SGI',105,288,{align:'center'});
-  doc.save('Contactos_'+new Date().getTime()+'.pdf');
+  sgiMostrarPDFGerado(doc, 'Contactos_'+new Date().getTime()+'.pdf');
 }
 
 // ===== TAB: SARI =====
@@ -5485,7 +5487,7 @@ function exportSARIPDF(){
   });
   doc.setFontSize(7);doc.setTextColor(120,120,120);
   doc.text('Documento confidencial — Guarda Nacional Republicana — SGI',105,288,{align:'center'});
-  doc.save('SARI_'+new Date().getTime()+'.pdf');
+  sgiMostrarPDFGerado(doc, 'SARI_'+new Date().getTime()+'.pdf');
 }
 
 // ===== TAB: PLANO =====
@@ -5837,7 +5839,7 @@ function exportPlanoPDF(){
   add('TEMPO ESTIMADO',get('plano-tempo'));
   add('MEIOS A UTILIZAR',get('plano-meios'));
   addPDFFooter(doc);
-  doc.save('Plano_Negociacao_'+new Date().getTime()+'.pdf');
+  sgiMostrarPDFGerado(doc, 'Plano_Negociacao_'+new Date().getTime()+'.pdf');
 }
 
 
@@ -7276,7 +7278,7 @@ function renderLinksView(links, area) {
 
     const renderCard = l => {
       if (l.url) {
-        return `<a href="${l.url}" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;padding:14px 20px;background:#fff;border:1px solid var(--border);border-radius:var(--r);font-size:13px;font-weight:500;color:var(--gm);text-decoration:none;transition:all .15s;text-align:center" onmouseover="this.style.borderColor='var(--gl)';this.style.background='var(--gp)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='#fff'">
+        return `<a ${sgiLinkAttrs(l.url, l.label)} style="display:flex;align-items:center;justify-content:center;padding:14px 20px;background:#fff;border:1px solid var(--border);border-radius:var(--r);font-size:13px;font-weight:500;color:var(--gm);text-decoration:none;transition:all .15s;text-align:center" onmouseover="this.style.borderColor='var(--gl)';this.style.background='var(--gp)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='#fff'">
           <i class="fas fa-external-link-alt" style="font-size:11px;margin-right:8px;opacity:.6"></i>${l.label}
         </a>`;
       } else {
@@ -7321,12 +7323,12 @@ function renderLinksView(links, area) {
       const _dl = urlTransferir(l.url);
       const _nome = l.label || 'Apresentação';
       return `<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;transition:border-color .15s,box-shadow .15s" onmouseover="this.style.borderColor='var(--gl)';this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
-        <a href="${l.url}" target="_blank" rel="noopener" title="Abrir ${_escAttr(_nome)}" style="display:block;aspect-ratio:16/9;background:var(--gray100);position:relative;overflow:hidden">
+        <a ${sgiLinkAttrs(l.url, _nome)} title="Abrir ${_escAttr(_nome)}" style="display:block;aspect-ratio:16/9;background:var(--gray100);position:relative;overflow:hidden">
           <img src="https://drive.google.com/thumbnail?id=${encodeURIComponent(_id)}&sz=w640" alt="${_escAttr(_nome)}" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
           <div style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--gray400)"><i class="fas fa-file-powerpoint" style="font-size:34px;color:#d24726"></i><span style="font-size:11px">Pré-visualização indisponível</span></div>
         </a>
         <div style="display:flex;align-items:flex-start;gap:6px;padding:8px 10px">
-          <a href="${l.url}" target="_blank" rel="noopener" style="flex:1;min-width:0;font-size:12.5px;font-weight:500;color:var(--gn);text-decoration:none;line-height:1.35">${_nome}${_oc}</a>
+          <a ${sgiLinkAttrs(l.url, _nome)} style="flex:1;min-width:0;font-size:12.5px;font-weight:500;color:var(--gn);text-decoration:none;line-height:1.35">${_nome}${_oc}</a>
           ${_dl ? `<a href="${_dl}" target="_blank" rel="noopener" download title="Transferir" style="color:var(--gl);font-size:13px;text-decoration:none;flex-shrink:0"><i class="fas fa-download"></i></a>` : ''}
         </div>
       </div>`;
@@ -7344,6 +7346,7 @@ function renderLinksView(links, area) {
           <i class="fas fa-file-pdf" style="color:var(--red);font-size:14px"></i>
           <span style="font-size:13px;font-weight:500;color:var(--gn)">${l.label || 'Documento'}${_badgeOculto}</span>
           <span style="font-size:11px;color:var(--gray400);background:var(--gray100);padding:2px 8px;border-radius:20px">Visualização incorporada</span>
+          <button class="btn btn-outline btn-sm" style="margin-left:auto;font-size:11.5px" onclick="sgiAbrirDocumento(${_escAttr(JSON.stringify(l.url))},${_escAttr(JSON.stringify(l.label||'Documento'))})" title="Abrir em ecrã inteiro e ampliar"><i class="fas fa-expand"></i> Ampliar</button>
         </div>
         <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;background:#f5f5f5">
           <iframe src="${embedUrl}" style="width:100%;height:600px;border:none;display:block" allowfullscreen loading="lazy"></iframe>
@@ -7354,13 +7357,13 @@ function renderLinksView(links, area) {
     if (_dl) {
       return `<div class="link-item">
       <i class="fas fa-external-link-alt" style="color:var(--gl);font-size:13px"></i>
-      <a href="${l.url}" target="_blank" rel="noopener">${l.label || 'Documento'}</a>${_badgeOculto}
+      <a ${sgiLinkAttrs(l.url, l.label || 'Documento')}>${l.label || 'Documento'}</a>${_badgeOculto}
       <a href="${_dl}" target="_blank" rel="noopener" download title="Transferir" style="color:var(--gl);font-size:13px;margin-left:6px;text-decoration:none"><i class="fas fa-download"></i></a>
     </div>`;
     }
     return `<div class="link-item">
       <i class="fas fa-external-link-alt" style="color:var(--gl);font-size:13px"></i>
-      <a href="${l.url}" target="_blank" rel="noopener">${l.label || l.url}</a>${_badgeOculto}
+      <a ${sgiLinkAttrs(l.url, l.label)}>${l.label || l.url}</a>${_badgeOculto}
     </div>`;
   }).join('');
 }
@@ -8570,7 +8573,7 @@ function exportAnexoBPDF(){
   sec('6. RESPONSÁVEL');row('Nome',get('ab-resp-nome'));row('Posto',get('ab-resp-posto'));row('Unidade',get('ab-resp-unidade'));row('Data',get('ab-resp-data'));
   const pages=doc.internal.getNumberOfPages();for(let i=1;i<=pages;i++){doc.setPage(i);doc.setFontSize(7);doc.setTextColor(130,130,130);doc.text('Mod. 1-103 SEC-CV - GIOE - GNR | PDGNR M 1-08-02 | ANX-B | RESERVADO | Pág. '+i+'/'+pages,105,290,{align:'center'});}
   const rn='GEP-'+new Date().getFullYear()+String(new Date().getMonth()+1).padStart(2,'0')+String(new Date().getDate()).padStart(2,'0')+'-'+String(Math.floor(Math.random()*1000)).padStart(3,'0');
-  doc.save(rn+'_GUIAO_ENTREVISTA_PRIORITARIO.pdf');
+  sgiMostrarPDFGerado(doc, rn+'_GUIAO_ENTREVISTA_PRIORITARIO.pdf');
 }
 
 
@@ -8627,7 +8630,7 @@ function exportInfoPDF(){
     doc.text(autor,14,y);y+=10;
   });
   addPDFFooter(doc);
-  doc.save('Informacoes_'+r.tipo.replace(/\s/g,'_')+'_'+Date.now()+'.pdf');
+  sgiMostrarPDFGerado(doc, 'Informacoes_'+r.tipo.replace(/\s/g,'_')+'_'+Date.now()+'.pdf');
 }
 
 // ===== INVESTIGAÇÃO CRIMINAL =====
@@ -9654,6 +9657,7 @@ function _gerarMiniaturasFicheiros(area) {
 async function abrirFicheiroViewer(area, idx) {
   const f = (_ficheirosCache[area] || [])[idx];
   if (!f) return;
+  if (_extFicheiro(f) === 'pdf') return sgiAbrirPDF(f.url, f.nome, f.url, f.nome);
   let ov = document.getElementById('ficheiro-viewer');
   if (!ov) {
     ov = document.createElement('div');
@@ -9723,6 +9727,258 @@ function fecharFicheiroViewer() {
   const ov = document.getElementById('ficheiro-viewer');
   if (ov) { ov.style.display = 'none'; ov.innerHTML = ''; }
   document.body.style.overflow = '';
+}
+
+// ===== VISUALIZADOR DE DOCUMENTOS DENTRO DA APLICAÇÃO =====
+// Qualquer PDF (gerado pela app, carregado na Formação ou por link) abre aqui, sem sair da aplicação.
+// Ampliação: botões − / + / Ajustar, Ctrl+roda do rato (desktop) e gesto de pinça (telemóvel).
+const _sgiDV = { pdf:null, zoom:1, base:0, seq:0, obs:null, iframe:false, blobUrl:null };
+const SGI_DV_ZMIN = 0.5, SGI_DV_ZMAX = 5;
+
+function _sgiDVShell(nome, dlHref, dlNome) {
+  let ov = document.getElementById('sgi-doc-viewer');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'sgi-doc-viewer';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:1000;background:rgba(10,20,10,.6);display:flex;align-items:stretch;justify-content:center;padding:max(1vh,env(safe-area-inset-top,0px)) 1vw 1vh';
+    ov.addEventListener('click', e => { if (e.target === ov) sgiFecharDocumento(); });
+    document.body.appendChild(ov);
+    document.addEventListener('keydown', e => {
+      const v = document.getElementById('sgi-doc-viewer');
+      if (!v || v.style.display === 'none') return;
+      if (e.key === 'Escape') sgiFecharDocumento();
+      else if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '=')) { e.preventDefault(); sgiZoomDoc(1.25); }
+      else if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); sgiZoomDoc(0.8); }
+    });
+  }
+  if (_sgiDV.blobUrl) { try { URL.revokeObjectURL(_sgiDV.blobUrl); } catch(e){} _sgiDV.blobUrl = null; }
+  const btn = 'class="btn btn-outline btn-sm" style="padding:6px 10px;min-width:34px;justify-content:center"';
+  ov.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  ov.innerHTML = `<div style="background:#fff;border-radius:var(--r);width:100%;max-width:1200px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.25)">
+    <div style="display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+      <i class="fas fa-file-pdf" style="color:var(--red);font-size:16px"></i>
+      <div style="flex:1 1 140px;min-width:0;font-size:13.5px;font-weight:600;color:var(--gn);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${_escAttr(nome||'')}">${_escHtml(nome||'Documento')}</div>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button ${btn} onclick="sgiZoomDoc(0.8)" title="Reduzir"><i class="fas fa-minus"></i></button>
+        <span id="sgi-dv-zoom" style="font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--gray600);min-width:44px;text-align:center">100%</span>
+        <button ${btn} onclick="sgiZoomDoc(1.25)" title="Ampliar"><i class="fas fa-plus"></i></button>
+        <button ${btn} onclick="sgiZoomDoc(0)" title="Ajustar à largura"><i class="fas fa-arrows-left-right"></i></button>
+        ${dlHref ? `<a ${btn} href="${dlHref}" ${dlNome ? `download="${_escAttr(dlNome)}"` : 'download'} target="_blank" rel="noopener" title="Transferir"><i class="fas fa-download"></i></a>` : ''}
+        <button ${btn} onclick="sgiFecharDocumento()" title="Fechar"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+    <div id="sgi-dv-body" style="flex:1;overflow:auto;background:var(--gray100);padding:10px;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;position:relative">
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--gm)"><span class="spinner"></span> A abrir documento...</div>
+    </div>
+  </div>`;
+  _sgiDVGestos(document.getElementById('sgi-dv-body'));
+  return document.getElementById('sgi-dv-body');
+}
+
+function sgiFecharDocumento() {
+  const ov = document.getElementById('sgi-doc-viewer');
+  if (ov) { ov.style.display = 'none'; ov.innerHTML = ''; }
+  if (_sgiDV.obs) { _sgiDV.obs.disconnect(); _sgiDV.obs = null; }
+  if (_sgiDV.pdf) { try { _sgiDV.pdf.destroy(); } catch(e){} }
+  if (_sgiDV.blobUrl) { try { URL.revokeObjectURL(_sgiDV.blobUrl); } catch(e){} _sgiDV.blobUrl = null; }
+  _sgiDV.pdf = null; _sgiDV.iframe = false; _sgiDV.seq++;
+  const outro = document.getElementById('ficheiro-viewer');
+  if (!outro || outro.style.display === 'none') document.body.style.overflow = '';
+}
+function sgiDocumentoAberto() {
+  const ov = document.getElementById('sgi-doc-viewer');
+  return !!(ov && ov.style.display !== 'none' && ov.innerHTML);
+}
+
+function _sgiDVErro(body, dlHref, dlNome) {
+  body.innerHTML = `<div style="text-align:center;padding:3rem 1rem;color:var(--gray600);font-size:13px">Não foi possível abrir o documento na aplicação.
+    ${dlHref ? `<br><br><a href="${dlHref}" ${dlNome ? `download="${_escAttr(dlNome)}"` : 'download'} target="_blank" rel="noopener" class="btn btn-primary btn-sm"><i class="fas fa-download"></i> Transferir</a>` : ''}</div>`;
+}
+
+// src: URL, ArrayBuffer ou Uint8Array
+async function sgiAbrirPDF(src, nome, dlHref, dlNome) {
+  const body = _sgiDVShell(nome, dlHref, dlNome);
+  const seq = ++_sgiDV.seq;
+  _sgiDV.iframe = false; _sgiDV.zoom = 1;
+  try {
+    const pdfjs = await _libPdf();
+    const params = (typeof src === 'string') ? { url: src } : { data: (src instanceof Uint8Array ? src : new Uint8Array(src)) };
+    const pdf = await pdfjs.getDocument(params).promise;
+    if (seq !== _sgiDV.seq) { try { pdf.destroy(); } catch(e){} return; }
+    _sgiDV.pdf = pdf;
+    const p1 = await pdf.getPage(1);
+    const vp1 = p1.getViewport({ scale: 1 });
+    _sgiDV.base = Math.min(body.clientWidth - 20, 900) / vp1.width;   // escala que ajusta à largura
+    _sgiDV.ratios = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const pg = p === 1 ? p1 : await pdf.getPage(p);
+      const v = pg.getViewport({ scale: 1 });
+      _sgiDV.ratios.push([v.width, v.height]);
+    }
+    if (seq !== _sgiDV.seq) return;
+    _sgiDVMontar(body);
+  } catch (e) {
+    console.warn('PDF viewer', e);
+    if (seq === _sgiDV.seq) _sgiDVErro(body, dlHref, dlNome);
+  }
+}
+
+// Cria as páginas (vazias, com o tamanho certo) e desenha só as que estão visíveis
+function _sgiDVMontar(body) {
+  const seq = _sgiDV.seq;
+  if (_sgiDV.obs) _sgiDV.obs.disconnect();
+  const esc = _sgiDV.base * _sgiDV.zoom;
+  const wrap = document.createElement('div');
+  wrap.id = 'sgi-dv-pages';
+  wrap.style.cssText = 'transform-origin:0 0;width:max-content;min-width:100%';
+  _sgiDV.ratios.forEach(([w, h], i) => {
+    const pg = document.createElement('div');
+    pg.className = 'sgi-dv-pg';
+    pg.dataset.p = i + 1;
+    pg.style.cssText = `width:${Math.round(w*esc)}px;height:${Math.round(h*esc)}px;margin:0 auto 10px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.15);position:relative`;
+    wrap.appendChild(pg);
+  });
+  body.innerHTML = ''; body.appendChild(wrap);
+  document.getElementById('sgi-dv-zoom').textContent = Math.round(_sgiDV.zoom * 100) + '%';
+  _sgiDV.obs = new IntersectionObserver(ents => {
+    ents.forEach(en => {
+      const pg = en.target;
+      if (en.isIntersecting && !pg.dataset.ok) { pg.dataset.ok = '1'; _sgiDVDesenhar(pg, seq); }
+      else if (!en.isIntersecting && pg.dataset.ok && pg.firstChild) {
+        // liberta memória das páginas longe do ecrã
+        const r = pg.getBoundingClientRect();
+        if (Math.abs(r.top) > window.innerHeight * 4) { pg.innerHTML = ''; delete pg.dataset.ok; }
+      }
+    });
+  }, { root: body, rootMargin: '600px 0px' });
+  wrap.querySelectorAll('.sgi-dv-pg').forEach(pg => _sgiDV.obs.observe(pg));
+}
+
+async function _sgiDVDesenhar(pg, seq) {
+  try {
+    const pdf = _sgiDV.pdf; if (!pdf || seq !== _sgiDV.seq) return;
+    const page = await pdf.getPage(+pg.dataset.p);
+    const esc = _sgiDV.base * _sgiDV.zoom;
+    let dpr = window.devicePixelRatio || 1;
+    const vpCss = page.getViewport({ scale: esc });
+    // limita o tamanho do canvas (memória do telemóvel)
+    const maxPx = 16e6;
+    if (vpCss.width * vpCss.height * dpr * dpr > maxPx) dpr = Math.max(1, Math.sqrt(maxPx / (vpCss.width * vpCss.height)));
+    const vp = page.getViewport({ scale: esc * dpr });
+    const cv = document.createElement('canvas');
+    cv.width = Math.floor(vp.width); cv.height = Math.floor(vp.height);
+    cv.style.cssText = 'width:100%;height:100%;display:block';
+    await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+    if (seq !== _sgiDV.seq || !pg.isConnected) return;
+    pg.innerHTML = ''; pg.appendChild(cv);
+  } catch (e) { delete pg.dataset.ok; }
+}
+
+// f: fator (1.25 / 0.8); 0 = ajustar à largura. cx/cy: ponto (no ecrã) que fica fixo
+function sgiZoomDoc(f, cx, cy) {
+  const body = document.getElementById('sgi-dv-body');
+  if (!body) return;
+  const old = _sgiDV.zoom;
+  let z = f === 0 ? 1 : old * f;
+  z = Math.max(SGI_DV_ZMIN, Math.min(SGI_DV_ZMAX, z));
+  if (Math.abs(z - old) < 0.001) return;
+  const rb = body.getBoundingClientRect();
+  const px = (cx == null ? rb.width / 2 : cx - rb.left), py = (cy == null ? rb.height / 2 : cy - rb.top);
+  const ax = body.scrollLeft + px, ay = body.scrollTop + py;
+  _sgiDV.zoom = z;
+  const k = z / old;
+  if (_sgiDV.iframe) {
+    const ifr = document.getElementById('sgi-dv-iframe');
+    if (ifr) { ifr.style.width = (100 * z) + '%'; ifr.style.height = `calc(${(100 * z)}% - 4px)`; }
+    document.getElementById('sgi-dv-zoom').textContent = Math.round(z * 100) + '%';
+  } else if (_sgiDV.pdf) {
+    _sgiDV.seq++;
+    _sgiDVMontar(body);
+  } else return;
+  body.scrollLeft = ax * k - px;
+  body.scrollTop = ay * k - py;
+}
+
+// Gestos: pinça (2 dedos) no telemóvel e Ctrl+roda no desktop
+function _sgiDVGestos(body) {
+  if (!body) return;
+  let d0 = 0, c0 = null, k = 1;
+  const dist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  const centro = t => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
+  const alvo = () => document.getElementById(_sgiDV.iframe ? 'sgi-dv-iframe-wrap' : 'sgi-dv-pages');
+  body.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) { d0 = dist(e.touches); c0 = centro(e.touches); k = 1; }
+  }, { passive: true });
+  body.addEventListener('touchmove', e => {
+    if (e.touches.length !== 2 || !d0) return;
+    e.preventDefault();
+    k = dist(e.touches) / d0;
+    const zNovo = Math.max(SGI_DV_ZMIN, Math.min(SGI_DV_ZMAX, _sgiDV.zoom * k));
+    k = zNovo / _sgiDV.zoom;
+    const a = alvo();
+    if (a) {
+      const rb = body.getBoundingClientRect();
+      const ox = body.scrollLeft + c0.x - rb.left, oy = body.scrollTop + c0.y - rb.top;
+      a.style.transformOrigin = ox + 'px ' + oy + 'px';
+      a.style.transform = 'scale(' + k + ')';
+    }
+  }, { passive: false });
+  const fim = () => {
+    if (!d0) return;
+    const a = alvo(); if (a) { a.style.transform = ''; a.style.transformOrigin = '0 0'; }
+    const kk = k, c = c0; d0 = 0; k = 1;
+    if (Math.abs(kk - 1) > 0.02) sgiZoomDoc(kk, c.x, c.y);
+  };
+  body.addEventListener('touchend', e => { if (e.touches.length < 2) fim(); });
+  body.addEventListener('touchcancel', fim);
+  body.addEventListener('wheel', e => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    sgiZoomDoc(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX, e.clientY);
+  }, { passive: false });
+}
+
+// Documentos da Google Drive/Docs (não podem ser lidos diretamente): pré-visualização da Google dentro da app
+function sgiAbrirPreviewIframe(url, nome) {
+  const dl = urlTransferir(url);
+  const body = _sgiDVShell(nome, dl, null);
+  _sgiDV.seq++; _sgiDV.pdf = null; _sgiDV.iframe = true; _sgiDV.zoom = 1;
+  body.style.padding = '0';
+  body.innerHTML = `<div id="sgi-dv-iframe-wrap" style="width:100%;height:100%;transform-origin:0 0"><iframe id="sgi-dv-iframe" src="${getEmbedUrl(url)}" style="width:100%;height:calc(100% - 4px);border:none;display:block;background:#fff" allowfullscreen></iframe></div>`;
+}
+
+// PDF / documento a partir de um URL: decide como abrir dentro da app
+function sgiEhPDFDireto(url) {
+  return !!url && (/\.pdf(\?|#|$)/i.test(url) || (url.includes('supabase.co/storage') && !/\.(docx?|xlsx?|pptx?|png|jpe?g|gif|webp|mp4|mov)(\?|#|$)/i.test(url)));
+}
+function sgiAbrirDocumento(url, nome) {
+  if (!url) return;
+  if (sgiEhPDFDireto(url)) return sgiAbrirPDF(url, nome || 'Documento', url, null);
+  if (/drive\.google\.com|docs\.google\.com/.test(url)) return sgiAbrirPreviewIframe(url, nome || 'Documento');
+  window.open(url, '_blank', 'noopener');
+}
+// Links clicáveis que devem abrir dentro da app
+function sgiAbreNaApp(url) {
+  return sgiEhPDFDireto(url) || /drive\.google\.com\/(file|open)|docs\.google\.com\/(document|presentation|spreadsheets)/.test(url || '');
+}
+function sgiLinkAttrs(url, nome) {
+  if (!sgiAbreNaApp(url)) return `href="${url}" target="_blank" rel="noopener"`;
+  return `href="${url}" onclick="event.preventDefault();sgiAbrirDocumento(${_escAttr(JSON.stringify(url))},${_escAttr(JSON.stringify(nome||''))})"`;
+}
+
+// PDFs gerados pela app (jsPDF): mostrar dentro da app em vez de descarregar
+function sgiMostrarPDFGerado(doc, nomeFicheiro) {
+  try {
+    const blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+    const titulo = String(nomeFicheiro || 'Documento.pdf').replace(/_/g, ' ').replace(/\.pdf$/i, '');
+    sgiAbrirPDF(doc.output('arraybuffer'), titulo, url, nomeFicheiro);
+    _sgiDV.blobUrl = url;
+  } catch (e) {
+    console.warn('sgiMostrarPDFGerado', e);
+    doc.save(nomeFicheiro);
+  }
 }
 
 async function loadFicheirosArea(area) {
