@@ -10016,6 +10016,7 @@ async function loadFicheirosArea(area) {
             </div>
             <a href="${f.url}" target="_blank" rel="noopener" download title="Transferir" style="color:var(--gl);font-size:13px;text-decoration:none;flex-shrink:0;padding:2px"><i class="fas fa-download"></i></a>
             ${isAdmin ? `<button type="button" onclick="toggleFicheiroVis('${f.id}','${area}',${f.publicado === false ? 'false' : 'true'})" title="${f.publicado === false ? 'Tornar visível aos formandos' : 'Ocultar dos formandos'}" style="background:none;border:none;font-size:13px;cursor:pointer;flex-shrink:0;padding:2px">${f.publicado === false ? _fa('fa-eye-slash','var(--gray400)') : _fa('fa-eye','var(--gl)')}</button>` : ''}
+            ${isAdmin ? `<button type="button" onclick="abrirEditarFicheiro('${area}',${i})" title="Editar (nome, descrição, pasta)" style="background:none;border:none;color:var(--gm);font-size:13px;cursor:pointer;flex-shrink:0;padding:2px"><i class="fas fa-pen"></i></button>` : ''}
             ${isAdmin ? `<button onclick="deleteFicheiro('${f.id}','${area}','${f.storage_path}')" title="Eliminar" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;flex-shrink:0;padding:2px"><i class="fas fa-trash"></i></button>` : ''}
           </div>
         </div>`).join('') +
@@ -10088,6 +10089,61 @@ async function uploadFicheiroFormacao(area, input) {
     if (ficheirosList) ficheirosList.innerHTML = originalContent;
     alert('Erro ao carregar ficheiro: ' + (e.message || e));
     input.value = '';
+  }
+}
+
+// Editar ficheiro carregado: nome, descrição e pasta de destino
+let _ficheiroEmEdicao = null;
+function abrirEditarFicheiro(area, idx) {
+  const f = (_ficheirosCache[area] || [])[idx];
+  if (!f) return;
+  _ficheiroEmEdicao = { area, f };
+  const pastas = ((formacaoData[area]?.links && (typeof formacaoData[area].links === 'string' ? JSON.parse(formacaoData[area].links) : formacaoData[area].links)) || []).filter(l => l.tipo === 'pasta');
+  document.getElementById('edit-fich-nome').value = f.nome || '';
+  document.getElementById('edit-fich-desc').value = f.descricao || '';
+  document.getElementById('edit-fich-pasta').innerHTML = '<option value="">Sem pasta (lista de ficheiros)</option>' +
+    pastas.map(p => `<option value="${_escAttr(p.nome)}">📁 ${p.nome}</option>`).join('');
+  document.getElementById('edit-fich-alert').className = 'hidden';
+  openModal('modal-edit-ficheiro');
+}
+
+async function guardarEditarFicheiro() {
+  if (!_ficheiroEmEdicao) return;
+  const { area, f } = _ficheiroEmEdicao;
+  const nome = document.getElementById('edit-fich-nome').value.trim() || f.nome;
+  const descricao = document.getElementById('edit-fich-desc').value.trim();
+  const pasta = document.getElementById('edit-fich-pasta').value;
+  const btn = document.getElementById('btn-guardar-fich');
+  btn.disabled = true;
+  try {
+    if (!pasta) {
+      const { error } = await sb.from('formacao_ficheiros').update({ nome, descricao }).eq('id', f.id);
+      if (error) throw error;
+      closeModal('modal-edit-ficheiro');
+      _ficheiroEmEdicao = null;
+      await loadFicheirosArea(area);
+      return;
+    }
+    // Mover para a pasta: passa a conteúdo da pasta (mesmo ficheiro no Storage, sem novo upload)
+    const label = (nome === f.nome) ? nome.replace(/\.[^.]+$/, '') : nome;
+    _garantirTempLinks(area);
+    _tempLinks[area].push({ label, url: f.url, embed: false, publicado: f.publicado !== false, pasta, storage_path: f.storage_path });
+    _autoGuardarLinks(area);
+    await (_autoSaveFila[area] || Promise.resolve());
+    const gravados = formacaoData[area]?.links || [];
+    if (!gravados.some(l => l.url === f.url && l.pasta === pasta)) throw new Error('Não foi possível gravar o ficheiro na pasta.');
+    // Só remove o registo da lista (o ficheiro no Storage mantém-se, agora usado pela pasta)
+    const { error: delErr } = await sb.from('formacao_ficheiros').delete().eq('id', f.id);
+    if (delErr) throw delErr;
+    closeModal('modal-edit-ficheiro');
+    _ficheiroEmEdicao = null;
+    await fecharEdicaoFormacao(area);
+  } catch (e) {
+    const a = document.getElementById('edit-fich-alert');
+    a.className = 'alert alert-error';
+    a.textContent = 'Erro: ' + (e.message || e);
+  } finally {
+    btn.disabled = false;
   }
 }
 
@@ -10957,6 +11013,26 @@ setImages();
 </div>
 
 <!-- MODAL: Editar Incidente -->
+<div id="modal-edit-ficheiro" class="modal-overlay hidden">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><span class="modal-title">Editar Ficheiro</span><button class="modal-close" onclick="closeModal('modal-edit-ficheiro')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-body">
+      <div id="edit-fich-alert" class="hidden"></div>
+      <div class="form-grid">
+        <div class="field form-full"><label>Nome a mostrar</label><input type="text" id="edit-fich-nome"></div>
+        <div class="field form-full"><label>Descrição</label><textarea id="edit-fich-desc" rows="2"></textarea></div>
+        <div class="field form-full"><label>Pasta</label><select id="edit-fich-pasta"></select>
+          <div style="font-size:11.5px;color:var(--gray400);margin-top:4px">Ao escolher uma pasta, o ficheiro sai da lista de ficheiros e passa a aparecer dentro dessa pasta.</div></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div style="flex:1"></div>
+      <button class="btn btn-outline" onclick="closeModal('modal-edit-ficheiro')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-guardar-fich" onclick="guardarEditarFicheiro()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div id="modal-edit-inc" class="modal-overlay hidden">
   <div class="modal" style="border-top-color:var(--amber)">
     <div class="modal-header"><span class="modal-title">Editar Incidente</span><button class="modal-close" onclick="closeModal('modal-edit-inc')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
