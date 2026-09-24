@@ -7319,22 +7319,26 @@ function renderLinksView(links, area) {
   if (area === 'apresentacoes') {
     const cards = links.map(l => {
       const _id = _driveFileId(l.url);
-      if (!_id || linkIncorporado(l, area)) return `<div style="grid-column:1/-1">${renderLinksView([l], '_')}</div>`;
+      // Ficheiros carregados diretamente (Storage): mesmo cartão, com miniatura gerada no browser
+      const _up = !_id && /supabase\.co\/storage/.test(l.url || '') && /\.(pptx|pdf|docx)(\?|#|$)/i.test(l.url || '');
+      if ((!_id && !_up) || linkIncorporado(l, area)) return `<div style="grid-column:1/-1">${renderLinksView([l], '_')}</div>`;
       const _oc = (_isAdmin && l.publicado === false)
         ? `<span style="font-size:10px;background:var(--amber,#b45309);color:#fff;padding:1px 7px;border-radius:10px;margin-left:6px">OCULTO</span>` : '';
       const _dl = urlTransferir(l.url);
       const _nome = l.label || 'Apresentação';
       return `<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;transition:border-color .15s,box-shadow .15s" onmouseover="this.style.borderColor='var(--gl)';this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
         <a ${sgiLinkAttrs(l.url, _nome)} title="Abrir ${_escAttr(_nome)}" style="display:block;aspect-ratio:16/9;background:var(--gray100);position:relative;overflow:hidden">
-          <img src="https://drive.google.com/thumbnail?id=${encodeURIComponent(_id)}&sz=w640" alt="${_escAttr(_nome)}" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-          <div style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--gray400)"><i class="fas fa-file-powerpoint" style="font-size:34px;color:#d24726"></i><span style="font-size:11px">Pré-visualização indisponível</span></div>
+          ${_up ? `<div class="apres-fthumb" data-url="${_escAttr(l.url)}" style="position:absolute;inset:0;overflow:hidden;background:#fff"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--gray400)"><span class="spinner"></span></div></div>` : `<img src="https://drive.google.com/thumbnail?id=${encodeURIComponent(_id)}&sz=w640" alt="${_escAttr(_nome)}" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--gray400)"><i class="fas fa-file-powerpoint" style="font-size:34px;color:#d24726"></i><span style="font-size:11px">Pré-visualização indisponível</span></div>`}
         </a>
         <div style="display:flex;align-items:flex-start;gap:6px;padding:8px 10px">
           <a ${sgiLinkAttrs(l.url, _nome)} style="flex:1;min-width:0;font-size:12.5px;font-weight:500;color:var(--gn);text-decoration:none;line-height:1.35">${_nome}${_oc}</a>
+          ${sgiBotaoApresentar(l.url, _nome, 'background:none;border:none;color:var(--gl);font-size:13px;cursor:pointer;flex-shrink:0;padding:0')}
           ${_dl ? `<a href="${_dl}" target="_blank" rel="noopener" download title="Transferir" style="color:var(--gl);font-size:13px;text-decoration:none;flex-shrink:0"><i class="fas fa-download"></i></a>` : ''}
         </div>
       </div>`;
     }).join('');
+    setTimeout(_gerarMiniaturasApres, 60);
     return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:.5rem">${cards}</div>`;
   }
   return links.map(l => {
@@ -7349,6 +7353,7 @@ function renderLinksView(links, area) {
           <span style="font-size:13px;font-weight:500;color:var(--gn)">${l.label || 'Documento'}${_badgeOculto}</span>
           <span style="font-size:11px;color:var(--gray400);background:var(--gray100);padding:2px 8px;border-radius:20px">Visualização incorporada</span>
           <button class="btn btn-outline btn-sm" style="margin-left:auto;font-size:11.5px" onclick="sgiAbrirDocumento(${_escAttr(JSON.stringify(l.url))},${_escAttr(JSON.stringify(l.label||'Documento'))})" title="Abrir em ecrã inteiro e ampliar"><i class="fas fa-expand"></i> Ampliar</button>
+          ${sgiPodeApresentar(l.url) ? `<button class="btn btn-outline btn-sm" style="font-size:11.5px" onclick="sgiApresentar(${_escAttr(JSON.stringify(l.url))},${_escAttr(JSON.stringify(l.label||'Documento'))})" title="Modo apresentação"><i class="fas fa-desktop"></i> Apresentar</button>` : ''}
         </div>
         <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;background:#f5f5f5">
           <iframe src="${embedUrl}" style="width:100%;height:600px;border:none;display:block" allowfullscreen loading="lazy"></iframe>
@@ -7360,6 +7365,7 @@ function renderLinksView(links, area) {
       return `<div class="link-item">
       <i class="fas fa-external-link-alt" style="color:var(--gl);font-size:13px"></i>
       <a ${sgiLinkAttrs(l.url, l.label || 'Documento')}>${l.label || 'Documento'}</a>${_badgeOculto}
+      ${sgiBotaoApresentar(l.url, l.label || 'Documento', 'background:none;border:none;color:var(--gl);font-size:13px;cursor:pointer;margin-left:6px;padding:0')}
       <a href="${_dl}" target="_blank" rel="noopener" download title="Transferir" style="color:var(--gl);font-size:13px;margin-left:6px;text-decoration:none"><i class="fas fa-download"></i></a>
     </div>`;
     }
@@ -9614,8 +9620,24 @@ async function _libDocx() {
   await _carregarScript('https://cdn.jsdelivr.net/npm/docx-preview@0.3.5/dist/docx-preview.min.js');
   return window.docx;
 }
+// PPTX → pptx-preview (desenhado no browser; o fundo "esticado" dos diapositivos é corrigido por CSS)
+async function _libPptx() {
+  await _carregarScript('https://cdn.jsdelivr.net/npm/pptx-preview@1.0.7/dist/pptx-preview.umd.js');
+  if (!document.getElementById('pptx-sgi-css')) {
+    const st = document.createElement('style'); st.id = 'pptx-sgi-css';
+    st.textContent = '.pptx-preview-wrapper .slide-background{background-size:100% 100%!important}.pptx-mini .pptx-preview-wrapper-next,.pptx-mini .pptx-preview-wrapper-pagination{display:none!important}.pptx-mini .pptx-preview-wrapper{background:#fff!important;margin:0!important}.pptx-lista .pptx-preview-wrapper{height:auto!important;overflow:visible!important;background:transparent!important}.pptx-lista .pptx-preview-slide-wrapper{margin:0 auto 12px!important;box-shadow:0 1px 4px rgba(0,0,0,.15)}';
+    document.head.appendChild(st);
+  }
+  return window.pptxPreview;
+}
+const _pptxBufCache = {};
+function _pptxBuffer(url) {
+  if (!_pptxBufCache[url]) _pptxBufCache[url] = fetch(url).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+    .catch(e => { delete _pptxBufCache[url]; throw e; });
+  return _pptxBufCache[url];
+}
 function _extFicheiro(f) { return (f.tipo || (f.nome || '').split('.').pop() || '').toLowerCase(); }
-function _podePreVisualizar(f) { return ['pdf', 'docx'].includes(_extFicheiro(f)); }
+function _podePreVisualizar(f) { return ['pdf', 'docx', 'pptx'].includes(_extFicheiro(f)); }
 let _docxSeq = 0;
 
 async function _gerarMiniaturaFicheiro(f, box) {
@@ -9644,7 +9666,28 @@ async function _gerarMiniaturaFicheiro(f, box) {
     const pag = secs[0] || inner;
     pag.style.margin = '0'; pag.style.boxShadow = 'none';
     inner.style.transform = 'scale(' + (w / (pag.offsetWidth || 794)) + ')';
+  } else if (ext === 'pptx') {
+    const lib = await _libPptx();
+    const buf = await _pptxBuffer(f.url);
+    const inner = document.createElement('div');
+    inner.className = 'pptx-mini';
+    inner.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden;background:#fff';
+    box.innerHTML = ''; box.appendChild(inner);
+    const h = box.clientHeight || Math.round(w * 9 / 16);
+    await lib.init(inner, { width: w, height: h, mode: 'slide' }).preview(buf.slice(0));
   }
+}
+
+// Cartões das Apresentações com ficheiros carregados (Storage)
+function _gerarMiniaturasApres() {
+  document.querySelectorAll('.apres-fthumb:not([data-ok])').forEach(box => {
+    box.setAttribute('data-ok', '1');
+    const url = box.getAttribute('data-url');
+    const ext = (url.split(/[?#]/)[0].split('.').pop() || '').toLowerCase();
+    _gerarMiniaturaFicheiro({ url, nome: 'f.' + ext, tipo: ext }, box).catch(() => {
+      box.innerHTML = `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--gray400)"><span style="font-size:34px">${getFicheiroIcon('f.' + ext)}</span><span style="font-size:11px">Pré-visualização indisponível</span></div>`;
+    });
+  });
 }
 
 function _gerarMiniaturasFicheiros(area) {
@@ -9676,6 +9719,7 @@ async function abrirFicheiroViewer(area, idx) {
     <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border)">
       <span style="font-size:20px">${getFicheiroIcon(f.nome)}</span>
       <div style="flex:1;min-width:0;font-size:13.5px;font-weight:600;color:var(--gn);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.nome}</div>
+      ${sgiPodeApresentar(f.url) ? `<button class="btn btn-outline btn-sm" onclick="sgiApresentar(${_escAttr(JSON.stringify(f.url))},${_escAttr(JSON.stringify(f.nome || ''))})" title="Modo apresentação"><i class="fas fa-desktop"></i></button>` : ''}
       <a href="${f.url}" target="_blank" rel="noopener" download class="btn btn-outline btn-sm" title="Transferir"><i class="fas fa-download"></i></a>
       <button class="btn btn-outline btn-sm" onclick="fecharFicheiroViewer()" title="Fechar"><i class="fas fa-times"></i></button>
     </div>
@@ -9715,6 +9759,16 @@ async function abrirFicheiroViewer(area, idx) {
         const k = body.clientWidth / (sec.offsetWidth + 40);
         wrap.style.zoom = k;
       }
+    } else if (ext === 'pptx') {
+      const lib = await _libPptx();
+      const buf = await _pptxBuffer(f.url);
+      body.innerHTML = '';
+      const larg = Math.min(body.clientWidth - 28, 1000);
+      const cx = document.createElement('div');
+      cx.className = 'pptx-lista';
+      cx.style.cssText = 'margin:0 auto;width:' + larg + 'px;max-width:100%';
+      body.appendChild(cx);
+      await lib.init(cx, { width: larg, height: Math.round(larg * 9 / 16), mode: 'list' }).preview(buf.slice(0));
     } else {
       body.innerHTML = `<div style="text-align:center;padding:3rem 1rem;color:var(--gray600);font-size:13px">
         <div style="font-size:40px;margin-bottom:10px">${getFicheiroIcon(f.nome)}</div>
@@ -9755,6 +9809,7 @@ function _sgiDVShell(nome, dlHref, dlNome) {
     });
   }
   if (_sgiDV.blobUrl) { try { URL.revokeObjectURL(_sgiDV.blobUrl); } catch(e){} _sgiDV.blobUrl = null; }
+  _sgiDV.ap = null;
   const btn = 'class="btn btn-outline btn-sm" style="padding:6px 10px;min-width:34px;justify-content:center"';
   ov.style.display = 'flex';
   document.body.style.overflow = 'hidden';
@@ -9767,6 +9822,7 @@ function _sgiDVShell(nome, dlHref, dlNome) {
         <span id="sgi-dv-zoom" style="font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--gray600);min-width:44px;text-align:center">100%</span>
         <button ${btn} onclick="sgiZoomDoc(1.25)" title="Ampliar"><i class="fas fa-plus"></i></button>
         <button ${btn} onclick="sgiZoomDoc(0)" title="Ajustar à largura"><i class="fas fa-arrows-left-right"></i></button>
+        <button ${btn} onclick="sgiApresentarAtual()" title="Modo apresentação"><i class="fas fa-desktop"></i></button>
         ${dlHref ? `<a ${btn} href="${dlHref}" ${dlNome ? `download="${_escAttr(dlNome)}"` : 'download'} target="_blank" rel="noopener" title="Transferir"><i class="fas fa-download"></i></a>` : ''}
         <button ${btn} onclick="sgiFecharDocumento()" title="Fechar"><i class="fas fa-times"></i></button>
       </div>
@@ -9804,6 +9860,7 @@ async function sgiAbrirPDF(src, nome, dlHref, dlNome) {
   const body = _sgiDVShell(nome, dlHref, dlNome);
   const seq = ++_sgiDV.seq;
   _sgiDV.iframe = false; _sgiDV.zoom = 1;
+  _sgiDV.ap = { src: typeof src === 'string' ? src : dlHref, nome };
   try {
     const pdfjs = await _libPdf();
     const params = (typeof src === 'string') ? { url: src } : { data: (src instanceof Uint8Array ? src : new Uint8Array(src)) };
@@ -9949,21 +10006,212 @@ function sgiAbrirPreviewIframe(url, nome) {
   _sgiDV.seq++; _sgiDV.pdf = null; _sgiDV.iframe = true; _sgiDV.zoom = 1;
   body.style.padding = '0';
   body.innerHTML = `<div id="sgi-dv-iframe-wrap" style="width:100%;height:100%;transform-origin:0 0"><iframe id="sgi-dv-iframe" src="${getEmbedUrl(url)}" style="width:100%;height:calc(100% - 4px);border:none;display:block;background:#fff" allowfullscreen></iframe></div>`;
+  _sgiDV.ap = { src: url, nome };
+}
+
+// ===== MODO APRESENTAÇÃO (ecrã inteiro, um diapositivo/página de cada vez) =====
+// PPTX → pptx-preview; PDF → pdf.js; DOCX → docx-preview (uma página por ecrã);
+// Google Slides → modo de apresentação da Google; restantes ficheiros Drive/Docs → pré-visualização em ecrã inteiro.
+// Navegação: ← → / espaço / PgUp PgDn / Home End, deslizar no telemóvel, botões na barra inferior; Esc para sair.
+const _sgiAP = { seq: 0, i: 0, n: 0, show: null, pdf: null };
+function sgiPodeApresentar(url) {
+  if (!url) return false;
+  return /\.(pptx|pdf|docx)(\?|#|$)/i.test(url) || sgiEhPDFDireto(url) || url.startsWith('blob:')
+    || /drive\.google\.com\/(file|open)|docs\.google\.com\/(document|presentation|spreadsheets)/.test(url);
+}
+function sgiBotaoApresentar(url, nome, estilo) {
+  if (!sgiPodeApresentar(url)) return '';
+  return `<button type="button" onclick="event.preventDefault();event.stopPropagation();sgiApresentar(${_escAttr(JSON.stringify(url))},${_escAttr(JSON.stringify(nome || ''))})" title="Modo apresentação" style="${estilo || 'background:none;border:none;color:var(--gl);font-size:13px;cursor:pointer;flex-shrink:0;padding:2px'}"><i class="fas fa-desktop"></i></button>`;
+}
+function sgiApresentarAtual() { if (_sgiDV.ap) sgiApresentar(_sgiDV.ap.src, _sgiDV.ap.nome); }
+function _sgiAPShell(nome) {
+  let ov = document.getElementById('sgi-apresentacao');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'sgi-apresentacao';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2000;background:#000;display:none;flex-direction:column;user-select:none';
+    document.body.appendChild(ov);
+    document.addEventListener('keydown', e => {
+      const v = document.getElementById('sgi-apresentacao');
+      if (!v || v.style.display === 'none') return;
+      if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); sgiSairApresentacao(); }
+      else if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); sgiAPIr(1); }
+      else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); sgiAPIr(-1); }
+      else if (e.key === 'Home') { e.preventDefault(); sgiAPIr(-Infinity); }
+      else if (e.key === 'End') { e.preventDefault(); sgiAPIr(Infinity); }
+    }, true);
+    document.addEventListener('fullscreenchange', () => {
+      const v = document.getElementById('sgi-apresentacao');
+      if (!document.fullscreenElement && v && v.style.display !== 'none') sgiSairApresentacao();
+    });
+    window.addEventListener('resize', () => {
+      const v = document.getElementById('sgi-apresentacao');
+      if (v && v.style.display !== 'none' && _sgiAP.show) { clearTimeout(_sgiAP.rt); _sgiAP.rt = setTimeout(() => _sgiAP.show && _sgiAP.show(_sgiAP.i), 150); }
+    });
+  }
+  const b = 'style="background:rgba(255,255,255,.12);border:none;color:#fff;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:14px"';
+  ov.innerHTML = `<div id="sgi-ap-palco" style="flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;touch-action:pan-y">
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#ccc"><span class="spinner"></span> A preparar apresentação...</div>
+    </div>
+    <div id="sgi-ap-barra" style="display:flex;align-items:center;gap:8px;padding:6px 12px calc(6px + env(safe-area-inset-bottom,0px));background:rgba(20,20,20,.92);color:#ddd;font-size:12.5px">
+      <div style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escHtml(nome || 'Apresentação')}</div>
+      <button ${b} id="sgi-ap-ant" onclick="sgiAPIr(-1)" title="Anterior (←)"><i class="fas fa-chevron-left"></i></button>
+      <span id="sgi-ap-pos" style="min-width:60px;text-align:center;font-family:'IBM Plex Mono',monospace"></span>
+      <button ${b} id="sgi-ap-seg" onclick="sgiAPIr(1)" title="Seguinte (→)"><i class="fas fa-chevron-right"></i></button>
+      <button ${b} onclick="sgiSairApresentacao()" title="Sair (Esc)"><i class="fas fa-times"></i></button>
+    </div>`;
+  ov.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  if (ov.requestFullscreen && !document.fullscreenElement) ov.requestFullscreen().catch(() => {});
+  const palco = document.getElementById('sgi-ap-palco');
+  let x0 = null;
+  palco.addEventListener('touchstart', e => { x0 = e.touches.length === 1 ? e.touches[0].clientX : null; }, { passive: true });
+  palco.addEventListener('touchend', e => {
+    if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null;
+    if (Math.abs(dx) > 50) sgiAPIr(dx < 0 ? 1 : -1);
+  }, { passive: true });
+  palco.addEventListener('click', e => { if (_sgiAP.show && !e.target.closest('a,button')) sgiAPIr(e.clientX > palco.clientWidth / 3 ? 1 : -1); });
+  return palco;
+}
+function _sgiAPNav(visivel) {
+  ['sgi-ap-ant', 'sgi-ap-seg', 'sgi-ap-pos'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = visivel ? '' : 'none'; });
+}
+function sgiAPIr(d) {
+  if (!_sgiAP.show || !_sgiAP.n) return;
+  const i = Math.max(0, Math.min(_sgiAP.n - 1, d === -Infinity ? 0 : d === Infinity ? _sgiAP.n - 1 : _sgiAP.i + d));
+  if (i !== _sgiAP.i) _sgiAP.show(i);
+}
+function _sgiAPPos() { const el = document.getElementById('sgi-ap-pos'); if (el) el.textContent = (_sgiAP.i + 1) + ' / ' + _sgiAP.n; }
+function sgiSairApresentacao() {
+  const ov = document.getElementById('sgi-apresentacao');
+  if (ov) { ov.style.display = 'none'; ov.innerHTML = ''; }
+  if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+  if (_sgiAP.pdf) { try { _sgiAP.pdf.destroy(); } catch (e) {} }
+  _sgiAP.pdf = null; _sgiAP.show = null; _sgiAP.n = 0; _sgiAP.seq++;
+  const aberto = ['sgi-doc-viewer', 'ficheiro-viewer'].some(id => { const v = document.getElementById(id); return v && v.style.display !== 'none' && v.innerHTML; });
+  if (!aberto) document.body.style.overflow = '';
+}
+async function sgiApresentar(url, nome) {
+  if (!url) return;
+  const palco = _sgiAPShell(nome);
+  const seq = ++_sgiAP.seq;
+  _sgiAP.i = 0; _sgiAP.n = 0; _sgiAP.show = null;
+  _sgiAPNav(false);
+  const ext = (url.split(/[?#]/)[0].split('.').pop() || '').toLowerCase();
+  const erro = msg => {
+    if (seq !== _sgiAP.seq) return;
+    palco.innerHTML = `<div style="text-align:center;color:#ccc;font-size:13px;padding:2rem">${msg || 'Não foi possível apresentar este documento.'}<br><br><a href="${url}" target="_blank" rel="noopener" download class="btn btn-primary btn-sm"><i class="fas fa-download"></i> Transferir</a></div>`;
+  };
+  try {
+    // Google Slides: modo de apresentação da própria Google
+    const gs = url.match(/docs\.google\.com\/presentation\/d\/([^/?#]+)/);
+    if (gs || /drive\.google\.com|docs\.google\.com/.test(url)) {
+      const src = gs ? `https://docs.google.com/presentation/d/${gs[1]}/embed?start=false&loop=false&delayms=3000&rm=minimal` : getEmbedUrl(url);
+      palco.innerHTML = `<iframe src="${src}" style="width:100%;height:100%;border:none;background:#000" allowfullscreen allow="fullscreen"></iframe>`;
+      return;
+    }
+    if (ext === 'pptx') {
+      const lib = await _libPptx();
+      const buf = await _pptxBuffer(url);
+      if (seq !== _sgiAP.seq) return;
+      let pv = null;
+      _sgiAP.show = i => {
+        // tamanho 16:9 ajustado ao ecrã
+        const W = palco.clientWidth, H = palco.clientHeight;
+        const w = Math.floor(Math.min(W, H * 16 / 9)), h = Math.floor(w * 9 / 16);
+        if (!pv || pv._w !== w) {
+          palco.innerHTML = '';
+          const cx = document.createElement('div'); cx.className = 'pptx-mini';
+          cx.style.cssText = `width:${w}px;height:${h}px;position:relative;overflow:hidden;pointer-events:none`;
+          palco.appendChild(cx);
+          pv = lib.init(cx, { width: w, height: h, mode: 'slide' }); pv._w = w;
+          return pv.preview(buf.slice(0)).then(() => { _sgiAP.n = pv.slideCount; _sgiAPNav(true); _sgiAP.i = 0; if (i) _sgiAP.show(i); else _sgiAPPos(); });
+        }
+        pv.removeCurrentSlide(); pv.renderSingleSlide(i); pv.currentIndex = i;
+        _sgiAP.i = i; _sgiAPPos();
+      };
+      await _sgiAP.show(0);
+      return;
+    }
+    if (ext === 'pdf' || sgiEhPDFDireto(url) || url.startsWith('blob:')) {
+      const pdfjs = await _libPdf();
+      const pdf = await pdfjs.getDocument({ url }).promise;
+      if (seq !== _sgiAP.seq) { pdf.destroy(); return; }
+      _sgiAP.pdf = pdf; _sgiAP.n = pdf.numPages; _sgiAPNav(true);
+      let render = 0;
+      _sgiAP.show = async i => {
+        _sgiAP.i = i; _sgiAPPos();
+        const my = ++render;
+        const page = await pdf.getPage(i + 1);
+        if (my !== render || seq !== _sgiAP.seq) return;
+        const vp1 = page.getViewport({ scale: 1 });
+        const k = Math.min(palco.clientWidth / vp1.width, palco.clientHeight / vp1.height);
+        const dpr = window.devicePixelRatio || 1;
+        const vp = page.getViewport({ scale: k * dpr });
+        const cv = document.createElement('canvas');
+        cv.width = vp.width; cv.height = vp.height;
+        cv.style.cssText = `width:${Math.floor(vp1.width * k)}px;height:${Math.floor(vp1.height * k)}px;background:#fff;display:block`;
+        await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+        if (my !== render || seq !== _sgiAP.seq) return;
+        palco.innerHTML = ''; palco.appendChild(cv);
+      };
+      await _sgiAP.show(0);
+      return;
+    }
+    if (ext === 'docx') {
+      const docx = await _libDocx();
+      const buf = await (await fetch(url)).arrayBuffer();
+      if (seq !== _sgiAP.seq) return;
+      const inner = document.createElement('div');
+      inner.style.cssText = 'position:absolute;left:0;top:0;transform-origin:0 0;visibility:hidden';
+      palco.innerHTML = ''; palco.appendChild(inner);
+      await docx.renderAsync(buf, inner, null, { className: 'dxap' + (++_docxSeq), inWrapper: false, ignoreLastRenderedPageBreak: false });
+      const secs = [...inner.querySelectorAll('section')];
+      if (!secs.length) return erro();
+      secs.forEach(s => { s.style.margin = '0'; s.style.boxShadow = 'none'; });
+      _sgiAP.n = secs.length; _sgiAPNav(true);
+      _sgiAP.show = i => {
+        secs.forEach((s, j) => { s.style.display = j === i ? '' : 'none'; });
+        const s = secs[i];
+        const k = Math.min(palco.clientWidth / (s.offsetWidth || 794), palco.clientHeight / (s.offsetHeight || 1123));
+        inner.style.transform = `translate(${(palco.clientWidth - s.offsetWidth * k) / 2}px,${(palco.clientHeight - s.offsetHeight * k) / 2}px) scale(${k})`;
+        inner.style.visibility = 'visible';
+        _sgiAP.i = i; _sgiAPPos();
+      };
+      _sgiAP.show(0);
+      return;
+    }
+    erro(`Este tipo de ficheiro (.${_escHtml(ext)}) não pode ser apresentado na aplicação.`);
+  } catch (e) {
+    console.warn('sgiApresentar', e);
+    erro();
+  }
 }
 
 // PDF / documento a partir de um URL: decide como abrir dentro da app
 function sgiEhPDFDireto(url) {
   return !!url && (/\.pdf(\?|#|$)/i.test(url) || (url.includes('supabase.co/storage') && !/\.(docx?|xlsx?|pptx?|png|jpe?g|gif|webp|mp4|mov)(\?|#|$)/i.test(url)));
 }
+// Ficheiros PPTX/DOCX carregados no Storage: abrem no visualizador da app (sem transferir)
+function sgiEhFicheiroStorageVisivel(url) {
+  return !!url && url.includes('supabase.co/storage') && /\.(pptx|docx)(\?|#|$)/i.test(url);
+}
+function sgiAbrirFicheiroUrl(url, nome) {
+  const ext = ((url || '').split(/[?#]/)[0].split('.').pop() || '').toLowerCase();
+  const n = nome || 'Documento';
+  _ficheirosCache._url = [{ url, nome: n.toLowerCase().endsWith('.' + ext) ? n : n + '.' + ext, tipo: ext }];
+  abrirFicheiroViewer('_url', 0);
+}
 function sgiAbrirDocumento(url, nome) {
   if (!url) return;
   if (sgiEhPDFDireto(url)) return sgiAbrirPDF(url, nome || 'Documento', url, null);
+  if (sgiEhFicheiroStorageVisivel(url)) return sgiAbrirFicheiroUrl(url, nome);
   if (/drive\.google\.com|docs\.google\.com/.test(url)) return sgiAbrirPreviewIframe(url, nome || 'Documento');
   window.open(url, '_blank', 'noopener');
 }
 // Links clicáveis que devem abrir dentro da app
 function sgiAbreNaApp(url) {
-  return sgiEhPDFDireto(url) || /drive\.google\.com\/(file|open)|docs\.google\.com\/(document|presentation|spreadsheets)/.test(url || '');
+  return sgiEhPDFDireto(url) || sgiEhFicheiroStorageVisivel(url) || /drive\.google\.com\/(file|open)|docs\.google\.com\/(document|presentation|spreadsheets)/.test(url || '');
 }
 function sgiLinkAttrs(url, nome) {
   if (!sgiAbreNaApp(url)) return `href="${url}" target="_blank" rel="noopener"`;
@@ -10014,6 +10262,7 @@ async function loadFicheirosArea(area) {
               ${f.descricao ? `<div style="font-size:12px;color:var(--gray600);margin-top:2px">${f.descricao}</div>` : ''}
               <div style="font-size:11px;color:var(--gray400);margin-top:2px">${f.autor_nome || '—'} · ${new Date(f.created_at).toLocaleDateString('pt-PT')}${f.tamanho ? ' · ' + formatBytes(f.tamanho) : ''}</div>
             </div>
+            ${sgiBotaoApresentar(f.url, f.nome)}
             <a href="${f.url}" target="_blank" rel="noopener" download title="Transferir" style="color:var(--gl);font-size:13px;text-decoration:none;flex-shrink:0;padding:2px"><i class="fas fa-download"></i></a>
             ${isAdmin ? `<button type="button" onclick="toggleFicheiroVis('${f.id}','${area}',${f.publicado === false ? 'false' : 'true'})" title="${f.publicado === false ? 'Tornar visível aos formandos' : 'Ocultar dos formandos'}" style="background:none;border:none;font-size:13px;cursor:pointer;flex-shrink:0;padding:2px">${f.publicado === false ? _fa('fa-eye-slash','var(--gray400)') : _fa('fa-eye','var(--gl)')}</button>` : ''}
             ${isAdmin ? `<button type="button" onclick="abrirEditarFicheiro('${area}',${i})" title="Editar (nome, descrição, pasta)" style="background:none;border:none;color:var(--gm);font-size:13px;cursor:pointer;flex-shrink:0;padding:2px"><i class="fas fa-pen"></i></button>` : ''}
