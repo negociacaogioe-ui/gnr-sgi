@@ -7329,13 +7329,15 @@ function renderLinksView(links, area) {
         ? `<span style="font-size:10px;background:var(--amber,#b45309);color:#fff;padding:1px 7px;border-radius:10px;margin-left:6px">OCULTO</span>` : '';
       const _dl = urlTransferir(l.url);
       const _nome = l.label || 'Apresentação';
+      // Clicar no cartão abre logo o modo de apresentação (ecrã inteiro)
+      const _ap = sgiPodeApresentar(l.url) ? `href="${l.url}" onclick="event.preventDefault();sgiApresentar(${_escAttr(JSON.stringify(l.url))},${_escAttr(JSON.stringify(_nome))})"` : sgiLinkAttrs(l.url, _nome);
       return `<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;transition:border-color .15s,box-shadow .15s" onmouseover="this.style.borderColor='var(--gl)';this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
-        <a ${sgiLinkAttrs(l.url, _nome)} title="Abrir ${_escAttr(_nome)}" style="display:block;aspect-ratio:16/9;background:var(--gray100);position:relative;overflow:hidden">
+        <a ${_ap} title="Abrir ${_escAttr(_nome)}" style="display:block;aspect-ratio:16/9;background:var(--gray100);position:relative;overflow:hidden">
           ${_up ? `<div class="apres-fthumb" data-url="${_escAttr(l.url)}" style="position:absolute;inset:0;overflow:hidden;background:#fff"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--gray400)"><span class="spinner"></span></div></div>` : `<img src="https://drive.google.com/thumbnail?id=${encodeURIComponent(_id)}&sz=w640" alt="${_escAttr(_nome)}" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
           <div style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--gray400)"><i class="fas fa-file-powerpoint" style="font-size:34px;color:#d24726"></i><span style="font-size:11px">Pré-visualização indisponível</span></div>`}
         </a>
         <div style="display:flex;align-items:flex-start;gap:6px;padding:8px 10px">
-          <a ${sgiLinkAttrs(l.url, _nome)} style="flex:1;min-width:0;font-size:12.5px;font-weight:500;color:var(--gn);text-decoration:none;line-height:1.35">${_nome}${_oc}</a>
+          <a ${_ap} style="flex:1;min-width:0;font-size:12.5px;font-weight:500;color:var(--gn);text-decoration:none;line-height:1.35">${_nome}${_oc}</a>
           ${sgiBotaoApresentar(l.url, _nome, 'background:none;border:none;color:var(--gl);font-size:13px;cursor:pointer;flex-shrink:0;padding:0')}
           ${_dl ? `<a href="${_dl}" target="_blank" rel="noopener" download title="Transferir" style="color:var(--gl);font-size:13px;text-decoration:none;flex-shrink:0"><i class="fas fa-download"></i></a>` : ''}
         </div>
@@ -10020,7 +10022,8 @@ const _sgiAP = { seq: 0, i: 0, n: 0, show: null, pdf: null };
 // Lê um ficheiro da Drive (público «qualquer pessoa com o link») pela Drive API; Docs/Sheets nativos são exportados em PDF
 async function _driveBytes(id, exportarPdf) {
   const u = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}` + (exportarPdf ? '/export?mimeType=application%2Fpdf&' : '?alt=media&') + 'key=' + encodeURIComponent(DRIVE_API_KEY);
-  const r = await fetch(u);
+  let r = await fetch(u).catch(() => null);
+  if (!r || !r.ok) { await new Promise(res => setTimeout(res, 1200)); r = await fetch(u); } // 2.ª tentativa (falhas temporárias da Drive)
   if (!r.ok) throw new Error('Drive API HTTP ' + r.status);
   return r.arrayBuffer();
 }
