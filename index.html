@@ -1416,8 +1416,10 @@ async function enterApp(){
     }
   }
 
-  if(isOperacional){ showSection('dashboard'); }
-  else { showSection('formacao'); }
+  if(!(await _sgiNavRepor(isOperacional))){
+    if(isOperacional){ showSection('dashboard'); }
+    else { showSection('formacao'); }
+  }
   
   // Setup realtime for live notifications
   setupLiveNotifSubscription();
@@ -1594,6 +1596,29 @@ function setupRealtimeSync() {
 }
 
 // ===== NAVIGATION =====
+// Lembra a página aberta (por separador do browser) para a repor ao atualizar a página
+function _sgiNavGuardar(st){ try{ if(st) sessionStorage.setItem('sgi_nav', JSON.stringify(st)); }catch(e){} }
+async function _sgiNavRepor(isOperacional){
+  let st=null; try{ st=JSON.parse(sessionStorage.getItem('sgi_nav')||'null'); }catch(e){}
+  if(!st||!st.s) return false;
+  const soFormacao=['formacao','formacao-area','formacao-admin','avaliacao'].includes(st.s);
+  if(!isOperacional && !soFormacao) return false;
+  if(st.s==='admin' && currentProfile?.role!=='admin') return false;
+  try{
+    if(st.s==='detail'){
+      if(!st.id) return false;
+      const { data:_ex }=await sb.from('incidentes').select('id').eq('id',st.id).maybeSingle();
+      if(!_ex) return false; // caso apagado ou sem acesso: volta à página inicial
+      await openRecord('inc', st.id); return true;
+    }
+    if(st.s==='formacao-area'){ showSection('formacao'); await loadFormacao(); await openFormacaoArea(st.area); return true; }
+    if(st.s==='formacao-admin'){ showSection('formacao'); await loadFormacao(); await openFormacaoAdmin(st.area); return true; }
+    if(st.s==='avaliacao'){ showSection('formacao'); await abrirAvaliacao(st.tab); return true; }
+    if(!document.getElementById('section-'+st.s)) return false;
+    showSection(st.s); return true;
+  }catch(e){ console.warn('_sgiNavRepor', e); return false; }
+}
+
 function showPage(p){
   ['login','register','app'].forEach(x=>document.getElementById('page-'+x).classList.add('hidden'));
   document.getElementById('page-'+p).classList.remove('hidden');
@@ -1607,6 +1632,7 @@ function showSection(s){
   });
   document.getElementById('section-'+s).classList.remove('hidden');
   const nb=document.getElementById('nav-'+s);if(nb)nb.classList.add('active');
+  if(s==='detail'){ const cd=window.currentDetail; if(cd&&cd.record&&!cd.isTreino) _sgiNavGuardar({s:'detail',id:cd.record.id}); } else _sgiNavGuardar({s});
   if(s==='incidentes'){renderDashboard();renderTableIncidentes();}
   if(s==='itp')renderTableITP();
   if(s==='admin')renderAdmin();
@@ -6236,6 +6262,7 @@ function voltarExercicios() {
 }
 
 async function openFormacaoAdmin(area) {
+  _sgiNavGuardar({s:'formacao-admin', area});
   if (area === 'exercicios_admin') {
     ['dashboard','incidentes','itp','formacao','formacao-detalhe','admin'].forEach(x => {
       const el = document.getElementById('section-' + x);
@@ -6444,6 +6471,7 @@ async function avCarregar(){
 async function abrirAvaliacao(tab){
   await avCarregarAcesso();
   if(!avTemAcesso()){ alert('Sem acesso à Avaliação de Formandos.'); return; }
+  _sgiNavGuardar({s:'avaliacao', tab: tab || null});
   ['dashboard','incidentes','itp','formacao','formacao-detalhe','admin'].forEach(x=>{ const el=document.getElementById('section-'+x); if(el) el.classList.add('hidden'); });
   document.getElementById('section-formacao-detalhe').classList.remove('hidden');
   if(tab) _av.tab = tab;
@@ -7017,6 +7045,7 @@ async function apagarPastaFormacao(area) {
 }
 
 async function openFormacaoArea(area) {
+  _sgiNavGuardar({s:'formacao-area', area});
   const d = formacaoData[area] || { area, titulo: 'Pasta', conteudo: '', links: [] };
   const info = FORMACAO_AREAS.find(a => a.area === area)
     || { area, titulo: d.titulo || 'Pasta', desc: 'Pasta temática', icon: _fa('fa-folder','#3c5a78'), color: '#EEF2F7', accent: '#3c5a78' };
