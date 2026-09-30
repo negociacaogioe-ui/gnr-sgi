@@ -7451,6 +7451,11 @@ function getEmbedUrl(url) {
   if (url.includes('drive.google.com/file/d/')) {
     return url.replace(/\/(view|edit).*$/, '/preview');
   }
+  // Google Drive: pastas não podem ser incorporadas pelo URL normal — usar embeddedfolderview
+  const _mPasta = url.match(/drive\.google\.com\/drive\/(?:u\/\d+\/)?folders\/([^/?#]+)/);
+  if (_mPasta) {
+    return `https://drive.google.com/embeddedfolderview?id=${_mPasta[1]}#grid`;
+  }
   // Google Docs/Slides/Sheets
   if (url.includes('docs.google.com')) {
     return url.replace(/\/(edit|view).*$/, '/preview');
