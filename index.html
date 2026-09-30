@@ -1038,6 +1038,9 @@ body.is-mobile .filter-bar input,body.is-mobile .filter-bar select{flex:1 1 45%;
 
 <script>
 const SURL='https://crbyrnjbxuemdzqelhbs.supabase.co';
+// Chave da Google Drive API (Google Cloud Console → Credenciais; restringir ao referenciador negociacaogioe-ui.github.io/* e à Drive API).
+// Permite ao modo de apresentação ler PDF/PPTX guardados na Drive e mostrá-los um diapositivo de cada vez. Vazia = pré-visualização da Google.
+const DRIVE_API_KEY='';
 const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNyYnlybmpieHVlbWR6cWVsaGJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MzgzNzEsImV4cCI6MjA5MjAxNDM3MX0.o-r98TbzkHWPX7gpHVzVXqKsIQgJOQgECMNVCLSjFCE';
 const {createClient}=supabase;
 let allCasos=[];
@@ -10014,6 +10017,20 @@ function sgiAbrirPreviewIframe(url, nome) {
 // Google Slides → modo de apresentação da Google; restantes ficheiros Drive/Docs → pré-visualização em ecrã inteiro.
 // Navegação: ← → / espaço / PgUp PgDn / Home End, deslizar no telemóvel, botões na barra inferior; Esc para sair.
 const _sgiAP = { seq: 0, i: 0, n: 0, show: null, pdf: null };
+// Lê um ficheiro da Drive (público «qualquer pessoa com o link») pela Drive API; Docs/Sheets nativos são exportados em PDF
+async function _driveBytes(id, exportarPdf) {
+  const u = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}` + (exportarPdf ? '/export?mimeType=application%2Fpdf&' : '?alt=media&') + 'key=' + encodeURIComponent(DRIVE_API_KEY);
+  const r = await fetch(u);
+  if (!r.ok) throw new Error('Drive API HTTP ' + r.status);
+  return r.arrayBuffer();
+}
+// Tipo real do conteúdo (os links da Drive não têm extensão)
+function _tipoBytes(buf) {
+  const u8 = new Uint8Array(buf);
+  if (u8[0] === 0x25 && u8[1] === 0x50 && u8[2] === 0x44 && u8[3] === 0x46) return 'pdf';
+  if (u8[0] === 0x50 && u8[1] === 0x4B) { const t = new TextDecoder('latin1').decode(u8); return t.includes('ppt/') ? 'pptx' : t.includes('word/') ? 'docx' : ''; }
+  return '';
+}
 function sgiPodeApresentar(url) {
   if (!url) return false;
   return /\.(pptx|pdf|docx)(\?|#|$)/i.test(url) || sgiEhPDFDireto(url) || url.startsWith('blob:')
@@ -10097,7 +10114,7 @@ async function sgiApresentar(url, nome) {
   const seq = ++_sgiAP.seq;
   _sgiAP.i = 0; _sgiAP.n = 0; _sgiAP.show = null;
   _sgiAPNav(false);
-  const ext = (url.split(/[?#]/)[0].split('.').pop() || '').toLowerCase();
+  let ext = (url.split(/[?#]/)[0].split('.').pop() || '').toLowerCase();
   const erro = msg => {
     if (seq !== _sgiAP.seq) return;
     palco.innerHTML = `<div style="text-align:center;color:#ccc;font-size:13px;padding:2rem">${msg || 'Não foi possível apresentar este documento.'}<br><br><a href="${url}" target="_blank" rel="noopener" download class="btn btn-primary btn-sm"><i class="fas fa-download"></i> Transferir</a></div>`;
@@ -10105,14 +10122,22 @@ async function sgiApresentar(url, nome) {
   try {
     // Google Slides: modo de apresentação da própria Google
     const gs = url.match(/docs\.google\.com\/presentation\/d\/([^/?#]+)/);
-    if (gs || /drive\.google\.com|docs\.google\.com/.test(url)) {
+    // Ficheiros da Drive (PDF/PPTX/DOCX) e Docs/Sheets: lidos pela Drive API e apresentados na app, um diapositivo/página por ecrã
+    let dados = null;
+    const did = !gs && DRIVE_API_KEY && /drive\.google\.com|docs\.google\.com/.test(url) ? _driveFileId(url) : null;
+    if (did) {
+      try { dados = await _driveBytes(did, /docs\.google\.com\/(document|spreadsheets)/.test(url)); ext = _tipoBytes(dados) || ext; if (!['pdf', 'pptx', 'docx'].includes(ext)) dados = null; }
+      catch (e) { console.warn('Drive API', e); dados = null; }
+      if (seq !== _sgiAP.seq) return;
+    }
+    if (!dados && (gs || /drive\.google\.com|docs\.google\.com/.test(url))) {
       const src = gs ? `https://docs.google.com/presentation/d/${gs[1]}/embed?start=false&loop=false&delayms=3000&rm=minimal` : getEmbedUrl(url);
       palco.innerHTML = `<iframe src="${src}" style="width:100%;height:100%;border:none;background:#000" allowfullscreen allow="fullscreen"></iframe>`;
       return;
     }
     if (ext === 'pptx') {
       const lib = await _libPptx();
-      const buf = await _pptxBuffer(url);
+      const buf = dados || await _pptxBuffer(url);
       if (seq !== _sgiAP.seq) return;
       let pv = null;
       _sgiAP.show = i => {
@@ -10135,7 +10160,7 @@ async function sgiApresentar(url, nome) {
     }
     if (ext === 'pdf' || sgiEhPDFDireto(url) || url.startsWith('blob:')) {
       const pdfjs = await _libPdf();
-      const pdf = await pdfjs.getDocument({ url }).promise;
+      const pdf = await pdfjs.getDocument(dados ? { data: new Uint8Array(dados) } : { url }).promise;
       if (seq !== _sgiAP.seq) { pdf.destroy(); return; }
       _sgiAP.pdf = pdf; _sgiAP.n = pdf.numPages; _sgiAPNav(true);
       let render = 0;
@@ -10160,7 +10185,7 @@ async function sgiApresentar(url, nome) {
     }
     if (ext === 'docx') {
       const docx = await _libDocx();
-      const buf = await (await fetch(url)).arrayBuffer();
+      const buf = dados || await (await fetch(url)).arrayBuffer();
       if (seq !== _sgiAP.seq) return;
       const inner = document.createElement('div');
       inner.style.cssText = 'position:absolute;left:0;top:0;transform-origin:0 0;visibility:hidden';
