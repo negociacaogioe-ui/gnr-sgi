@@ -1866,7 +1866,7 @@ const SGI_LABELS = {
   pn2:  {'pn2-prob':'Identificação do problema','pn2-sit':'Tipo de situação',
          'pn2-pos':'Posição do adversário','pn2-int':'Interesses do adversário',
          'pn2-align':'Alinhamento posição/interesses','pn2-obj':'Objetivo principal',
-         'pn2-obji':'Objetivos intermédios','pn2-tempo':'Tempo estimado','pn2-meios':'Meios a utilizar'},
+         'pn2-obji':'Objetivos intermédios'},
   pd2:  {'pd2-quadro_ref':'Quem — quadro de referência','pd2-local':'Onde — o local','pd2-solucoes':'Como — abordagem'}
 };
 
@@ -3394,9 +3394,6 @@ async function renderPN2(){
     +     '<textarea id="pn2-obji" style="display:none">' + _escHtml(v['objetivos_intermédios']||'') + '</textarea>'
     +     pn2ObjDatalists()
     +   '</div></div>'
-    + '<div class="form-section"><h3>5. Tempo e meios</h3><div class="form-grid">'
-    +   '<div class="field"><label>Tempo estimado</label>' + ta('pn2-tempo', v.tempo_estimado, 2) + '</div>'
-    +   '<div class="field"><label>Meios a utilizar</label>' + ta('pn2-meios', v.meios, 2) + '</div></div></div>'
     + sgiBarraHTML('pn2','Guardar PN');
   sgiAutosaveLigar('pn2');
   pn2ObjCarregar();
@@ -3505,7 +3502,6 @@ async function savePN2(){
     identificacao_problema:get('pn2-prob'), tipo_situacao:get('pn2-sit')||null,
     posicao_adversario:get('pn2-pos'), interesses_adversario:get('pn2-int'), alinhamento:get('pn2-align')||null,
     objetivo_principal:get('pn2-obj'), 'objetivos_intermédios':get('pn2-obji'),
-    tempo_estimado:get('pn2-tempo'), meios:get('pn2-meios'),
     autor_id:currentUser.id, autor_nome:currentProfile.nome
   };
   const pn = await _pnAtualizar(() => patch);
