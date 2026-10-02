@@ -3159,10 +3159,10 @@ function renderPosto(){
     renderQuadroCoordenador();
     return;
   }
-  if(!_postoEscolhido){ el.innerHTML = _seletorPostoHTML(); return; }
+  if(!_postoEscolhido){ el.innerHTML = _mob ? '' : _seletorPostoHTML(); return; }
   const f = enFuncoesAtuais();
   if(!f.length){
-    el.innerHTML = _seletorPostoHTML();
+    el.innerHTML = _mob ? '' : _seletorPostoHTML();
     return;
   }
   const eN1=f.indexOf('n1')>-1, eN2=f.indexOf('n2')>-1, eN3=f.indexOf('n3')>-1, eN4=f.indexOf('n4')>-1, eNC=f.indexOf('nc')>-1;
@@ -11961,8 +11961,6 @@ function mobRenderDetalhe() {
     </div>
 
     <div style="padding:.875rem">
-      <button class="btn btn-gold btn-relatorio" onclick="produzirRelatorio()" style="width:100%;margin-bottom:12px;justify-content:center"><i class="fas fa-file-contract"></i> Produzir relatório</button>
-
       <!-- Posição na EN (mobile) -->
       <div id="mob-posto-content" style="margin-bottom:12px"></div>
 
@@ -11977,57 +11975,6 @@ function mobRenderDetalhe() {
              <div id="mob-itp-confirmacao"></div>`
         }
       </div>
-      <!-- Info -->
-      <div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);margin-bottom:12px;overflow:hidden">
-        ${r.cter?`<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--gray100)"><i class="fas fa-building" style="color:var(--gl);width:18px"></i><span style="font-size:11px;font-weight:600;color:var(--gray600);width:80px">CTer</span><span style="font-size:13px">${r.cter}</span></div>`:''}
-        <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;${r.cter?'':''}border-bottom:1px solid var(--gray100)"><i class="fas fa-calendar" style="color:var(--gl);width:18px"></i><span style="font-size:11px;font-weight:600;color:var(--gray600);width:80px">Data/Hora</span><span style="font-size:13px">${fmtDateTime(r.data_hora)}</span></div>
-        ${r.negociador?`<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--gray100)"><i class="fas fa-headset" style="color:var(--gl);width:18px"></i><span style="font-size:11px;font-weight:600;color:var(--gray600);width:80px">Negociador</span><span style="font-size:13px">${r.negociador}</span></div>`:''}
-        ${r.descricao?`<div style="padding:11px 14px"><i class="fas fa-align-left" style="color:var(--gl)"></i> <span style="font-size:12px;color:var(--gray600)">${r.descricao}</span></div>`:''}
-      </div>
-
-      <!-- Contactos -->
-      <div style="font-size:11px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px"><i class="fas fa-address-book" style="color:var(--gl)"></i> Contactos</div>
-
-      <!-- Vítima -->
-      <div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px;margin-bottom:10px">
-        <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px"><i class="fas fa-user" style="color:var(--gm)"></i> Vítima</div>
-        <div id="mob-vitima-display">
-          ${_nomeContactoHTML(nv,'var(--gn)')}
-          ${cv?`<a href="tel:${cv}" style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--gp);border-radius:var(--r);text-decoration:none;color:var(--gn);font-size:16px;font-weight:600;font-family:'IBM Plex Mono',monospace;margin-bottom:8px"><i class="fas fa-phone" style="color:var(--gm)"></i>${cv}</a>
-          <a href="tel:${cv.replace(/\s/g,'')}" style="width:100%;padding:13px;background:var(--gm);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px;text-decoration:none"><i class="fas fa-phone-alt"></i> Ligar</a>`
-          :`<div style="font-size:13px;color:var(--gray400);font-style:italic;padding:4px 0 8px">Não registado</div>`}
-        </div>
-        <div id="mob-vitima-edit" style="display:none">
-          <input type="text" id="mob-vn-input" placeholder="Nome da vítima..." style="margin-bottom:8px;font-size:16px;padding:12px">
-          <input type="tel" id="mob-v-input" placeholder="Nº telefone..." style="margin-bottom:8px;font-size:16px;padding:12px">
-          <div style="display:flex;gap:8px">
-            <button onclick="mobSaveContacto('vitima')" style="flex:1;padding:12px;background:var(--gm);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer"><i class="fas fa-check"></i> Guardar</button>
-            <button onclick="document.getElementById('mob-vitima-edit').style.display='none';document.getElementById('mob-vitima-display').style.display='block'" style="padding:12px 16px;background:var(--gray100);color:var(--gray900);border:none;border-radius:var(--r);font-size:14px;cursor:pointer"><i class="fas fa-times"></i></button>
-          </div>
-        </div>
-        <button onclick="document.getElementById('mob-vitima-display').style.display='none';document.getElementById('mob-vitima-edit').style.display='block';document.getElementById('mob-v-input').value='${cv}';document.getElementById('mob-vn-input').value=${_escHtml(JSON.stringify(nv))};document.getElementById('mob-vn-input').focus()" style="width:100%;padding:9px;background:none;border:1px dashed var(--border);border-radius:var(--r);font-size:12px;color:var(--gray600);cursor:pointer;margin-top:4px"><i class="fas fa-pencil-alt"></i> ${(cv||nv)?'Editar':'Adicionar contacto'}</button>
-      </div>
-
-      <!-- Agressor -->
-      <div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px;margin-bottom:16px">
-        <div style="font-size:10px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px"><i class="fas fa-user-slash" style="color:var(--red)"></i> Agressor</div>
-        <div id="mob-agressor-display">
-          ${_nomeContactoHTML(na,'var(--red)')}
-          ${ca?`<a href="tel:${ca}" style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--redl);border-radius:var(--r);text-decoration:none;color:var(--red);font-size:16px;font-weight:600;font-family:'IBM Plex Mono',monospace;margin-bottom:8px"><i class="fas fa-phone" style="color:var(--red)"></i>${ca}</a>
-          <a href="tel:${ca.replace(/\s/g,'')}" style="width:100%;padding:13px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px;text-decoration:none"><i class="fas fa-phone-alt"></i> Ligar</a>`
-          :`<div style="font-size:13px;color:var(--gray400);font-style:italic;padding:4px 0 8px">Não registado</div>`}
-        </div>
-        <div id="mob-agressor-edit" style="display:none">
-          <input type="text" id="mob-an-input" placeholder="Nome do agressor..." style="margin-bottom:8px;font-size:16px;padding:12px">
-          <input type="tel" id="mob-a-input" placeholder="Nº telefone..." style="margin-bottom:8px;font-size:16px;padding:12px">
-          <div style="display:flex;gap:8px">
-            <button onclick="mobSaveContacto('agressor')" style="flex:1;padding:12px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer"><i class="fas fa-check"></i> Guardar</button>
-            <button onclick="document.getElementById('mob-agressor-edit').style.display='none';document.getElementById('mob-agressor-display').style.display='block'" style="padding:12px 16px;background:var(--gray100);color:var(--gray900);border:none;border-radius:var(--r);font-size:14px;cursor:pointer"><i class="fas fa-times"></i></button>
-          </div>
-        </div>
-        <button onclick="document.getElementById('mob-agressor-display').style.display='none';document.getElementById('mob-agressor-edit').style.display='block';document.getElementById('mob-a-input').value='${ca}';document.getElementById('mob-an-input').value=${_escHtml(JSON.stringify(na))};document.getElementById('mob-an-input').focus()" style="width:100%;padding:9px;background:none;border:1px dashed var(--border);border-radius:var(--r);font-size:12px;color:var(--gray600);cursor:pointer;margin-top:4px"><i class="fas fa-pencil-alt"></i> ${(ca||na)?'Editar':'Adicionar contacto'}</button>
-      </div>
-
       <!-- Ações -->
       <!-- Equipa de Negociação (mobile) -->
       <div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);margin-bottom:16px;padding:14px">
@@ -12040,48 +11987,6 @@ function mobRenderDetalhe() {
         <div id="mob-en-acumulacao"></div>
         <button class="btn btn-primary" id="mob-en-save-btn" onclick="guardarEquipa()" style="width:100%;margin-top:10px;justify-content:center"><i class="fas fa-save"></i> Guardar Equipa</button>
       </div>
-
-      <div style="font-size:11px;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px"><i class="fas fa-bolt" style="color:var(--amber)"></i> Formulários Operacionais</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-        <button onclick="mobAbrirForm('iris')" style="padding:14px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif">
-          <i class="fas fa-heartbeat" style="font-size:24px;color:var(--red);display:block;margin-bottom:6px"></i>
-          <div style="font-size:13px;font-weight:600;color:var(--gn)">IRIS</div>
-          <div style="font-size:11px;color:var(--gray600)">Risco Suicídio</div>
-        </button>
-        <button onclick="mobAbrirForm('sari')" style="padding:14px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif">
-          <i class="fas fa-shield-alt" style="font-size:24px;color:var(--amber);display:block;margin-bottom:6px"></i>
-          <div style="font-size:13px;font-weight:600;color:var(--gn)">Risco e Cooperação</div>
-          <div style="font-size:11px;color:var(--gray600)">Avaliação Risco</div>
-        </button>
-        <button onclick="mobAbrirForm('plano')" style="padding:14px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif">
-          <i class="fas fa-clipboard-list" style="font-size:24px;color:var(--gl);display:block;margin-bottom:6px"></i>
-          <div style="font-size:13px;font-weight:600;color:var(--gn)">Plano</div>
-          <div style="font-size:11px;color:var(--gray600)">Negociação</div>
-        </button>
-        <button onclick="mobAbrirForm('pd')" style="padding:14px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif">
-          <i class="fas fa-comments" style="font-size:24px;color:var(--gold);display:block;margin-bottom:6px"></i>
-          <div style="font-size:13px;font-weight:600;color:var(--gn)">Plano</div>
-          <div style="font-size:11px;color:var(--gray600)">Diálogo</div>
-        </button>
-        <button onclick="mobAbrirForm('info')" style="padding:14px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif">
-          <i class="fas fa-info-circle" style="font-size:24px;color:var(--gl);display:block;margin-bottom:6px"></i>
-          <div style="font-size:13px;font-weight:600;color:var(--gn)">Informações</div>
-          <div style="font-size:11px;color:var(--gray600)">Registos do caso</div>
-        </button>
-        <button onclick="mobAbrirForm('rnrv')" style="padding:14px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif">
-          <i class="fas fa-phone-alt" style="font-size:24px;color:var(--gm);display:block;margin-bottom:6px"></i>
-          <div style="font-size:13px;font-weight:600;color:var(--gn)">Contactos</div>
-          <div style="font-size:11px;color:var(--gray600)">Registo RNRV</div>
-        </button>
-        <button onclick="mobAbrirForm('hist')" style="padding:14px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif;grid-column:span 2">
-          <i class="fas fa-history" style="font-size:24px;color:var(--gray600);display:block;margin-bottom:6px"></i>
-          <div style="font-size:13px;font-weight:600;color:var(--gn)">Histórico</div>
-          <div style="font-size:11px;color:var(--gray600)">Alterações ao caso</div>
-        </button>
-      </div>
-
-      <!-- Editar / Eliminar -->
-      <button onclick="mobAbrirEditar()" style="width:100%;padding:13px;background:#fff;border:1px solid var(--border);border-radius:var(--r);font-size:14px;color:var(--gray600);cursor:pointer;font-family:'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px"><i class="fas fa-pencil-alt"></i> Editar Registo</button>
     </div>`;
   // A EN usa currentDetail; sincroniza com o detalhe mobile antes de preencher
   try{ currentDetail = { type: mobDetail.type, record: mobDetail.record, isTreino: mobDetail.isTreino }; renderEquipaSelects(); }catch(e){ console.warn('EN mobile', e); }
