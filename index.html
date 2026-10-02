@@ -3357,11 +3357,7 @@ async function renderPN2(){
   let v = {};
   try { v = await _pn2Ler(); } catch(e){}
   const ta = (id, val, rows, ph) => '<textarea id="' + id + '" rows="' + rows + '" placeholder="' + (ph||'') + '">' + _escHtml(val||'') + '</textarea>';
-  el.innerHTML = '<div class="form-section">'
-    + '<h3><i class="fas fa-flask" style="color:var(--gl)"></i> Plano de Negociação — versão simplificada</h3>'
-    + '<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px;line-height:1.5">Decide <strong>o quê</strong> e <strong>o porquê</strong>. Grava nos mesmos dados do Plano de Negociação atual — serve só para comparar a apresentação.</p>'
-    + '<div id="pn2-alert" class="hidden" style="margin-bottom:.75rem"></div>'
-    + '</div>'
+  el.innerHTML = '<div id="pn2-alert" class="hidden" style="margin-bottom:.75rem"></div>'
     + '<div class="form-section"><h3>1. Problemas e objetivos intermédios</h3>'
     +   '<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px;line-height:1.5">Para cada problema — <strong>pessoal</strong> (o da pessoa) ou <strong>operacional</strong> (o que nos impede de resolver o incidente) — defina os objetivos intermédios, a modalidade de ação e o tempo aproximado. Pode escolher das listas ou escrever outra opção.</p>'
     +   '<div id="pn2-prob-lista"></div>'
