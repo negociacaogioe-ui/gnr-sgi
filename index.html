@@ -3350,27 +3350,16 @@ async function _pn2Ler(){
   const { data } = await sb.from('plano_negociacao').select('*').eq('parent_type',pt).eq('parent_id',currentDetail.record.id).maybeSingle();
   return data || {};
 }
-async function _pn2ResumoCaso(){
-  const r = currentDetail.record, partes = [];
-  if(r.descricao) partes.push(r.descricao);
-  const iris = await _pxIris(); if(iris) partes.push(iris);
-  QUADROS_CAB.forEach(h => { const t = _pxQuadro(h.k); if(t) partes.push(h.t.toUpperCase() + ':\n' + t); });
-  const vis = _pxVisado(); if(vis) partes.push('VISADO:\n' + vis);
-  return partes.join('\n\n');
-}
 async function renderPN2(){
   const el = document.getElementById('pn2-content');
   if(!el || !currentDetail) return;
   el.innerHTML = '<p style="color:var(--gray400);font-size:13px;padding:1rem">A carregar...</p>';
-  let v = {}, resumo = '';
+  let v = {};
   try { v = await _pn2Ler(); } catch(e){}
-  try { resumo = await _pn2ResumoCaso(); } catch(e){}
   const ta = (id, val, rows, ph) => '<textarea id="' + id + '" rows="' + rows + '" placeholder="' + (ph||'') + '">' + _escHtml(val||'') + '</textarea>';
   el.innerHTML = '<div class="form-section">'
     + '<h3><i class="fas fa-flask" style="color:var(--gl)"></i> Plano de Negociação — versão simplificada</h3>'
     + '<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px;line-height:1.5">Decide <strong>o quê</strong> e <strong>o porquê</strong>. Grava nos mesmos dados do Plano de Negociação atual — serve só para comparar a apresentação.</p>'
-    + '<details style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:9px 12px;margin-bottom:12px"><summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--gm)"><i class="fas fa-eye" style="margin-right:5px"></i>Resumo do caso (automático, só leitura)</summary>'
-    + '<div style="margin-top:8px">' + (resumo ? _txtRO(resumo) : '<span style="font-size:12px;color:var(--gray400);font-style:italic">Ainda sem informação registada.</span>') + '</div></details>'
     + '<div id="pn2-alert" class="hidden" style="margin-bottom:.75rem"></div>'
     + '</div>'
     + '<div class="form-section"><h3>1. Problemas e objetivos intermédios</h3>'
@@ -3404,8 +3393,8 @@ async function renderPN2(){
 }
 // ---- PN simplificado: problemas (pessoais / operacionais) e objetivos intermédios ----
 // Grava nos mesmos campos de texto do PN (sem SQL), legíveis no PN atual e no relatório:
-//   identificacao_problema:  P1 [Operacional] Não conseguimos entrar porque ameaça matar a ex-companheira.
-//                            P2 [Pessoal] Foi deixado pela companheira e perdeu a guarda dos filhos.
+//   identificacao_problema:  P1 [Operacional] Ameaça contra terceiro — ameaça matar a ex-companheira se entrarmos
+//                            P2 [Pessoal] Relação / separação — a companheira saiu de casa com os filhos
 //   objetivos_intermédios:   - [ ] Objetivo | Problema: P1 | Modalidade: … | Tempo: …
 //                            - [x] Objetivo | Problema: P1 | Modalidade: … | Tempo: … (15/09 14:32)
 // Todas as listas são sugestões (proposta, não doutrina): pode sempre escrever-se outra opção.
@@ -3421,38 +3410,53 @@ const PN2_MODALIDADES = [
   'Articulação com a equipa tática'
 ];
 const PN2_TEMPOS = ['5 min','10 min','15 min','30 min','45 min','1 h','2 h','Mais de 2 h'];
-const PN2_ACOES = ['entrar','aproximar-nos','estabelecer contacto','manter o contacto','retirar a vítima / refém','deter o visado'];
-const PN2_OBSTACULOS = ['ameaça contra a vida de terceiro','ameaça de suicídio','ameaça contra a força','arma','recusa de contacto','condição imposta (ex.: «só falo com…»)'];
-const PN2_OBJ_PESSOAIS = [
-  'Reconhecer e validar o que sente',
-  'Reduzir a ativação emocional',
-  'Dar-lhe a sensação de ser ouvido',
-  'Explorar alternativas para o problema dele',
-  'Restabelecer ligação a família / filhos (através de âncora)',
-  'Garantir apoio médico / psicológico',
-  'Esclarecer as consequências reais da situação',
-  'Construir uma saída com dignidade'
-];
+// Problemas = FACTOS (o que se passa); objetivos intermédios / soluções = AÇÕES nossas.
+// Para cada categoria, as sugestões aparecem primeiro (proposta, não doutrina).
+const PN2_CAT_OP = {
+  'Ameaça contra terceiro': ['Obter compromisso de não agressão durante o contacto','Afastar ou prolongar o prazo ou ultimato','Obter libertação de pessoas vulneráveis (menores, feridos, idosos)','Obter libertação da totalidade das vítimas ou reféns'],
+  'Ameaça de suicídio':     ['Manter linha de comunicação estável','Identificar e envolver uma âncora','Permitir acesso de assistência médica','Obter entrega ou neutralização da arma'],
+  'Ameaça contra a força':  ['Obter compromisso de não agressão durante o contacto','Obter entrega ou neutralização da arma','Obter acordo sobre ponto e modo de saída'],
+  'Arma':                   ['Obter entrega ou neutralização da arma','Confirmar número de agressores e armamento'],
+  'Recusa de contacto':     ['Identificar e envolver uma âncora','Estabelecer contacto direto com o visado','Manter linha de comunicação estável'],
+  'Falta de informação':    ['Obter prova de vida','Confirmar número e estado das vítimas ou reféns','Confirmar número de agressores e armamento'],
+  'Condição imposta':       ['Afastar ou prolongar o prazo ou ultimato','Manter linha de comunicação estável','Identificar e envolver uma âncora'],
+  'Acesso impedido':        ['Obter acordo sobre ponto e modo de saída','Obter rendição voluntária']
+};
+const PN2_CAT_PE = {
+  'Relação / separação':                  ['Mediação através de um familiar ou pessoa de confiança','Encaminhamento para apoio psicológico','Encaminhamento para apoio jurídico (separação / divórcio)','Possibilidade de contacto futuro, pelos meios legais e em segurança'],
+  'Filhos / responsabilidades parentais': ['Informar sobre os meios legais (regulação das responsabilidades parentais)','Garantir informação de que os filhos estão bem','Possibilidade de contacto futuro com os filhos, pelos meios legais'],
+  'Dívidas / dinheiro':                   ['Encaminhamento para apoio social','Encaminhamento para apoio ao sobre-endividamento'],
+  'Emprego':                              ['Encaminhamento para apoio social','Encaminhamento para os serviços de emprego'],
+  'Saúde / doença':                       ['Assistência médica imediata','Encaminhamento para acompanhamento médico / psiquiátrico'],
+  'Medo da justiça / de ser preso':       ['Explicar o que acontece a seguir, sem prometer resultados','Garantir acesso a advogado / defensor','Garantir tratamento digno durante a saída'],
+  'Habitação':                            ['Encaminhamento para apoio social / habitação'],
+  'Perda / luto':                         ['Encaminhamento para apoio psicológico','Contacto com família ou amigos de confiança'],
+  'Humilhação / honra':                   ['Construir uma saída com dignidade','Minimizar a exposição pública da saída'],
+  'Isolamento / solidão':                 ['Contacto com pessoa de confiança','Encaminhamento para apoio psicológico / social']
+};
+const _pn2Uniq = a => a.filter((t, i) => a.indexOf(t) === i);
+const PN2_SOL_TODAS = _pn2Uniq([].concat.apply([], Object.keys(PN2_CAT_PE).map(k => PN2_CAT_PE[k])));
 const PN2_TIPOS = {op:{t:'Operacional', cor:'var(--red)'}, pe:{t:'Pessoal', cor:'var(--gm)'}};
 let _pn2Prob = [], _pn2Obj = [], _pn2Uid = 0;
 function pn2ObjDatalists(){
   const opt = a => a.map(t => '<option value="' + _escHtml(t) + '">').join('');
-  const objs = [].concat.apply([], OBJ_INTERMEDIOS.map(g => g.itens));
-  return '<datalist id="pn2-dl-obj-op">' + opt(objs) + '</datalist>'
-    + '<datalist id="pn2-dl-obj-pe">' + opt(PN2_OBJ_PESSOAIS) + '</datalist>'
+  return '<datalist id="pn2-dl-obj-op">' + opt([].concat.apply([], OBJ_INTERMEDIOS.map(g => g.itens)).concat(PN2_SOL_TODAS)) + '</datalist>'
     + '<datalist id="pn2-dl-mod">' + opt(PN2_MODALIDADES) + '</datalist>'
     + '<datalist id="pn2-dl-tempo">' + opt(PN2_TEMPOS) + '</datalist>'
-    + '<datalist id="pn2-dl-acao">' + opt(PN2_ACOES) + '</datalist>'
-    + '<datalist id="pn2-dl-obst">' + opt(PN2_OBSTACULOS) + '</datalist>';
+    + '<datalist id="pn2-dl-cat-op">' + opt(Object.keys(PN2_CAT_OP)) + '</datalist>'
+    + '<datalist id="pn2-dl-cat-pe">' + opt(Object.keys(PN2_CAT_PE)) + '</datalist>';
 }
-function _pn2NovoProb(tipo){ return {uid: ++_pn2Uid, tipo: tipo, acao:'', obst:'', texto:''}; }
+function _pn2CatMapa(tipo){ return tipo === 'pe' ? PN2_CAT_PE : PN2_CAT_OP; }
+function _pn2Sugestoes(p){ const m = _pn2CatMapa(p.tipo); return m[(p.cat||'').trim()] || []; }
+function _pn2ListaObj(p){
+  const todas = p.tipo === 'pe' ? PN2_SOL_TODAS : [].concat.apply([], OBJ_INTERMEDIOS.map(g => g.itens));
+  return _pn2Uniq(_pn2Sugestoes(p).concat(todas));
+}
+function _pn2NovoProb(tipo){ return {uid: ++_pn2Uid, tipo: tipo, cat:'', texto:''}; }
 function _pn2NovoObj(puid){ return {puid: puid, feito:false, quando:'', obj:'', mod:'', tempo:''}; }
 function pn2ProbFrase(p){
-  if(p.tipo === 'pe') return (p.texto||'').trim();
-  const a = (p.acao||'').trim(), o = (p.obst||'').trim();
-  if(a && o) return 'Não conseguimos ' + a + ' porque ' + o + '.';
-  if(a) return 'Não conseguimos ' + a + '.';
-  return o;
+  const c = (p.cat||'').trim(), t = (p.texto||'').trim();
+  return c && t ? c + ' — ' + t : (c || t);
 }
 function pn2ProbParse(txt){
   const out = [], solto = [];
@@ -3462,15 +3466,13 @@ function pn2ProbParse(txt){
     if(!m){ solto.push(l.trim()); return; }
     const p = _pn2NovoProb(/^pessoal$/i.test(m[2]) ? 'pe' : 'op');
     p.num = m[1];
-    if(p.tipo === 'pe') p.texto = m[3];
-    else {
-      const f = m[3].match(/^Não conseguimos (.+?)(?: porque (.+?))?\.?\s*$/);
-      if(f){ p.acao = f[1]; p.obst = f[2] || ''; } else p.obst = m[3];
-    }
+    const i = m[3].indexOf(' — ');
+    if(i > -1){ p.cat = m[3].slice(0, i).trim(); p.texto = m[3].slice(i + 3).trim(); }
+    else p.texto = m[3].trim();
     out.push(p);
   });
   // Texto antigo (sem formato) passa a um problema operacional, para reclassificar
-  if(solto.length){ const p = _pn2NovoProb('op'); p.obst = solto.join(' '); p.num = '?'; out.unshift(p); }
+  if(solto.length){ const p = _pn2NovoProb('op'); p.texto = solto.join(' '); p.num = '?'; out.unshift(p); }
   return out;
 }
 function pn2ObjParse(txt){
@@ -3540,7 +3542,7 @@ function pn2ProbRender(){
     const objs = _pn2Obj.map((o, i) => ({o, i})).filter(x => x.o.puid === p.uid);
     const feitos = objs.filter(x => x.o.feito).length;
     const estado = !objs.length
-      ? '<span style="font-size:10.5px;color:var(--amber);font-weight:600"><i class="fas fa-triangle-exclamation" style="margin-right:3px"></i>sem objetivos intermédios</span>'
+      ? '<span style="font-size:10.5px;color:var(--amber);font-weight:600"><i class="fas fa-triangle-exclamation" style="margin-right:3px"></i>' + (p.tipo === 'pe' ? 'sem soluções' : 'sem objetivos intermédios') + '</span>'
       : (feitos === objs.length
           ? '<span style="font-size:10.5px;color:var(--gm);font-weight:600"><i class="fas fa-circle-check" style="margin-right:3px"></i>' + (p.tipo === 'op' ? 'desbloqueado' : 'trabalhado') + '</span>'
           : '<span style="font-size:10.5px;color:var(--gray600);font-family:\'IBM Plex Mono\',monospace">' + feitos + '/' + objs.length + ' alcançados</span>');
@@ -3553,21 +3555,26 @@ function pn2ProbRender(){
       +   estado
       +   '<button type="button" class="btn btn-ghost btn-sm" onclick="pn2ProbDel(' + k + ')" title="Remover problema" style="padding:2px 7px;font-size:11px;color:var(--gray400);margin-left:auto"><i class="fas fa-trash"></i></button>'
       + '</div>';
-    if(p.tipo === 'op'){
-      h += '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--gn);margin-bottom:4px">'
-        + '<span style="font-weight:600">Não conseguimos</span>'
-        + '<input type="text" list="pn2-dl-acao" value="' + _escHtml(p.acao) + '" placeholder="ação (ex.: entrar)" oninput="pn2ProbSet(' + k + ',\'acao\',this.value)" style="flex:1;min-width:140px;font-size:13px">'
-        + '<span style="font-weight:600">porque</span>'
-        + '<input type="text" list="pn2-dl-obst" value="' + _escHtml(p.obst) + '" placeholder="obstáculo (ex.: ameaça matar a ex-companheira)" oninput="pn2ProbSet(' + k + ',\'obst\',this.value)" style="flex:2;min-width:180px;font-size:13px">'
-        + '</div>'
-        + '<div style="font-size:10.5px;color:var(--gray400);margin-bottom:8px">O que nos impede de resolver o incidente — não descreva a situação nem os problemas da pessoa. Teste: se este obstáculo desaparecesse, conseguíamos avançar?</div>';
-    } else {
-      h += '<input type="text" value="' + _escHtml(p.texto) + '" placeholder="Problema da pessoa (ex.: foi deixado pela companheira e perdeu a guarda dos filhos)" oninput="pn2ProbSet(' + k + ',\'texto\',this.value)" style="width:100%;font-size:13px;margin-bottom:4px">'
-        + '<div style="font-size:10.5px;color:var(--gray400);margin-bottom:8px">O que levou a pessoa a esta situação. Ajuda a definir os interesses e o «Quem» do PD.</div>';
+    const sug = _pn2Sugestoes(p), jaLa = objs.map(x => (x.o.obj||'').trim());
+    const pe = p.tipo === 'pe';
+    h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px">'
+      + '<input type="text" list="pn2-dl-cat-' + p.tipo + '" value="' + _escHtml(p.cat) + '" placeholder="' + (pe ? 'Tipo de problema (ex.: Relação / separação)' : 'Tipo de obstáculo (ex.: Ameaça contra terceiro)') + '" onchange="pn2ProbSet(' + k + ',\'cat\',this.value);pn2ProbRender()" oninput="pn2ProbSet(' + k + ',\'cat\',this.value)" style="flex:1;min-width:170px;font-size:13px">'
+      + '<input type="text" value="' + _escHtml(p.texto) + '" placeholder="' + (pe ? 'O que se passa, em concreto (ex.: a companheira saiu de casa com os filhos ontem)' : 'O que se passa, em concreto (ex.: ameaça matar a ex-companheira se entrarmos)') + '" oninput="pn2ProbSet(' + k + ',\'texto\',this.value)" style="flex:2;min-width:200px;font-size:13px">'
+      + '</div>'
+      + '<div style="font-size:10.5px;color:var(--gray400);margin-bottom:8px;line-height:1.45">'
+      + (pe ? 'O problema é um <strong>facto</strong> da vida da pessoa. As soluções são o que lhe vamos <strong>propor</strong> — não prometer o que não se pode cumprir.'
+            : 'O problema é um <strong>facto</strong> (o que se passa e nos bloqueia). Não comece por um verbo nosso (obter, estabelecer, conseguir…) — isso é um objetivo.')
+      + '</div>';
+    const dlId = 'pn2-dl-obj-' + p.uid;
+    h += '<datalist id="' + dlId + '">' + _pn2ListaObj(p).map(t => '<option value="' + _escHtml(t) + '">').join('') + '</datalist>'
+      + '<div style="font-size:10.5px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">' + (pe ? 'Soluções a propor' : 'Objetivos intermédios') + '</div>';
+    if(sug.length){
+      h += '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px"><span style="font-size:10.5px;color:var(--gray600);align-self:center">Sugestões:</span>'
+        + sug.map((t, j) => jaLa.indexOf(t) > -1 ? '' : '<button type="button" onclick="pn2ObjSug(' + k + ',' + j + ')" style="border:1px solid var(--border);background:#fff;border-radius:14px;padding:2px 9px;font-size:11px;color:' + tp.cor + ';cursor:pointer;font-family:inherit;text-align:left"><i class="fas fa-plus" style="font-size:9px;margin-right:4px;opacity:.6"></i>' + _escHtml(t) + '</button>').join('')
+        + '</div>';
     }
-    h += '<div style="font-size:10.5px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Objetivos intermédios</div>'
-      + objs.map(x => _pn2ObjLinhaHTML(x.o, x.i, p.tipo === 'pe' ? 'pn2-dl-obj-pe' : 'pn2-dl-obj-op')).join('')
-      + '<button type="button" class="btn btn-ghost btn-sm" onclick="pn2ObjAdd(' + p.uid + ')" style="font-size:11.5px"><i class="fas fa-plus"></i> Objetivo intermédio para P' + (k+1) + '</button>'
+    h += objs.map(x => _pn2ObjLinhaHTML(x.o, x.i, dlId)).join('')
+      + '<button type="button" class="btn btn-ghost btn-sm" onclick="pn2ObjAdd(' + p.uid + ')" style="font-size:11.5px"><i class="fas fa-plus"></i> ' + (pe ? 'Solução' : 'Objetivo intermédio') + ' para P' + (k+1) + '</button>'
       + '</div>';
   });
   const soltos = _pn2Obj.map((o, i) => ({o, i})).filter(x => !x.o.puid || !_pn2Prob.some(p => p.uid === x.o.puid));
@@ -3584,9 +3591,13 @@ function pn2ProbAdd(tipo){ _pn2Prob.push(_pn2NovoProb(tipo)); pn2ProbRender(); }
 function pn2ProbSet(k, campo, val){ const p = _pn2Prob[k]; if(!p) return; p[campo] = val; pn2Sync(); }
 function pn2ProbTipo(k, tipo){
   const p = _pn2Prob[k]; if(!p || p.tipo === tipo) return;
-  if(tipo === 'pe') p.texto = p.texto || pn2ProbFrase(p);
-  else if(!p.acao && !p.obst) p.obst = p.texto || '';
+  if(p.cat && !_pn2CatMapa(tipo)[p.cat]) p.cat = '';
   p.tipo = tipo; pn2Sync(); pn2ProbRender();
+}
+function pn2ObjSug(k, j){
+  const p = _pn2Prob[k]; if(!p) return;
+  const t = _pn2Sugestoes(p)[j]; if(!t) return;
+  const o = _pn2NovoObj(p.uid); o.obj = t; _pn2Obj.push(o); pn2Sync(); pn2ProbRender();
 }
 function pn2ProbDel(k){
   const p = _pn2Prob[k]; if(!p) return;
