@@ -3381,6 +3381,7 @@ async function renderPN2(){
     + '<div class="form-section red"><h3>3. Posição / Interesses</h3><div class="form-grid">'
     +   '<div class="field"><label>Posição (o que diz que quer)</label>' + ta('pn2-pos', v.posicao_adversario, 3) + '</div>'
     +   '<div class="field"><label>Interesses (necessidades reais)</label>' + ta('pn2-int', v.interesses_adversario, 3) + '</div></div>'
+    +   apoioPIHTML('pn2')
     +   '<div class="field"><label>Alinhamento</label><div class="situation-type-btns">'
     +     '<div class="sit-btn ' + (v.alinhamento==='desalinhados'?'selected':'') + '" id="pn2-align-desalinhados" onclick="pn2Sel(\'align\',\'desalinhados\')"><h4>NÃO ALINHADOS</h4><p>✅ Favorável — trabalhar os interesses</p></div>'
     +     '<div class="sit-btn ' + (v.alinhamento==='alinhados'?'selected':'') + '" id="pn2-align-alinhados" onclick="pn2Sel(\'align\',\'alinhados\')"><h4>ALINHADOS</h4><p>⚠️ Desfavorável — criar valor ou explorar contradições</p></div>'
@@ -5911,6 +5912,7 @@ async function renderPlano(){
         <div class="field"><label>Posição (o que diz que quer)</label><textarea id="plano-pos" rows="4">${v.posicao_adversario||''}</textarea></div>
         <div class="field"><label>Interesses (necessidades reais)</label><textarea id="plano-int" rows="4">${v.interesses_adversario||''}</textarea></div>
       </div>
+      ${apoioPIHTML('plano')}
       <div class="field"><label>Alinhamento entre Posição e Interesses</label>
         <div class="situation-type-btns">
           <div class="sit-btn ${v.alinhamento==='desalinhados'?'selected':''}" id="align-desalinhados" onclick="selectAlign('desalinhados')">
@@ -5993,6 +5995,62 @@ const CONSULTA_PN = {
     nota: 'Não alinhados = favorável (trabalhar os interesses para encontrar alternativas). Alinhados = desfavorável (criar valor adicional ou explorar contradições).'
   }
 };
+// ===== APOIO — definir Posição e Interesses =====
+// Só ajuda ao raciocínio: nada é escrito sem clique do negociador.
+const APOIO_PI_PERGUNTAS = [
+  'Porque é que quer isso?',
+  'O que ganha se o conseguir?',
+  'O que receia que aconteça se não o conseguir?',
+  'O que mudaria na sua vida se isto se resolvesse hoje?',
+  'Quem é importante para ele nesta situação?',
+  'O que é que nunca aceitaria perder (orgulho, imagem, família)?'
+];
+const APOIO_PI_INTERESSES = [
+  'Segurança física — não ser ferido',
+  'Ser ouvido / compreendido',
+  'Manter a dignidade — não perder a face',
+  'Ter controlo sobre o que vai acontecer',
+  'Contacto com familiares / filhos',
+  'Evitar a prisão / consequências legais',
+  'Assistência médica / bem-estar',
+  'Reconhecimento de uma injustiça sofrida',
+  'Resolver um problema concreto (dívida, casa, emprego)',
+  'Pôr fim ao sofrimento (avaliar risco — IRIS)',
+  'Necessidades básicas (comer, beber, fumar, descansar)'
+];
+let _apoioPIExig = [];
+function apoioPIHTML(pref){
+  const q = (currentDetail && currentDetail.record && currentDetail.record.quadros) || {};
+  _apoioPIExig = [].concat(Array.isArray(q.exigencias) ? q.exigencias : [], Array.isArray(q.posicao) ? q.posicao : [])
+    .map(x => (x && x.t) || '').filter(Boolean).filter((t, i, a) => a.indexOf(t) === i);
+  const chip = (txt, onc, cor) => '<button type="button" onclick="' + onc + '" style="border:1px solid var(--border);background:#fff;border-radius:14px;padding:3px 10px;font-size:11.5px;color:' + (cor||'var(--gn)') + ';cursor:pointer;font-family:inherit;text-align:left"><i class="fas fa-plus" style="font-size:9px;margin-right:4px;opacity:.6"></i>' + _escHtml(txt) + '</button>';
+  const exig = _apoioPIExig.length
+    ? '<div style="display:flex;flex-wrap:wrap;gap:5px">' + _apoioPIExig.map((t, i) => chip(t, "apoioPIAdd('" + pref + "','pos'," + i + ")", 'var(--red)')).join('') + '</div>'
+    : '<div style="font-size:11.5px;color:var(--gray400);font-style:italic">Sem exigências registadas nos quadros (n.º 3).</div>';
+  const tit = t => '<div style="font-size:10.5px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.05em;margin:10px 0 5px">' + t + '</div>';
+  return '<details style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:9px 12px;margin:4px 0 12px">'
+    + '<summary style="cursor:pointer;font-size:12.5px;font-weight:600;color:var(--gm)"><i class="fas fa-circle-question" style="margin-right:5px"></i>Apoio — como definir a posição e os interesses</summary>'
+    + '<div style="font-size:12px;color:var(--gray600);margin-top:8px;line-height:1.55"><strong>Posição</strong> = o que diz que quer (a exigência). <strong>Interesse</strong> = a necessidade por trás da exigência — porque o quer. É apenas uma ajuda: nada é escrito sem clicar, e a decisão é sempre da EN.</div>'
+    + tit('1. Exigências registadas → Posição') + exig
+    + tit('2. Perguntas para chegar aos interesses')
+    + '<ul style="margin:0 0 0 18px;padding:0;font-size:12px;color:var(--gn);line-height:1.6">' + APOIO_PI_PERGUNTAS.map(t => '<li>' + t + '</li>').join('') + '</ul>'
+    + tit('3. Interesses frequentes → Interesses')
+    + '<div style="display:flex;flex-wrap:wrap;gap:5px">' + APOIO_PI_INTERESSES.map((t, i) => chip(t, "apoioPIAdd('" + pref + "','int'," + i + ")")).join('') + '</div>'
+    + tit('4. Teste rápido')
+    + '<div style="font-size:12px;color:var(--gn);line-height:1.55">Se a exigência fosse satisfeita agora, o problema dele ficava resolvido? <strong>Sim</strong> → posição e interesses tendem a estar alinhados. <strong>Não</strong> → o que falta é o interesse a trabalhar.</div>'
+    + '</details>';
+}
+function apoioPIAdd(pref, campo, i){
+  const txt = campo === 'pos' ? _apoioPIExig[i] : APOIO_PI_INTERESSES[i];
+  const ta = document.getElementById(pref + '-' + campo);
+  if(!txt || !ta) return;
+  const linha = '• ' + txt;
+  const linhas = ta.value.split('\n').filter(l => l.trim() !== '');
+  if(linhas.indexOf(linha) > -1) return;
+  linhas.push(linha);
+  ta.value = linhas.join('\n');
+  ta.dispatchEvent(new Event('input', {bubbles:true}));
+}
 function consultaPNHTML(tipo, pref){
   const c = CONSULTA_PN[tipo]; if(!c) return '';
   const id = (pref||'pn') + '-cons-' + tipo;
