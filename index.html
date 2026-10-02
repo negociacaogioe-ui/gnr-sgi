@@ -3388,12 +3388,108 @@ async function renderPN2(){
     +   '</div><input type="hidden" id="pn2-align" value="' + ((v.alinhamento==='alinhados'||v.alinhamento==='desalinhados')?v.alinhamento:'') + '">' + consultaPNHTML('align','pn2') + '</div></div>'
     + '<div class="form-section"><h3>4. Objetivos</h3>'
     +   '<div class="field"><label>Objetivo principal</label>' + ta('pn2-obj', v.objetivo_principal, 2) + '</div>'
-    +   '<div class="field"><label>Objetivos intermédios</label>' + ta('pn2-obji', v['objetivos_intermédios'], 4, 'Um por linha') + '</div></div>'
+    +   '<div class="field"><label>Objetivos intermédios — modalidade de ação e tempo aproximado</label>'
+    +     '<div id="pn2-obj-lista"></div>'
+    +     '<button type="button" class="btn btn-outline btn-sm" onclick="pn2ObjAdd()" style="margin-top:6px"><i class="fas fa-plus"></i> Adicionar objetivo intermédio</button>'
+    +     '<textarea id="pn2-obji" style="display:none">' + _escHtml(v['objetivos_intermédios']||'') + '</textarea>'
+    +     pn2ObjDatalists()
+    +   '</div></div>'
     + '<div class="form-section"><h3>5. Tempo e meios</h3><div class="form-grid">'
     +   '<div class="field"><label>Tempo estimado</label>' + ta('pn2-tempo', v.tempo_estimado, 2) + '</div>'
     +   '<div class="field"><label>Meios a utilizar</label>' + ta('pn2-meios', v.meios, 2) + '</div></div></div>'
     + sgiBarraHTML('pn2','Guardar PN');
   sgiAutosaveLigar('pn2');
+  pn2ObjCarregar();
+}
+// ---- PN simplificado: objetivos intermédios com modalidade de ação e tempo ----
+// Grava no mesmo campo de texto do PN (objetivos_intermédios), uma linha por objetivo:
+//   - [ ] Objetivo | Modalidade: … | Tempo: …
+//   - [x] Objetivo | Modalidade: … | Tempo: … (15/09 14:32)
+// As listas são sugestões (proposta, não doutrina): pode sempre escrever-se outra.
+const PN2_MODALIDADES = [
+  'Contacto telefónico',
+  'Contacto presencial (face a face)',
+  'Intercomunicador / megafone',
+  'Mensagens escritas (SMS / aplicação)',
+  'Recurso a âncora / intermediário',
+  'Troca ou concessão',
+  'Ganhar tempo / protelar',
+  'Desescalada emocional (escuta ativa)',
+  'Articulação com a equipa tática'
+];
+const PN2_TEMPOS = ['5 min','10 min','15 min','30 min','45 min','1 h','2 h','Mais de 2 h'];
+let _pn2Obj = [];
+function pn2ObjDatalists(){
+  const opt = a => a.map(t => '<option value="' + _escHtml(t) + '">').join('');
+  const objs = [].concat.apply([], OBJ_INTERMEDIOS.map(g => g.itens));
+  return '<datalist id="pn2-dl-obj">' + opt(objs) + '</datalist>'
+    + '<datalist id="pn2-dl-mod">' + opt(PN2_MODALIDADES) + '</datalist>'
+    + '<datalist id="pn2-dl-tempo">' + opt(PN2_TEMPOS) + '</datalist>';
+}
+function pn2ObjParse(txt){
+  return String(txt || '').split('\n').filter(l => l.trim()).map(l => {
+    const m = l.match(/^\s*-\s*\[([ xX])\]\s*(.*?)\s*(?:\((\d{2}\/\d{2}\s+\d{2}:\d{2})\))?\s*$/);
+    const corpo = m ? m[2] : l.replace(/^\s*(?:[•\-*]\s*)/, '').trim();
+    const partes = corpo.split(' | ');
+    const o = { feito: !!(m && /x/i.test(m[1])), quando: (m && m[3]) || '', obj: partes.shift() || '', mod: '', tempo: '' };
+    partes.forEach(p => {
+      if(/^Modalidade:\s*/.test(p)) o.mod = p.replace(/^Modalidade:\s*/, '');
+      else if(/^Tempo:\s*/.test(p)) o.tempo = p.replace(/^Tempo:\s*/, '');
+      else o.obj += (o.obj ? ' | ' : '') + p;
+    });
+    return o;
+  });
+}
+function pn2ObjSerializar(){
+  return _pn2Obj.filter(o => (o.obj||'').trim() || (o.mod||'').trim() || (o.tempo||'').trim()).map(o =>
+    '- [' + (o.feito ? 'x' : ' ') + '] ' + (o.obj||'').trim()
+    + ((o.mod||'').trim() ? ' | Modalidade: ' + o.mod.trim() : '')
+    + ((o.tempo||'').trim() ? ' | Tempo: ' + o.tempo.trim() : '')
+    + (o.feito && o.quando ? ' (' + o.quando + ')' : '')
+  ).join('\n');
+}
+function pn2ObjCarregar(){
+  const ta = document.getElementById('pn2-obji'); if(!ta) return;
+  _pn2Obj = pn2ObjParse(ta.value);
+  if(!_pn2Obj.length) _pn2Obj = [{feito:false, quando:'', obj:'', mod:'', tempo:''}];
+  pn2ObjRender();
+}
+function pn2ObjRender(){
+  const box = document.getElementById('pn2-obj-lista'); if(!box) return;
+  const inp = (i, k, dl, ph, flex) => '<input type="text" list="' + dl + '" value="' + _escHtml(_pn2Obj[i][k]||'') + '" placeholder="' + ph + '" oninput="pn2ObjSet(' + i + ',\'' + k + '\',this.value)" style="flex:' + flex + ';min-width:140px;font-size:13px">';
+  box.innerHTML = _pn2Obj.map((o, i) =>
+    '<div style="border:1px solid var(--border);border-left:3px solid ' + (o.feito ? 'var(--gm)' : 'var(--gray300)') + ';border-radius:var(--r);padding:8px 10px;margin-bottom:7px;background:#fff">'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+    +   '<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray600);cursor:pointer;white-space:nowrap"><input type="checkbox" ' + (o.feito ? 'checked' : '') + ' onchange="pn2ObjFeito(' + i + ',this.checked)" style="width:auto;margin:0"> Alcançado' + (o.feito && o.quando ? ' <span style="font-family:\'IBM Plex Mono\',monospace;color:var(--gm)">' + o.quando + '</span>' : '') + '</label>'
+    +   '<span style="font-size:10.5px;font-weight:700;color:var(--gl);margin-left:auto">#' + (i+1) + '</span>'
+    +   '<button type="button" class="btn btn-ghost btn-sm" onclick="pn2ObjDel(' + i + ')" title="Remover" style="padding:2px 7px;font-size:11px;color:var(--gray400)"><i class="fas fa-xmark"></i></button>'
+    + '</div>'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+    +   inp(i, 'obj', 'pn2-dl-obj', 'Objetivo intermédio (escolha ou escreva)', 3)
+    +   inp(i, 'mod', 'pn2-dl-mod', 'Modalidade de ação', 2)
+    +   inp(i, 'tempo', 'pn2-dl-tempo', 'Tempo aprox.', 1)
+    + '</div></div>'
+  ).join('')
+  + '<div style="font-size:10.5px;color:var(--gray400);line-height:1.45">As listas são sugestões — pode escolher ou escrever outra opção em qualquer campo.</div>';
+}
+function pn2ObjSync(){
+  const ta = document.getElementById('pn2-obji'); if(!ta) return;
+  ta.value = pn2ObjSerializar();
+  ta.dispatchEvent(new Event('input', {bubbles:true}));
+}
+function pn2ObjSet(i, k, val){ if(!_pn2Obj[i]) return; _pn2Obj[i][k] = val; pn2ObjSync(); }
+function pn2ObjFeito(i, on){
+  const o = _pn2Obj[i]; if(!o) return;
+  o.feito = on;
+  if(on){ const d = new Date(), z = n => String(n).padStart(2,'0'); o.quando = z(d.getDate()) + '/' + z(d.getMonth()+1) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()); }
+  else o.quando = '';
+  pn2ObjSync(); pn2ObjRender();
+}
+function pn2ObjAdd(){ _pn2Obj.push({feito:false, quando:'', obj:'', mod:'', tempo:''}); pn2ObjRender(); }
+function pn2ObjDel(i){
+  const o = _pn2Obj[i]; if(!o) return;
+  if((o.obj||o.mod||o.tempo) && !confirm('Remover este objetivo intermédio?')) return;
+  _pn2Obj.splice(i, 1); pn2ObjSync(); pn2ObjRender();
 }
 function pn2Sel(campo, val){
   const inp = document.getElementById('pn2-' + campo); if(!inp) return;
