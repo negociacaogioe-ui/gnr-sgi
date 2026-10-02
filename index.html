@@ -1865,7 +1865,7 @@ const SGI_LABELS = {
          'pd-local':'O local','pd-pos_int':'Posição e interesses','pd-solucoes':'Soluções'},
   pn2:  {'pn2-prob':'Identificação do problema','pn2-sit':'Tipo de situação',
          'pn2-pos':'Posição do adversário','pn2-int':'Interesses do adversário',
-         'pn2-align':'Alinhamento posição/interesses','pn2-obj':'Objetivo principal',
+         'pn2-align':'Alinhamento posição/interesses',
          'pn2-obji':'Objetivos intermédios'},
   pd2:  {'pd2-quadro_ref':'Quem — quadro de referência','pd2-local':'Onde — o local','pd2-solucoes':'Como — abordagem'}
 };
@@ -3381,8 +3381,6 @@ async function renderPN2(){
     +     '<div class="sit-btn ' + (v.alinhamento==='desalinhados'?'selected':'') + '" id="pn2-align-desalinhados" onclick="pn2Sel(\'align\',\'desalinhados\')"><h4>NÃO ALINHADOS</h4><p>✅ Favorável — trabalhar os interesses</p></div>'
     +     '<div class="sit-btn ' + (v.alinhamento==='alinhados'?'selected':'') + '" id="pn2-align-alinhados" onclick="pn2Sel(\'align\',\'alinhados\')"><h4>ALINHADOS</h4><p>⚠️ Desfavorável — criar valor ou explorar contradições</p></div>'
     +   '</div><input type="hidden" id="pn2-align" value="' + ((v.alinhamento==='alinhados'||v.alinhamento==='desalinhados')?v.alinhamento:'') + '">' + consultaPNHTML('align','pn2') + '</div></div>'
-    + '<div class="form-section"><h3>4. Objetivo principal</h3>'
-    +   '<div class="field">' + ta('pn2-obj', v.objetivo_principal, 2) + '</div></div>'
     + sgiBarraHTML('pn2','Guardar PN');
   sgiAutosaveLigar('pn2');
   pn2ObjCarregar();
@@ -3675,7 +3673,7 @@ async function savePN2(){
   const patch = {
     identificacao_problema:get('pn2-prob'), tipo_situacao:get('pn2-sit')||null,
     posicao_adversario:get('pn2-pos'), interesses_adversario:get('pn2-int'), alinhamento:get('pn2-align')||null,
-    objetivo_principal:get('pn2-obj'), 'objetivos_intermédios':get('pn2-obji'),
+    'objetivos_intermédios':get('pn2-obji'),
     autor_id:currentUser.id, autor_nome:currentProfile.nome
   };
   const pn = await _pnAtualizar(() => patch);
