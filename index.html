@@ -3434,6 +3434,29 @@ const PN2_CAT_PE = {
   'Humilhação / honra':                   ['Construir uma saída com dignidade','Minimizar a exposição pública da saída'],
   'Isolamento / solidão':                 ['Contacto com pessoa de confiança','Encaminhamento para apoio psicológico / social']
 };
+// Opções para o campo do problema (proposta): escolher ou escrever outro facto.
+const PN2_FACTOS_OP = [
+  'Ameaça matar a vítima se entrarmos','Ameaça ferir os reféns se nos aproximarmos','Mantém uma arma apontada à vítima','Ameaça matar a vítima se a exigência não for cumprida',
+  'Ameaça matar-se se nos aproximarmos','Está num local elevado e ameaça atirar-se','Tem uma arma apontada a si próprio','Diz que já tomou medicação / substâncias',
+  'Ameaça disparar sobre quem entrar','Disparou contra a força','Diz que tem explosivos / armadilhas',
+  'Tem uma arma de fogo','Tem uma arma branca','Desconhece-se o tipo de arma',
+  'Não atende o telefone','Desliga sempre que ligamos','Grita para nos irmos embora','Só aceita falar com uma pessoa específica',
+  'Não sabemos se a vítima está viva','Desconhece-se o número de pessoas no interior','Desconhece-se o estado de saúde das vítimas',
+  'Exige falar com a ex-companheira','Exige que a força se retire','Exige um meio de fuga / transporte','Impôs um prazo (ultimato)',
+  'Barricou-se no interior','Porta reforçada / bloqueada','Local sem visibilidade para o interior'
+];
+const PN2_FACTOS_PE = [
+  'A companheira saiu de casa','A companheira pediu o divórcio','Descobriu uma traição','Tem medida de afastamento da companheira',
+  'A companheira levou os filhos','Perdeu a guarda dos filhos','Está impedido de ver os filhos',
+  'Tem dívidas que não consegue pagar','Vai perder a casa por dívidas','Foi penhorado',
+  'Foi despedido','Está desempregado há muito tempo','Conflito com a entidade patronal',
+  'Recebeu um diagnóstico grave','Deixou de tomar a medicação',
+  'Tem um mandado de detenção','Teme ser preso pelo que fez hoje','Já esteve preso e não quer voltar',
+  'Vai ser despejado','Ficou sem casa',
+  'Morreu um familiar próximo','Perdeu um filho',
+  'Sente-se humilhado perante a família / vizinhos','Foi exposto publicamente',
+  'Vive sozinho e sem apoio','Cortou relações com a família'
+];
 const _pn2Uniq = a => a.filter((t, i) => a.indexOf(t) === i);
 const PN2_SOL_TODAS = _pn2Uniq([].concat.apply([], Object.keys(PN2_CAT_PE).map(k => PN2_CAT_PE[k])));
 const PN2_TIPOS = {op:{t:'Operacional', cor:'var(--red)'}, pe:{t:'Pessoal', cor:'var(--gm)'}};
@@ -3442,7 +3465,9 @@ function pn2ObjDatalists(){
   const opt = a => a.map(t => '<option value="' + _escHtml(t) + '">').join('');
   return '<datalist id="pn2-dl-obj-op">' + opt([].concat.apply([], OBJ_INTERMEDIOS.map(g => g.itens)).concat(PN2_SOL_TODAS)) + '</datalist>'
     + '<datalist id="pn2-dl-mod">' + opt(PN2_MODALIDADES) + '</datalist>'
-    + '<datalist id="pn2-dl-tempo">' + opt(PN2_TEMPOS) + '</datalist>';
+    + '<datalist id="pn2-dl-tempo">' + opt(PN2_TEMPOS) + '</datalist>'
+    + '<datalist id="pn2-dl-facto-op">' + opt(PN2_FACTOS_OP) + '</datalist>'
+    + '<datalist id="pn2-dl-facto-pe">' + opt(PN2_FACTOS_PE) + '</datalist>';
 }
 function _pn2CatMapa(tipo){ return tipo === 'pe' ? PN2_CAT_PE : PN2_CAT_OP; }
 function _pn2Sugestoes(p){ const m = _pn2CatMapa(p.tipo); return m[(p.cat||'').trim()] || []; }
@@ -3574,7 +3599,7 @@ function pn2ProbRender(){
       +   '<button type="button" class="btn btn-ghost btn-sm" onclick="pn2ProbDel(' + k + ')" title="Remover problema" style="padding:2px 7px;font-size:11px;color:var(--gray400);margin-left:auto"><i class="fas fa-trash"></i></button>'
       + '</div>';
     const pe = p.tipo === 'pe';
-    h += '<textarea rows="2" oninput="pn2ProbSet(' + k + ',\'texto\',this.value)" placeholder="' + (pe ? 'Ex.: a companheira saiu de casa com os filhos ontem e pediu o divórcio' : 'Ex.: ameaça matar a ex-companheira se entrarmos; tem uma faca e está com ela no quarto') + '" style="width:100%;font-size:13px;line-height:1.45;resize:vertical;margin-bottom:4px">' + _escHtml(p.texto) + '</textarea>'
+    h += '<input type="text" list="pn2-dl-facto-' + p.tipo + '" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(p.texto) + '" oninput="pn2ProbSet(' + k + ',\'texto\',this.value)" placeholder="' + (pe ? 'Escolha uma opção ou escreva (ex.: a companheira saiu de casa com os filhos)' : 'Escolha uma opção ou escreva (ex.: ameaça matar a ex-companheira se entrarmos)') + '" style="width:100%;font-size:13px;padding:10px 12px;margin-bottom:4px">'
       + '<div id="pn2-aviso-' + p.uid + '" style="font-size:11px;color:var(--amber);font-weight:600;margin-bottom:6px;line-height:1.45">' + _pn2AvisoTexto(p) + '</div>';
     const dlId = 'pn2-dl-obj-' + p.uid;
     h += '<datalist id="' + dlId + '">' + _pn2ListaObj(p).map(t => '<option value="' + _escHtml(t) + '">').join('') + '</datalist>'
