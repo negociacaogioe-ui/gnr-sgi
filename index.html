@@ -3434,6 +3434,29 @@ const PN2_CAT_PE = {
   'Humilhação / honra':                   ['Construir uma saída com dignidade','Minimizar a exposição pública da saída'],
   'Isolamento / solidão':                 ['Contacto com pessoa de confiança','Encaminhamento para apoio psicológico / social']
 };
+// Exemplos de factos concretos por categoria (proposta): escolher ou escrever outro.
+const PN2_FACTOS_OP = {
+  'Ameaça contra terceiro': ['Ameaça matar a vítima se entrarmos','Ameaça ferir os reféns se nos aproximarmos','Mantém uma arma apontada à vítima','Ameaça matar a vítima se a exigência não for cumprida'],
+  'Ameaça de suicídio':     ['Ameaça matar-se se nos aproximarmos','Está num local elevado e ameaça atirar-se','Tem uma arma apontada a si próprio','Diz que já tomou medicação / substâncias'],
+  'Ameaça contra a força':  ['Ameaça disparar sobre quem entrar','Disparou contra a força','Diz que tem explosivos / armadilhas'],
+  'Arma':                   ['Tem uma arma de fogo','Tem uma arma branca','Desconhece-se o tipo de arma','Ameaça usar a arma'],
+  'Recusa de contacto':     ['Não atende o telefone','Desliga sempre que ligamos','Grita para nos irmos embora','Só aceita falar com uma pessoa específica'],
+  'Falta de informação':    ['Não sabemos se a vítima está viva','Desconhece-se o número de pessoas no interior','Desconhece-se se há armas','Desconhece-se o estado de saúde das vítimas'],
+  'Condição imposta':       ['Exige falar com a ex-companheira','Exige que a força se retire','Exige um meio de fuga / transporte','Impôs um prazo (ultimato)'],
+  'Acesso impedido':        ['Barricou-se no interior','Porta reforçada / bloqueada','Local sem visibilidade para o interior','Terceiros impedem a aproximação']
+};
+const PN2_FACTOS_PE = {
+  'Relação / separação':                  ['A companheira saiu de casa','A companheira pediu o divórcio','Descobriu uma traição','Tem medida de afastamento da companheira'],
+  'Filhos / responsabilidades parentais': ['A companheira levou os filhos','Perdeu a guarda dos filhos','Está impedido de ver os filhos'],
+  'Dívidas / dinheiro':                   ['Tem dívidas que não consegue pagar','Vai perder a casa por dívidas','Foi penhorado'],
+  'Emprego':                              ['Foi despedido','Está desempregado há muito tempo','Conflito com a entidade patronal'],
+  'Saúde / doença':                       ['Recebeu um diagnóstico grave','Deixou de tomar a medicação','Dor crónica / doença prolongada'],
+  'Medo da justiça / de ser preso':       ['Tem um mandado de detenção','Teme ser preso pelo que fez hoje','Já esteve preso e não quer voltar'],
+  'Habitação':                            ['Vai ser despejado','Ficou sem casa'],
+  'Perda / luto':                         ['Morreu um familiar próximo','Perdeu um filho'],
+  'Humilhação / honra':                   ['Sente-se humilhado perante a família / vizinhos','Foi exposto publicamente'],
+  'Isolamento / solidão':                 ['Vive sozinho e sem apoio','Cortou relações com a família']
+};
 const _pn2Uniq = a => a.filter((t, i) => a.indexOf(t) === i);
 const PN2_SOL_TODAS = _pn2Uniq([].concat.apply([], Object.keys(PN2_CAT_PE).map(k => PN2_CAT_PE[k])));
 const PN2_TIPOS = {op:{t:'Operacional', cor:'var(--red)'}, pe:{t:'Pessoal', cor:'var(--gm)'}};
@@ -3575,9 +3598,15 @@ function pn2ProbRender(){
       + '</div>';
     const sug = _pn2Sugestoes(p), jaLa = objs.map(x => (x.o.obj||'').trim());
     const pe = p.tipo === 'pe';
-    h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px">'
-      + '<input type="text" list="pn2-dl-cat-' + p.tipo + '" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(p.cat) + '" placeholder="' + (pe ? 'Tipo de problema (ex.: Relação / separação)' : 'Tipo de obstáculo (ex.: Ameaça contra terceiro)') + '" onchange="pn2ProbSet(' + k + ',\'cat\',this.value);pn2ProbRender()" oninput="pn2ProbSet(' + k + ',\'cat\',this.value)" style="flex:1;min-width:170px;font-size:13px">'
-      + '<input type="text" value="' + _escHtml(p.texto) + '" placeholder="' + (pe ? 'O que se passa, em concreto (ex.: a companheira saiu de casa com os filhos ontem)' : 'O que se passa, em concreto (ex.: ameaça matar a ex-companheira se entrarmos)') + '" oninput="pn2ProbSet(' + k + ',\'texto\',this.value)" style="flex:2;min-width:200px;font-size:13px">'
+    const _fm = pe ? PN2_FACTOS_PE : PN2_FACTOS_OP;
+    const factos = _fm[(p.cat||'').trim()] || [].concat.apply([], Object.keys(_fm).map(c => _fm[c]));
+    const lbl = t => '<div style="font-size:10.5px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">' + t + '</div>';
+    h += '<datalist id="pn2-dl-facto-' + p.uid + '">' + factos.map(t => '<option value="' + _escHtml(t) + '">').join('') + '</datalist>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">'
+      + '<div style="flex:1;min-width:170px">' + lbl(pe ? 'Tipo de problema' : 'Tipo de obstáculo')
+      + '<input type="text" list="pn2-dl-cat-' + p.tipo + '" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(p.cat) + '" placeholder="' + (pe ? 'Escolha (ex.: Relação / separação)' : 'Escolha (ex.: Ameaça contra terceiro)') + '" onchange="pn2ProbSet(' + k + ',\'cat\',this.value);pn2ProbRender()" oninput="pn2ProbSet(' + k + ',\'cat\',this.value)" style="width:100%;font-size:13px"></div>'
+      + '<div style="flex:2;min-width:200px">' + lbl('O que se passa, em concreto')
+      + '<input type="text" list="pn2-dl-facto-' + p.uid + '" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(p.texto) + '" placeholder="' + (p.cat ? 'Escolha um exemplo ou escreva o facto' : 'Escolha primeiro o tipo — depois um exemplo, ou escreva') + '" oninput="pn2ProbSet(' + k + ',\'texto\',this.value)" style="width:100%;font-size:13px"></div>'
       + '</div>'
       + '<div id="pn2-aviso-' + p.uid + '" style="font-size:11px;color:var(--amber);font-weight:600;margin-bottom:4px;line-height:1.45">' + _pn2AvisoTexto(p) + '</div>'
       + '<div style="font-size:10.5px;color:var(--gray400);margin-bottom:8px;line-height:1.45">'
