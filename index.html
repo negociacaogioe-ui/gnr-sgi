@@ -3520,7 +3520,7 @@ function pn2Sync(){
   tp.dispatchEvent(new Event('input', {bubbles:true}));
 }
 function _pn2ObjLinhaHTML(o, i, dlObj){
-  const inp = (k, dl, ph, flex) => '<input type="text" list="' + dl + '" value="' + _escHtml(o[k]||'') + '" placeholder="' + ph + '" oninput="pn2ObjSet(' + i + ',\'' + k + '\',this.value)" style="flex:' + flex + ';min-width:130px;font-size:13px">';
+  const inp = (k, dl, ph, flex) => '<input type="text" list="' + dl + '" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(o[k]||'') + '" placeholder="' + ph + '" oninput="pn2ObjSet(' + i + ',\'' + k + '\',this.value)" style="flex:' + flex + ';min-width:130px;font-size:13px">';
   return '<div style="border:1px solid var(--border);border-left:3px solid ' + (o.feito ? 'var(--gm)' : 'var(--gray300)') + ';border-radius:var(--r);padding:7px 9px;margin-bottom:6px;background:#fff">'
     + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">'
     +   '<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray600);cursor:pointer;white-space:nowrap"><input type="checkbox" ' + (o.feito ? 'checked' : '') + ' onchange="pn2ObjFeito(' + i + ',this.checked)" style="width:auto;margin:0"> Alcançado' + (o.feito && o.quando ? ' <span style="font-family:\'IBM Plex Mono\',monospace;color:var(--gm)">' + o.quando + '</span>' : '') + '</label>'
@@ -3558,7 +3558,7 @@ function pn2ProbRender(){
     const sug = _pn2Sugestoes(p), jaLa = objs.map(x => (x.o.obj||'').trim());
     const pe = p.tipo === 'pe';
     h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px">'
-      + '<input type="text" list="pn2-dl-cat-' + p.tipo + '" value="' + _escHtml(p.cat) + '" placeholder="' + (pe ? 'Tipo de problema (ex.: Relação / separação)' : 'Tipo de obstáculo (ex.: Ameaça contra terceiro)') + '" onchange="pn2ProbSet(' + k + ',\'cat\',this.value);pn2ProbRender()" oninput="pn2ProbSet(' + k + ',\'cat\',this.value)" style="flex:1;min-width:170px;font-size:13px">'
+      + '<input type="text" list="pn2-dl-cat-' + p.tipo + '" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(p.cat) + '" placeholder="' + (pe ? 'Tipo de problema (ex.: Relação / separação)' : 'Tipo de obstáculo (ex.: Ameaça contra terceiro)') + '" onchange="pn2ProbSet(' + k + ',\'cat\',this.value);pn2ProbRender()" oninput="pn2ProbSet(' + k + ',\'cat\',this.value)" style="flex:1;min-width:170px;font-size:13px">'
       + '<input type="text" value="' + _escHtml(p.texto) + '" placeholder="' + (pe ? 'O que se passa, em concreto (ex.: a companheira saiu de casa com os filhos ontem)' : 'O que se passa, em concreto (ex.: ameaça matar a ex-companheira se entrarmos)') + '" oninput="pn2ProbSet(' + k + ',\'texto\',this.value)" style="flex:2;min-width:200px;font-size:13px">'
       + '</div>'
       + '<div style="font-size:10.5px;color:var(--gray400);margin-bottom:8px;line-height:1.45">'
@@ -3586,6 +3586,17 @@ function pn2ProbRender(){
       + '</div>';
   }
   box.innerHTML = h;
+}
+// Campos com lista: ao clicar, mostra a lista completa (o valor atual fica como
+// sugestão); escolher outra opção substitui-o logo. Sem escolha, repõe o anterior.
+function pn2DlFoco(el){
+  el.dataset.ant = el.value; el.dataset.ph = el.placeholder; el.dataset.mexeu = '';
+  el.addEventListener('input', () => { el.dataset.mexeu = '1'; }, {once:true});
+  if(el.value){ el.placeholder = el.value; el.value = ''; }
+}
+function pn2DlSai(el){
+  if(!el.value && el.dataset.ant && !el.dataset.mexeu) el.value = el.dataset.ant;
+  if(el.dataset.ph !== undefined) el.placeholder = el.dataset.ph;
 }
 function pn2ProbAdd(tipo){ _pn2Prob.push(_pn2NovoProb(tipo)); pn2ProbRender(); }
 function pn2ProbSet(k, campo, val){ const p = _pn2Prob[k]; if(!p) return; p[campo] = val; pn2Sync(); }
