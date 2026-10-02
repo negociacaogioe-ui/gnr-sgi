@@ -2618,6 +2618,22 @@ function casoEncerrado(){
   const e = currentDetail && currentDetail.record && currentDetail.record.estado;
   return e === 'Resolvido' || e === 'Arquivado';
 }
+// Minutos desde o início; num caso encerrado conta só até ao fecho (encerrado_em).
+function sgiMinDecorridos(r){
+  const ini = new Date(r.data_hora || r.created_at).getTime();
+  if(!ini) return null;
+  let fim = Date.now();
+  if(r.estado === 'Resolvido' || r.estado === 'Arquivado'){
+    fim = r.encerrado_em ? new Date(r.encerrado_em).getTime() : NaN;
+    if(!fim) return null;
+  }
+  return Math.max(0, Math.floor((fim - ini) / 60000));
+}
+function sgiDecorridoTxt(r){
+  const m = sgiMinDecorridos(r);
+  if(m === null) return '—';
+  return m >= 60 ? Math.floor(m/60) + 'h' + String(m%60).padStart(2,'0') : m + ' min';
+}
 function enQuemVeCoordenacao(eq){
   const tem = k => !!(eq && eq[k] && eq[k].id);
   if(tem('nc')) return ['nc','n4'];
@@ -2658,11 +2674,8 @@ function _barraPostoHTML(){
   const uid = currentUser && currentUser.id;
   const escalado = k => !!(uid && eq[k] && eq[k].id === uid);
   const atual = _postoEscolhido ? enNomePos(_postoEscolhido) : 'por escolher';
-  const _mobB = (typeof isMobile !== 'undefined' && isMobile);
-  // No telemóvel, o lugar de «Posição» é o botão «Equipa» (Declarar ITP + Constituição da EN)
-  const lbl = _mobB
-    ? '<button class="bp-chip' + (!_postoEscolhido ? ' on' : '') + '" onclick="selecionarEquipaBarra()" title="Equipa — declarar ITP e constituir a EN"><i class="fas fa-users-gear" style="margin-right:4px"></i>Equipa</button>'
-    : '<span class="bp-lbl"><i class="fas fa-user-shield" style="color:var(--gl);margin-right:4px"></i>Posição</span>';
+  // O lugar de «Posição» é o botão «Equipa» (Declarar ITP + Constituição da EN)
+  const lbl = '<button class="bp-chip' + (!_postoEscolhido ? ' on' : '') + '" onclick="selecionarEquipaBarra()" title="Equipa — declarar ITP e constituir a EN"><i class="fas fa-users-gear" style="margin-right:4px"></i>Equipa</button>';
   if(_barraPostoColapsada){
     return lbl
       + '<span class="bp-atual">' + atual + '</span>'
@@ -2723,6 +2736,7 @@ function selecionarPostoBarra(k){
 }
 function selecionarEquipaBarra(){
   _postoEscolhido = null;
+  if(!(typeof isMobile !== 'undefined' && isMobile)){ showTab('tab-resumo'); return; }
   const o = document.getElementById('mob-form-fullscreen');
   if(o && o.style.display !== 'none'){
     o.style.display = 'none';
@@ -2927,12 +2941,7 @@ async function renderQuadroCoordenador(){
   }catch(e){}
   if(!document.getElementById('qc-content')) return;
 
-  const decorrido = () => {
-    const ini = new Date(r.data_hora || r.created_at).getTime();
-    if(!ini) return '—';
-    const m = Math.floor((Date.now() - ini) / 60000);
-    return (m >= 60 ? Math.floor(m/60) + 'h' + String(m%60).padStart(2,'0') : m + ' min');
-  };
+  const decorrido = () => sgiDecorridoTxt(r);
   const cartao = (titulo, valor, sub, cor) =>
     '<div style="background:#fff;border:1px solid var(--border);border-top:3px solid ' + (cor||'var(--gn)') + ';border-radius:var(--r);padding:11px 13px">'
     + '<div style="font-size:10px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">' + titulo + '</div>'
@@ -3031,9 +3040,7 @@ async function exportQuadroCoordenadorPDF(){
     it.forEach(x => { nl(); const l = doc.splitTextToSize('• ' + (x.t||x), 178); doc.text(l, 18, y); y += l.length*5; });
     y += 2;
   };
-  const ini = new Date(r.data_hora || r.created_at).getTime();
-  const mins = ini ? Math.floor((Date.now()-ini)/60000) : 0;
-  const decorrido = mins >= 60 ? Math.floor(mins/60)+'h'+String(mins%60).padStart(2,'0') : mins+' min';
+  const decorrido = sgiDecorridoTxt(r);
 
   sec('Situação');
   kv('Classificação', r.is_itp ? 'Incidente Tático-Policial (ITP)' : 'Incidente de Segurança');
@@ -3088,9 +3095,7 @@ async function renderCabecalhoCoordenacao(){
   }catch(e){}
   if(!document.getElementById('coord-cab')) return;
 
-  const ini = new Date(r.data_hora || r.created_at).getTime();
-  const m = ini ? Math.floor((Date.now()-ini)/60000) : 0;
-  const decorrido = m >= 60 ? Math.floor(m/60)+'h'+String(m%60).padStart(2,'0') : m+' min';
+  const decorrido = sgiDecorridoTxt(r);
   const cartao = (t,v,sub,cor) =>
     '<div style="background:#fff;border:1px solid var(--border);border-top:3px solid '+(cor||'var(--gn)')+';border-radius:var(--r);padding:11px 13px">'
     +'<div style="font-size:10px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">'+t+'</div>'
@@ -3222,15 +3227,15 @@ function renderPosto(){
       + f.slice(1).map(enNomePos).join(', ') + '.</p>';
   }
   h+='</div>';
-  // Telemóvel: o n.º 1 e o n.º 2 ficam só com o Plano de Diálogo (sem cartões de resumo nem PN)
-  const _soPD = _mob && (eN1 || eN2);
+  // O n.º 1 e o n.º 2 ficam só com o Plano de Diálogo (sem cartões de resumo nem PN)
+  const _soPD = eN1 || eN2;
   if(!_soPD) h+='<div id="coord-cab" style="margin-bottom:14px"></div>';
   if(eN1 || eN2) h+='<div id="coord-planos"'+(_soPD?' data-so="pd"':'')+' style="margin-bottom:14px"></div>';
   if(eN1){
     h+='<div class="form-section"><h3><i class="fas fa-headset" style="color:var(--red)"></i> Posto n.º 1 — contacto</h3>'
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Informação que lhe é prestada. Não preenche formulários durante o contacto.</p>'
       + _notasHTML(false)
-      + (_mob ? _n1LivreHTML() : '')
+      + _n1LivreHTML()
       +'</div>';
   }
   if(eN2){
