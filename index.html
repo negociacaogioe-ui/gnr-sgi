@@ -3458,6 +3458,23 @@ function pn2ProbFrase(p){
   const c = (p.cat||'').trim(), t = (p.texto||'').trim();
   return c && t ? c + ' — ' + t : (c || t);
 }
+// Converte o formato antigo «Não conseguimos X porque Y.» num facto (Y),
+// e o obstáculo antigo na categoria correspondente, quando possível.
+const _PN2_OBST_ANTIGO = {'ameaça contra a vida de terceiro':'Ameaça contra terceiro','ameaça de suicídio':'Ameaça de suicídio','ameaça contra a força':'Ameaça contra a força','arma':'Arma','recusa de contacto':'Recusa de contacto'};
+function _pn2Legado(p){
+  const f = (p.texto||'').match(/^Não conseguimos .+? porque (.+?)\.?\s*$/i);
+  if(!f) return;
+  let b = f[1].trim();
+  const mapa = /^condição imposta/i.test(b) ? 'Condição imposta' : _PN2_OBST_ANTIGO[b.toLowerCase()];
+  if(mapa && (!p.cat || p.cat === mapa)){ p.cat = mapa; b = ''; }
+  p.texto = b;
+}
+const _PN2_VERBO_NOSSO = /^\s*(não conseguimos|nao conseguimos|obter|estabelecer|conseguir|garantir|manter|identificar|envolver|afastar|confirmar|permitir|deter|entrar|negociar|convencer)\b/i;
+function _pn2AvisoTexto(p){
+  return (p.tipo === 'op' && _PN2_VERBO_NOSSO.test(p.texto||''))
+    ? '<i class="fas fa-triangle-exclamation" style="margin-right:4px"></i>Isto parece uma ação nossa (um objetivo), não um facto. Descreva o que se passa — ex.: «não atende o telefone e grita para nos irmos embora».'
+    : '';
+}
 function pn2ProbParse(txt){
   const out = [], solto = [];
   String(txt || '').split('\n').forEach(l => {
@@ -3469,6 +3486,7 @@ function pn2ProbParse(txt){
     const i = m[3].indexOf(' — ');
     if(i > -1){ p.cat = m[3].slice(0, i).trim(); p.texto = m[3].slice(i + 3).trim(); }
     else p.texto = m[3].trim();
+    _pn2Legado(p);
     out.push(p);
   });
   // Texto antigo (sem formato) passa a um problema operacional, para reclassificar
@@ -3561,6 +3579,7 @@ function pn2ProbRender(){
       + '<input type="text" list="pn2-dl-cat-' + p.tipo + '" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(p.cat) + '" placeholder="' + (pe ? 'Tipo de problema (ex.: Relação / separação)' : 'Tipo de obstáculo (ex.: Ameaça contra terceiro)') + '" onchange="pn2ProbSet(' + k + ',\'cat\',this.value);pn2ProbRender()" oninput="pn2ProbSet(' + k + ',\'cat\',this.value)" style="flex:1;min-width:170px;font-size:13px">'
       + '<input type="text" value="' + _escHtml(p.texto) + '" placeholder="' + (pe ? 'O que se passa, em concreto (ex.: a companheira saiu de casa com os filhos ontem)' : 'O que se passa, em concreto (ex.: ameaça matar a ex-companheira se entrarmos)') + '" oninput="pn2ProbSet(' + k + ',\'texto\',this.value)" style="flex:2;min-width:200px;font-size:13px">'
       + '</div>'
+      + '<div id="pn2-aviso-' + p.uid + '" style="font-size:11px;color:var(--amber);font-weight:600;margin-bottom:4px;line-height:1.45">' + _pn2AvisoTexto(p) + '</div>'
       + '<div style="font-size:10.5px;color:var(--gray400);margin-bottom:8px;line-height:1.45">'
       + (pe ? 'O problema é um <strong>facto</strong> da vida da pessoa. As soluções são o que lhe vamos <strong>propor</strong> — não prometer o que não se pode cumprir.'
             : 'O problema é um <strong>facto</strong> (o que se passa e nos bloqueia). Não comece por um verbo nosso (obter, estabelecer, conseguir…) — isso é um objetivo.')
@@ -3599,7 +3618,10 @@ function pn2DlSai(el){
   if(el.dataset.ph !== undefined) el.placeholder = el.dataset.ph;
 }
 function pn2ProbAdd(tipo){ _pn2Prob.push(_pn2NovoProb(tipo)); pn2ProbRender(); }
-function pn2ProbSet(k, campo, val){ const p = _pn2Prob[k]; if(!p) return; p[campo] = val; pn2Sync(); }
+function pn2ProbSet(k, campo, val){
+  const p = _pn2Prob[k]; if(!p) return; p[campo] = val; pn2Sync();
+  const av = document.getElementById('pn2-aviso-' + p.uid); if(av) av.innerHTML = _pn2AvisoTexto(p);
+}
 function pn2ProbTipo(k, tipo){
   const p = _pn2Prob[k]; if(!p || p.tipo === tipo) return;
   if(p.cat && !_pn2CatMapa(tipo)[p.cat]) p.cat = '';
