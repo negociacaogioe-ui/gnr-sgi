@@ -3373,7 +3373,17 @@ async function renderPN2(){
     + '<div style="margin-top:8px">' + (resumo ? _txtRO(resumo) : '<span style="font-size:12px;color:var(--gray400);font-style:italic">Ainda sem informação registada.</span>') + '</div></details>'
     + '<div id="pn2-alert" class="hidden" style="margin-bottom:.75rem"></div>'
     + '</div>'
-    + '<div class="form-section"><h3>1. Identificação do problema</h3><div class="field">' + ta('pn2-prob', v.identificacao_problema, 3) + '</div></div>'
+    + '<div class="form-section"><h3>1. Problemas e objetivos intermédios</h3>'
+    +   '<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px;line-height:1.5">Para cada problema — <strong>pessoal</strong> (o da pessoa) ou <strong>operacional</strong> (o que nos impede de resolver o incidente) — defina os objetivos intermédios, a modalidade de ação e o tempo aproximado. Pode escolher das listas ou escrever outra opção.</p>'
+    +   '<div id="pn2-prob-lista"></div>'
+    +   '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">'
+    +     '<button type="button" class="btn btn-outline btn-sm" onclick="pn2ProbAdd(\'op\')"><i class="fas fa-plus"></i> Problema operacional</button>'
+    +     '<button type="button" class="btn btn-outline btn-sm" onclick="pn2ProbAdd(\'pe\')"><i class="fas fa-plus"></i> Problema pessoal</button>'
+    +   '</div>'
+    +   '<textarea id="pn2-prob" style="display:none">' + _escHtml(v.identificacao_problema||'') + '</textarea>'
+    +   '<textarea id="pn2-obji" style="display:none">' + _escHtml(v['objetivos_intermédios']||'') + '</textarea>'
+    +   pn2ObjDatalists()
+    + '</div>'
     + '<div class="form-section"><h3>2. Tipo de situação</h3><div class="situation-type-btns">'
     +   '<div class="sit-btn ' + (v.tipo_situacao==='crise'?'selected':'') + '" id="pn2-sit-crise" onclick="pn2Sel(\'sit\',\'crise\')"><h4>CRISE</h4><p>Não planeada ou por descontrolo emocional</p></div>'
     +   '<div class="sit-btn ' + (v.tipo_situacao==='conflito'?'selected':'') + '" id="pn2-sit-conflito" onclick="pn2Sel(\'sit\',\'conflito\')"><h4>CONFLITO</h4><p>Ações planeadas que preveem o confronto</p></div>'
@@ -3386,23 +3396,19 @@ async function renderPN2(){
     +     '<div class="sit-btn ' + (v.alinhamento==='desalinhados'?'selected':'') + '" id="pn2-align-desalinhados" onclick="pn2Sel(\'align\',\'desalinhados\')"><h4>NÃO ALINHADOS</h4><p>✅ Favorável — trabalhar os interesses</p></div>'
     +     '<div class="sit-btn ' + (v.alinhamento==='alinhados'?'selected':'') + '" id="pn2-align-alinhados" onclick="pn2Sel(\'align\',\'alinhados\')"><h4>ALINHADOS</h4><p>⚠️ Desfavorável — criar valor ou explorar contradições</p></div>'
     +   '</div><input type="hidden" id="pn2-align" value="' + ((v.alinhamento==='alinhados'||v.alinhamento==='desalinhados')?v.alinhamento:'') + '">' + consultaPNHTML('align','pn2') + '</div></div>'
-    + '<div class="form-section"><h3>4. Objetivos</h3>'
-    +   '<div class="field"><label>Objetivo principal</label>' + ta('pn2-obj', v.objetivo_principal, 2) + '</div>'
-    +   '<div class="field"><label>Objetivos intermédios — modalidade de ação e tempo aproximado</label>'
-    +     '<div id="pn2-obj-lista"></div>'
-    +     '<button type="button" class="btn btn-outline btn-sm" onclick="pn2ObjAdd()" style="margin-top:6px"><i class="fas fa-plus"></i> Adicionar objetivo intermédio</button>'
-    +     '<textarea id="pn2-obji" style="display:none">' + _escHtml(v['objetivos_intermédios']||'') + '</textarea>'
-    +     pn2ObjDatalists()
-    +   '</div></div>'
+    + '<div class="form-section"><h3>4. Objetivo principal</h3>'
+    +   '<div class="field">' + ta('pn2-obj', v.objetivo_principal, 2) + '</div></div>'
     + sgiBarraHTML('pn2','Guardar PN');
   sgiAutosaveLigar('pn2');
   pn2ObjCarregar();
 }
-// ---- PN simplificado: objetivos intermédios com modalidade de ação e tempo ----
-// Grava no mesmo campo de texto do PN (objetivos_intermédios), uma linha por objetivo:
-//   - [ ] Objetivo | Modalidade: … | Tempo: …
-//   - [x] Objetivo | Modalidade: … | Tempo: … (15/09 14:32)
-// As listas são sugestões (proposta, não doutrina): pode sempre escrever-se outra.
+// ---- PN simplificado: problemas (pessoais / operacionais) e objetivos intermédios ----
+// Grava nos mesmos campos de texto do PN (sem SQL), legíveis no PN atual e no relatório:
+//   identificacao_problema:  P1 [Operacional] Não conseguimos entrar porque ameaça matar a ex-companheira.
+//                            P2 [Pessoal] Foi deixado pela companheira e perdeu a guarda dos filhos.
+//   objetivos_intermédios:   - [ ] Objetivo | Problema: P1 | Modalidade: … | Tempo: …
+//                            - [x] Objetivo | Problema: P1 | Modalidade: … | Tempo: … (15/09 14:32)
+// Todas as listas são sugestões (proposta, não doutrina): pode sempre escrever-se outra opção.
 const PN2_MODALIDADES = [
   'Contacto telefónico',
   'Contacto presencial (face a face)',
@@ -3415,78 +3421,194 @@ const PN2_MODALIDADES = [
   'Articulação com a equipa tática'
 ];
 const PN2_TEMPOS = ['5 min','10 min','15 min','30 min','45 min','1 h','2 h','Mais de 2 h'];
-let _pn2Obj = [];
+const PN2_ACOES = ['entrar','aproximar-nos','estabelecer contacto','manter o contacto','retirar a vítima / refém','deter o visado'];
+const PN2_OBSTACULOS = ['ameaça contra a vida de terceiro','ameaça de suicídio','ameaça contra a força','arma','recusa de contacto','condição imposta (ex.: «só falo com…»)'];
+const PN2_OBJ_PESSOAIS = [
+  'Reconhecer e validar o que sente',
+  'Reduzir a ativação emocional',
+  'Dar-lhe a sensação de ser ouvido',
+  'Explorar alternativas para o problema dele',
+  'Restabelecer ligação a família / filhos (através de âncora)',
+  'Garantir apoio médico / psicológico',
+  'Esclarecer as consequências reais da situação',
+  'Construir uma saída com dignidade'
+];
+const PN2_TIPOS = {op:{t:'Operacional', cor:'var(--red)'}, pe:{t:'Pessoal', cor:'var(--gm)'}};
+let _pn2Prob = [], _pn2Obj = [], _pn2Uid = 0;
 function pn2ObjDatalists(){
   const opt = a => a.map(t => '<option value="' + _escHtml(t) + '">').join('');
   const objs = [].concat.apply([], OBJ_INTERMEDIOS.map(g => g.itens));
-  return '<datalist id="pn2-dl-obj">' + opt(objs) + '</datalist>'
+  return '<datalist id="pn2-dl-obj-op">' + opt(objs) + '</datalist>'
+    + '<datalist id="pn2-dl-obj-pe">' + opt(PN2_OBJ_PESSOAIS) + '</datalist>'
     + '<datalist id="pn2-dl-mod">' + opt(PN2_MODALIDADES) + '</datalist>'
-    + '<datalist id="pn2-dl-tempo">' + opt(PN2_TEMPOS) + '</datalist>';
+    + '<datalist id="pn2-dl-tempo">' + opt(PN2_TEMPOS) + '</datalist>'
+    + '<datalist id="pn2-dl-acao">' + opt(PN2_ACOES) + '</datalist>'
+    + '<datalist id="pn2-dl-obst">' + opt(PN2_OBSTACULOS) + '</datalist>';
+}
+function _pn2NovoProb(tipo){ return {uid: ++_pn2Uid, tipo: tipo, acao:'', obst:'', texto:''}; }
+function _pn2NovoObj(puid){ return {puid: puid, feito:false, quando:'', obj:'', mod:'', tempo:''}; }
+function pn2ProbFrase(p){
+  if(p.tipo === 'pe') return (p.texto||'').trim();
+  const a = (p.acao||'').trim(), o = (p.obst||'').trim();
+  if(a && o) return 'Não conseguimos ' + a + ' porque ' + o + '.';
+  if(a) return 'Não conseguimos ' + a + '.';
+  return o;
+}
+function pn2ProbParse(txt){
+  const out = [], solto = [];
+  String(txt || '').split('\n').forEach(l => {
+    if(!l.trim()) return;
+    const m = l.match(/^\s*P(\d+)\s*\[(Operacional|Pessoal)\]\s*(.*)$/i);
+    if(!m){ solto.push(l.trim()); return; }
+    const p = _pn2NovoProb(/^pessoal$/i.test(m[2]) ? 'pe' : 'op');
+    p.num = m[1];
+    if(p.tipo === 'pe') p.texto = m[3];
+    else {
+      const f = m[3].match(/^Não conseguimos (.+?)(?: porque (.+?))?\.?\s*$/);
+      if(f){ p.acao = f[1]; p.obst = f[2] || ''; } else p.obst = m[3];
+    }
+    out.push(p);
+  });
+  // Texto antigo (sem formato) passa a um problema operacional, para reclassificar
+  if(solto.length){ const p = _pn2NovoProb('op'); p.obst = solto.join(' '); p.num = '?'; out.unshift(p); }
+  return out;
 }
 function pn2ObjParse(txt){
   return String(txt || '').split('\n').filter(l => l.trim()).map(l => {
     const m = l.match(/^\s*-\s*\[([ xX])\]\s*(.*?)\s*(?:\((\d{2}\/\d{2}\s+\d{2}:\d{2})\))?\s*$/);
     const corpo = m ? m[2] : l.replace(/^\s*(?:[•\-*]\s*)/, '').trim();
     const partes = corpo.split(' | ');
-    const o = { feito: !!(m && /x/i.test(m[1])), quando: (m && m[3]) || '', obj: partes.shift() || '', mod: '', tempo: '' };
+    const o = { feito: !!(m && /x/i.test(m[1])), quando: (m && m[3]) || '', obj: partes.shift() || '', mod: '', tempo: '', pnum: '' };
     partes.forEach(p => {
       if(/^Modalidade:\s*/.test(p)) o.mod = p.replace(/^Modalidade:\s*/, '');
       else if(/^Tempo:\s*/.test(p)) o.tempo = p.replace(/^Tempo:\s*/, '');
+      else if(/^Problema:\s*/.test(p)) o.pnum = p.replace(/^Problema:\s*P?/, '');
       else o.obj += (o.obj ? ' | ' : '') + p;
     });
     return o;
   });
 }
-function pn2ObjSerializar(){
-  return _pn2Obj.filter(o => (o.obj||'').trim() || (o.mod||'').trim() || (o.tempo||'').trim()).map(o =>
+function pn2Serializar(){
+  const vivos = _pn2Prob;
+  const numDe = {}; vivos.forEach((p, i) => { numDe[p.uid] = 'P' + (i + 1); });
+  const prob = vivos.map(p => { const f = pn2ProbFrase(p); return f ? numDe[p.uid] + ' [' + PN2_TIPOS[p.tipo].t + '] ' + f : ''; }).filter(Boolean).join('\n');
+  const obji = _pn2Obj.filter(o => (o.obj||'').trim() || (o.mod||'').trim() || (o.tempo||'').trim()).map(o =>
     '- [' + (o.feito ? 'x' : ' ') + '] ' + (o.obj||'').trim()
+    + (o.puid && numDe[o.puid] ? ' | Problema: ' + numDe[o.puid] : '')
     + ((o.mod||'').trim() ? ' | Modalidade: ' + o.mod.trim() : '')
     + ((o.tempo||'').trim() ? ' | Tempo: ' + o.tempo.trim() : '')
     + (o.feito && o.quando ? ' (' + o.quando + ')' : '')
   ).join('\n');
+  return {prob, obji};
 }
 function pn2ObjCarregar(){
-  const ta = document.getElementById('pn2-obji'); if(!ta) return;
-  _pn2Obj = pn2ObjParse(ta.value);
-  if(!_pn2Obj.length) _pn2Obj = [{feito:false, quando:'', obj:'', mod:'', tempo:''}];
-  pn2ObjRender();
+  const tp = document.getElementById('pn2-prob'), to = document.getElementById('pn2-obji');
+  if(!tp || !to) return;
+  _pn2Uid = 0;
+  _pn2Prob = pn2ProbParse(tp.value);
+  const porNum = {}; _pn2Prob.forEach(p => { if(p.num && p.num !== '?') porNum[p.num] = p.uid; });
+  _pn2Obj = pn2ObjParse(to.value).map(o => Object.assign(_pn2NovoObj(porNum[o.pnum] || null), o));
+  pn2ProbRender();
 }
-function pn2ObjRender(){
-  const box = document.getElementById('pn2-obj-lista'); if(!box) return;
-  const inp = (i, k, dl, ph, flex) => '<input type="text" list="' + dl + '" value="' + _escHtml(_pn2Obj[i][k]||'') + '" placeholder="' + ph + '" oninput="pn2ObjSet(' + i + ',\'' + k + '\',this.value)" style="flex:' + flex + ';min-width:140px;font-size:13px">';
-  box.innerHTML = _pn2Obj.map((o, i) =>
-    '<div style="border:1px solid var(--border);border-left:3px solid ' + (o.feito ? 'var(--gm)' : 'var(--gray300)') + ';border-radius:var(--r);padding:8px 10px;margin-bottom:7px;background:#fff">'
-    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+function pn2Sync(){
+  const tp = document.getElementById('pn2-prob'), to = document.getElementById('pn2-obji');
+  if(!tp || !to) return;
+  const r = pn2Serializar();
+  tp.value = r.prob; to.value = r.obji;
+  tp.dispatchEvent(new Event('input', {bubbles:true}));
+}
+function _pn2ObjLinhaHTML(o, i, dlObj){
+  const inp = (k, dl, ph, flex) => '<input type="text" list="' + dl + '" value="' + _escHtml(o[k]||'') + '" placeholder="' + ph + '" oninput="pn2ObjSet(' + i + ',\'' + k + '\',this.value)" style="flex:' + flex + ';min-width:130px;font-size:13px">';
+  return '<div style="border:1px solid var(--border);border-left:3px solid ' + (o.feito ? 'var(--gm)' : 'var(--gray300)') + ';border-radius:var(--r);padding:7px 9px;margin-bottom:6px;background:#fff">'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">'
     +   '<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray600);cursor:pointer;white-space:nowrap"><input type="checkbox" ' + (o.feito ? 'checked' : '') + ' onchange="pn2ObjFeito(' + i + ',this.checked)" style="width:auto;margin:0"> Alcançado' + (o.feito && o.quando ? ' <span style="font-family:\'IBM Plex Mono\',monospace;color:var(--gm)">' + o.quando + '</span>' : '') + '</label>'
-    +   '<span style="font-size:10.5px;font-weight:700;color:var(--gl);margin-left:auto">#' + (i+1) + '</span>'
-    +   '<button type="button" class="btn btn-ghost btn-sm" onclick="pn2ObjDel(' + i + ')" title="Remover" style="padding:2px 7px;font-size:11px;color:var(--gray400)"><i class="fas fa-xmark"></i></button>'
+    +   (o.puid ? '' : '<select onchange="pn2ObjAssociar(' + i + ',this.value)" style="font-size:11.5px;padding:2px 6px;width:auto;margin-left:6px"><option value="">Associar a…</option>' + _pn2Prob.map((p, k) => '<option value="' + p.uid + '">P' + (k+1) + ' — ' + PN2_TIPOS[p.tipo].t + '</option>').join('') + '</select>')
+    +   '<button type="button" class="btn btn-ghost btn-sm" onclick="pn2ObjDel(' + i + ')" title="Remover objetivo" style="padding:2px 7px;font-size:11px;color:var(--gray400);margin-left:auto"><i class="fas fa-xmark"></i></button>'
     + '</div>'
     + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
-    +   inp(i, 'obj', 'pn2-dl-obj', 'Objetivo intermédio (escolha ou escreva)', 3)
-    +   inp(i, 'mod', 'pn2-dl-mod', 'Modalidade de ação', 2)
-    +   inp(i, 'tempo', 'pn2-dl-tempo', 'Tempo aprox.', 1)
-    + '</div></div>'
-  ).join('')
-  + '<div style="font-size:10.5px;color:var(--gray400);line-height:1.45">As listas são sugestões — pode escolher ou escrever outra opção em qualquer campo.</div>';
+    +   inp('obj', dlObj, 'Objetivo intermédio', 3)
+    +   inp('mod', 'pn2-dl-mod', 'Modalidade de ação', 2)
+    +   inp('tempo', 'pn2-dl-tempo', 'Tempo aprox.', 1)
+    + '</div></div>';
 }
-function pn2ObjSync(){
-  const ta = document.getElementById('pn2-obji'); if(!ta) return;
-  ta.value = pn2ObjSerializar();
-  ta.dispatchEvent(new Event('input', {bubbles:true}));
+function pn2ProbRender(){
+  const box = document.getElementById('pn2-prob-lista'); if(!box) return;
+  let h = '';
+  if(!_pn2Prob.length) h += '<div style="font-size:12px;color:var(--gray400);font-style:italic;padding:4px 0 8px">Sem problemas definidos. Acrescente um problema operacional ou pessoal.</div>';
+  _pn2Prob.forEach((p, k) => {
+    const tp = PN2_TIPOS[p.tipo];
+    const objs = _pn2Obj.map((o, i) => ({o, i})).filter(x => x.o.puid === p.uid);
+    const feitos = objs.filter(x => x.o.feito).length;
+    const estado = !objs.length
+      ? '<span style="font-size:10.5px;color:var(--amber);font-weight:600"><i class="fas fa-triangle-exclamation" style="margin-right:3px"></i>sem objetivos intermédios</span>'
+      : (feitos === objs.length
+          ? '<span style="font-size:10.5px;color:var(--gm);font-weight:600"><i class="fas fa-circle-check" style="margin-right:3px"></i>' + (p.tipo === 'op' ? 'desbloqueado' : 'trabalhado') + '</span>'
+          : '<span style="font-size:10.5px;color:var(--gray600);font-family:\'IBM Plex Mono\',monospace">' + feitos + '/' + objs.length + ' alcançados</span>');
+    h += '<div style="border:1px solid var(--border);border-top:3px solid ' + tp.cor + ';border-radius:var(--r);padding:10px 12px;margin-bottom:10px;background:var(--gp)">'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
+      +   '<span style="font-weight:700;color:' + tp.cor + ';font-size:13px">P' + (k+1) + '</span>'
+      +   '<span style="display:inline-flex;border:1px solid var(--border);border-radius:14px;overflow:hidden">'
+      +     ['op','pe'].map(t => '<button type="button" onclick="pn2ProbTipo(' + k + ',\'' + t + '\')" style="border:0;padding:2px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;background:' + (p.tipo === t ? PN2_TIPOS[t].cor : '#fff') + ';color:' + (p.tipo === t ? '#fff' : 'var(--gray600)') + '">' + PN2_TIPOS[t].t + '</button>').join('')
+      +   '</span>'
+      +   estado
+      +   '<button type="button" class="btn btn-ghost btn-sm" onclick="pn2ProbDel(' + k + ')" title="Remover problema" style="padding:2px 7px;font-size:11px;color:var(--gray400);margin-left:auto"><i class="fas fa-trash"></i></button>'
+      + '</div>';
+    if(p.tipo === 'op'){
+      h += '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--gn);margin-bottom:4px">'
+        + '<span style="font-weight:600">Não conseguimos</span>'
+        + '<input type="text" list="pn2-dl-acao" value="' + _escHtml(p.acao) + '" placeholder="ação (ex.: entrar)" oninput="pn2ProbSet(' + k + ',\'acao\',this.value)" style="flex:1;min-width:140px;font-size:13px">'
+        + '<span style="font-weight:600">porque</span>'
+        + '<input type="text" list="pn2-dl-obst" value="' + _escHtml(p.obst) + '" placeholder="obstáculo (ex.: ameaça matar a ex-companheira)" oninput="pn2ProbSet(' + k + ',\'obst\',this.value)" style="flex:2;min-width:180px;font-size:13px">'
+        + '</div>'
+        + '<div style="font-size:10.5px;color:var(--gray400);margin-bottom:8px">O que nos impede de resolver o incidente — não descreva a situação nem os problemas da pessoa. Teste: se este obstáculo desaparecesse, conseguíamos avançar?</div>';
+    } else {
+      h += '<input type="text" value="' + _escHtml(p.texto) + '" placeholder="Problema da pessoa (ex.: foi deixado pela companheira e perdeu a guarda dos filhos)" oninput="pn2ProbSet(' + k + ',\'texto\',this.value)" style="width:100%;font-size:13px;margin-bottom:4px">'
+        + '<div style="font-size:10.5px;color:var(--gray400);margin-bottom:8px">O que levou a pessoa a esta situação. Ajuda a definir os interesses e o «Quem» do PD.</div>';
+    }
+    h += '<div style="font-size:10.5px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Objetivos intermédios</div>'
+      + objs.map(x => _pn2ObjLinhaHTML(x.o, x.i, p.tipo === 'pe' ? 'pn2-dl-obj-pe' : 'pn2-dl-obj-op')).join('')
+      + '<button type="button" class="btn btn-ghost btn-sm" onclick="pn2ObjAdd(' + p.uid + ')" style="font-size:11.5px"><i class="fas fa-plus"></i> Objetivo intermédio para P' + (k+1) + '</button>'
+      + '</div>';
+  });
+  const soltos = _pn2Obj.map((o, i) => ({o, i})).filter(x => !x.o.puid || !_pn2Prob.some(p => p.uid === x.o.puid));
+  if(soltos.length){
+    soltos.forEach(x => { x.o.puid = null; });
+    h += '<div style="border:1px dashed var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:10px">'
+      + '<div style="font-size:10.5px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px"><i class="fas fa-link-slash" style="margin-right:4px"></i>Objetivos sem problema associado</div>'
+      + soltos.map(x => _pn2ObjLinhaHTML(x.o, x.i, 'pn2-dl-obj-op')).join('')
+      + '</div>';
+  }
+  box.innerHTML = h;
 }
-function pn2ObjSet(i, k, val){ if(!_pn2Obj[i]) return; _pn2Obj[i][k] = val; pn2ObjSync(); }
+function pn2ProbAdd(tipo){ _pn2Prob.push(_pn2NovoProb(tipo)); pn2ProbRender(); }
+function pn2ProbSet(k, campo, val){ const p = _pn2Prob[k]; if(!p) return; p[campo] = val; pn2Sync(); }
+function pn2ProbTipo(k, tipo){
+  const p = _pn2Prob[k]; if(!p || p.tipo === tipo) return;
+  if(tipo === 'pe') p.texto = p.texto || pn2ProbFrase(p);
+  else if(!p.acao && !p.obst) p.obst = p.texto || '';
+  p.tipo = tipo; pn2Sync(); pn2ProbRender();
+}
+function pn2ProbDel(k){
+  const p = _pn2Prob[k]; if(!p) return;
+  const n = _pn2Obj.filter(o => o.puid === p.uid).length;
+  if((pn2ProbFrase(p) || n) && !confirm('Remover o problema P' + (k+1) + (n ? ' e os seus ' + n + ' objetivo(s) intermédio(s)' : '') + '?')) return;
+  _pn2Obj = _pn2Obj.filter(o => o.puid !== p.uid);
+  _pn2Prob.splice(k, 1); pn2Sync(); pn2ProbRender();
+}
+function pn2ObjAdd(puid){ _pn2Obj.push(_pn2NovoObj(puid)); pn2ProbRender(); }
+function pn2ObjSet(i, k, val){ if(!_pn2Obj[i]) return; _pn2Obj[i][k] = val; pn2Sync(); }
+function pn2ObjAssociar(i, uid){ const o = _pn2Obj[i]; if(!o || !uid) return; o.puid = Number(uid); pn2Sync(); pn2ProbRender(); }
 function pn2ObjFeito(i, on){
   const o = _pn2Obj[i]; if(!o) return;
   o.feito = on;
   if(on){ const d = new Date(), z = n => String(n).padStart(2,'0'); o.quando = z(d.getDate()) + '/' + z(d.getMonth()+1) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()); }
   else o.quando = '';
-  pn2ObjSync(); pn2ObjRender();
+  pn2Sync(); pn2ProbRender();
 }
-function pn2ObjAdd(){ _pn2Obj.push({feito:false, quando:'', obj:'', mod:'', tempo:''}); pn2ObjRender(); }
 function pn2ObjDel(i){
   const o = _pn2Obj[i]; if(!o) return;
   if((o.obj||o.mod||o.tempo) && !confirm('Remover este objetivo intermédio?')) return;
-  _pn2Obj.splice(i, 1); pn2ObjSync(); pn2ObjRender();
+  _pn2Obj.splice(i, 1); pn2Sync(); pn2ProbRender();
 }
 function pn2Sel(campo, val){
   const inp = document.getElementById('pn2-' + campo); if(!inp) return;
