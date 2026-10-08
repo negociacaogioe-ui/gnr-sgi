@@ -12441,12 +12441,11 @@ function mobPushTab(tab) {
 async function mobAtualizarMenuFormacao() {
   const btn = document.getElementById('mob-menu-formacao');
   if (!btn) return;
-  try { await avCarregarAcesso(); } catch (e) {}
-  btn.classList.toggle('hidden', !avTemAcesso());
+  // Formação disponível para todos os utilizadores aprovados (incl. alunos); a Avaliação continua restrita a EPQ/admin dentro da secção
+  btn.classList.toggle('hidden', !currentProfile);
 }
 async function mobAbrirFormacao() {
   try { await avCarregarAcesso(); } catch (e) {}
-  if (!avTemAcesso()) { alert('A Formação no telemóvel está disponível apenas para negociadores EPQ e administradores.'); return; }
   const host = document.getElementById('mob-formacao-host');
   ['section-formacao', 'section-formacao-detalhe'].forEach(id => {
     const el = document.getElementById(id);
