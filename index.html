@@ -295,10 +295,6 @@ body.is-mobile .sgi-bar .btn{width:100%;justify-content:center}
   .av-ficha-tbl td{border:none!important;padding:4px 6px}
   .av-ficha-tbl td.av-par{flex:0 0 100%;min-width:0!important}
   .av-ficha-tbl td.av-niv{flex:1 1 0;padding:4px 2px!important}
-  .av-ficha-tbl td.av-coef,.av-ficha-tbl td.av-tot{flex:0 0 auto;font-size:12px}
-  .av-ficha-tbl td.av-coef::before{content:'Coef. ';font-family:inherit;font-weight:400;color:var(--gray600)}
-  .av-ficha-tbl td.av-tot{min-width:52px;text-align:right!important}
-  .av-ficha-tbl td.av-tot:not(:empty)::before{content:'= ';font-weight:400;color:var(--gray600)}
   .av-ficha-tbl tr:not(.av-lin) td{flex:1 1 auto}
 }
 
@@ -7347,24 +7343,22 @@ function avRenderFicha(){
             <i class="fas fa-chevron-right" id="avc-${id}" style="color:var(--gl);font-size:11px;margin-top:4px;transition:transform .15s;${aberto?'transform:rotate(90deg)':''}"></i>
             <span style="font-weight:600;font-size:13px;color:var(--gray900)">${i+1} – ${_ppEsc(p.t)}</span>
           </button></td>
-        <td class="av-coef" style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700">${p.coef}</td>
         ${[1,2,3,4,5].map(v=>`<td class="av-niv" style="text-align:center;padding:4px">${edit
           ? `<button type="button" onclick="avSetNivel(${u.uc},'${p.k}',${v})" title="${n===v?'Clicar de novo para retirar a cotação':'Nível '+v}" style="display:inline-flex;width:34px;height:34px;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;border:1.5px solid ${n===v?'var(--gl)':'var(--border)'};background:${n===v?'var(--gl)':'#fff'};color:${n===v?'#fff':'var(--gray600)'};font-weight:700;font-family:inherit;font-size:13px">${v}</button>`
           : `<span style="display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:50%;${n===v?'background:var(--gl);color:#fff;font-weight:700':'color:var(--gray400)'}">${n===v?v:'·'}</span>`}</td>`).join('')}
-        <td class="av-tot" style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700">${n?p.coef*n:''}</td>
       </tr>
-      <tr class="av-desc ${aberto?'':'hidden'}" id="avd-${id}"><td colspan="8" style="padding:0 6px 10px">
+      <tr class="av-desc ${aberto?'':'hidden'}" id="avd-${id}"><td colspan="6" style="padding:0 6px 10px">
         <div style="background:var(--gp);border-left:3px solid var(--gl);border-radius:var(--r);padding:8px 12px;font-size:12.5px;line-height:1.55;color:var(--gray900)">
           <div style="font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gl);margin-bottom:3px">Competência avaliada — caracterização genérica</div>${_ppEsc(p.c)}</div>
       </td></tr>`;
     }).join('');
     return `<div class="form-section"><h3>${idx}. UC ${u.uc} — ${_ppEsc(u.nome)}</h3>
       <div class="table-wrap"><table class="av-ficha-tbl">
-        <thead><tr><th rowspan="2">Parâmetros de Avaliação <span style="font-weight:400;text-transform:none;letter-spacing:0">(clicar para ver a competência)</span></th><th rowspan="2" style="text-align:center">Coef.<div style="font-weight:400">(a)</div></th><th colspan="5" style="text-align:center">Pontuação (Níveis) (b)</th><th rowspan="2" style="text-align:center">Total<div style="font-weight:400">(a × b)</div></th></tr>
+        <thead><tr><th rowspan="2">Parâmetros de Avaliação <span style="font-weight:400;text-transform:none;letter-spacing:0">(clicar para ver a competência)</span></th><th colspan="5" style="text-align:center">Pontuação (Níveis)</th></tr>
           <tr>${[1,2,3,4,5].map(v=>`<th style="text-align:center">${v}</th>`).join('')}</tr></thead>
         <tbody>${linhas}
-          <tr style="background:var(--gray100)"><td style="font-weight:700">Soma (1) <span style="font-weight:400;font-size:11.5px;color:var(--gray600)">— ${calc.cotados} de ${calc.total} parâmetros cotados</span></td><td style="text-align:center;font-weight:700;font-family:'IBM Plex Mono',monospace">${calc.cotados?calc.s1:'—'}</td><td colspan="5" style="text-align:right;font-weight:700">Soma (2)</td><td style="text-align:center;font-weight:700;font-family:'IBM Plex Mono',monospace">${calc.cotados?calc.s2:'—'}</td></tr>
-          <tr><td colspan="7" style="font-weight:700">Classificação [(Soma 2 / Soma 1) × 5] − 5</td><td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:16px;color:${avBaixo(calc.cls)?'var(--red)':'var(--gn)'}">${avFmt(calc.cls)}</td></tr>
+          <tr style="background:var(--gray100)"><td colspan="6" style="font-size:11.5px;color:var(--gray600)">${calc.cotados} de ${calc.total} parâmetros cotados</td></tr>
+          <tr><td colspan="5" style="font-weight:700">Classificação</td><td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:16px;color:${avBaixo(calc.cls)?'var(--red)':'var(--gn)'}">${avFmt(calc.cls)}</td></tr>
         </tbody></table></div>
       <div class="field" style="margin-top:12px"><label>Juízo ampliativo — UC ${u.uc}</label>
         <textarea rows="3" ${edit?'':'disabled'} oninput="_av.ficha.juizo[${u.uc}]=this.value">${_ppEsc(F.juizo[u.uc]||'')}</textarea></div>
