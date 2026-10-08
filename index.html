@@ -7360,8 +7360,6 @@ function avRenderFicha(){
           <tr style="background:var(--gray100)"><td colspan="6" style="font-size:11.5px;color:var(--gray600)">${calc.cotados} de ${calc.total} parâmetros cotados</td></tr>
           <tr><td colspan="5" style="font-weight:700">Classificação</td><td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:16px;color:${avBaixo(calc.cls)?'var(--red)':'var(--gn)'}">${avFmt(calc.cls)}</td></tr>
         </tbody></table></div>
-      <div class="field" style="margin-top:12px"><label>Juízo ampliativo — UC ${u.uc}</label>
-        <textarea rows="3" ${edit?'':'disabled'} oninput="_av.ficha.juizo[${u.uc}]=this.value">${_ppEsc(F.juizo[u.uc]||'')}</textarea></div>
     </div>`;
   };
 
