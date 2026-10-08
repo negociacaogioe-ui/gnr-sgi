@@ -6969,11 +6969,33 @@ function avCardHtml(){
 
 // ---------- Cálculo (igual ao da base de dados) ----------
 function avUcDef(uc){ return AVAL_UCS.find(u=>u.uc===uc); }
+// Só os parâmetros cotados contam: Soma (1) = soma dos coeficientes dos parâmetros cotados.
 function avCalcular(uc, niveis){
-  const d = avUcDef(uc); let s1=0, s2=0, completo=true;
-  d.params.forEach(p=>{ s1+=p.coef; const n=niveis&&niveis[p.k]; if(n) s2+=p.coef*n; else completo=false; });
-  const cls = completo ? Math.round(((s2/s1)*5-5)*100)/100 : null;
-  return { s1, s2: completo ? s2 : (s2||null), cls, completo };
+  const d = avUcDef(uc); let s1=0, s2=0, cotados=0;
+  d.params.forEach(p=>{ const n=niveis&&niveis[p.k]; if(n){ s1+=p.coef; s2+=p.coef*n; cotados++; } });
+  const cls = cotados ? Math.round(((s2/s1)*5-5)*100)/100 : null;
+  return { s1, s2: cotados ? s2 : null, cls, cotados, total:d.params.length, completo: cotados===d.params.length };
+}
+// Uma avaliação (ficha única) = linhas de aval_fichas com o mesmo «grupo» (uma por UC cotada)
+function avGrupoKey(f){ return f.grupo || f.id; }
+function avGrupoEstado(rows){
+  const es = Object.values(rows||{}).map(r=>r.estado);
+  if(!es.length) return 'rascunho';
+  return ['devolvida','submetida','rascunho','validada'].find(e=>es.includes(e)) || es[0];
+}
+function avGrupos(filtro){
+  const m = new Map();
+  _av.fichas.filter(filtro).forEach(f=>{
+    const k = avGrupoKey(f);
+    if(!m.has(k)) m.set(k, { key:k, aluno_id:f.aluno_id, avaliador_id:f.avaliador_id, exercicio:f.exercicio||'', data_hora:f.data_hora||null, created_at:f.created_at, rows:{} });
+    m.get(k).rows[f.uc] = f;
+  });
+  return [...m.values()].sort((a,b)=>String(b.data_hora||b.created_at||'').localeCompare(String(a.data_hora||a.created_at||'')));
+}
+function avDataHora(iso){ return iso ? new Date(iso).toLocaleString('pt-PT',{ day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—'; }
+function avIsoParaInput(iso){
+  if(!iso) return ''; const d = new Date(iso), p = n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());
 }
 function avFmt(v){ return (v==null||isNaN(v)) ? '—' : Number(v).toFixed(2).replace('.',','); }
 function avMedia(arr){ const a=arr.filter(v=>v!=null); if(!a.length) return null; return Math.round((a.reduce((x,y)=>x+Number(y),0)/a.length)*100)/100; }
@@ -7047,26 +7069,24 @@ function avRender(){
   if(_av.tab==='config'){ avCarregarListaEpq(); avCarregarCandidatosAluno(); }
 }
 
-// Tabela alunos × UC para um avaliador (as minhas / por avaliador)
+// Lista das avaliações (fichas únicas) de um avaliador (as minhas / por avaliador)
 function avHtmlGrelhaAvaliador(avaliadorId, proprias){
   if(!_av.alunos.length) return '<div style="padding:1.5rem;color:var(--gray400);font-size:13px">Sem alunos inscritos nesta edição (militares com CTer "CTer Curso").</div>';
-  return `<div class="table-card"><div class="table-wrap"><table>
-    <thead><tr><th>Aluno</th>${AVAL_UCS.map(u=>`<th style="text-align:center">UC ${u.uc}</th>`).join('')}</tr></thead>
-    <tbody>${_av.alunos.map(a=>{
-      const cels = AVAL_UCS.map(u=>{
-        const f = _av.fichas.find(x=>x.aluno_id===a.aluno_id && x.uc===u.uc && x.avaliador_id===avaliadorId);
-        if(!f){
-          return proprias
-            ? `<td style="text-align:center"><button class="btn btn-outline btn-sm" onclick="avAbrirFicha('${a.aluno_id}',${u.uc},'${avaliadorId}')"><i class="fas fa-pen"></i> Avaliar</button></td>`
-            : `<td style="text-align:center;color:var(--gray400);font-size:12px">—</td>`;
-        }
-        const baixo = avBaixo(f.classificacao);
-        return `<td style="text-align:center;cursor:pointer" onclick="avAbrirFicha('${a.aluno_id}',${u.uc},'${avaliadorId}')">
-          <div style="font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:14px;color:${baixo?'var(--red)':'var(--gn)'}">${avFmt(f.classificacao)}</div>
-          <div style="margin-top:3px">${avEstadoBadge(f.estado)}</div></td>`;
-      }).join('');
-      return `<tr><td style="font-weight:600">${_ppEsc(avNome(a.aluno_id))}</td>${cels}</tr>`;
-    }).join('')}</tbody></table></div></div>`;
+  const gs = avGrupos(f=>f.avaliador_id===avaliadorId);
+  const topo = proprias ? `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+      <div style="font-size:12.5px;color:var(--gray600);line-height:1.5;max-width:60ch">Cada avaliação junta as fichas da UC 1, UC 2 e UC 3 de um aluno num exercício. Só contam os parâmetros cotados.</div>
+      <button class="btn btn-primary" onclick="avNovaAvaliacao()"><i class="fas fa-plus"></i> Nova avaliação</button></div>` : '';
+  if(!gs.length) return topo + '<div style="padding:1.5rem;background:var(--gray100);border-radius:var(--rl);color:var(--gray600);font-size:13px">Ainda sem avaliações.</div>';
+  const num = f => f ? `<span style="font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:14px;color:${avBaixo(f.classificacao)?'var(--red)':'var(--gn)'}">${avFmt(f.classificacao)}</span>` : '<span style="color:var(--gray400);font-size:12px">—</span>';
+  return topo + `<div class="table-card"><div class="table-wrap"><table>
+    <thead><tr><th>Data / hora</th><th>Exercício</th><th>Aluno</th>${AVAL_UCS.map(u=>`<th style="text-align:center">UC ${u.uc}</th>`).join('')}<th>Estado</th></tr></thead>
+    <tbody>${gs.map(g=>`<tr style="cursor:pointer" onclick="avAbrirGrupo('${g.key}')">
+      <td style="white-space:nowrap;font-family:'IBM Plex Mono',monospace;font-size:12.5px">${avDataHora(g.data_hora)}</td>
+      <td>${g.exercicio?_ppEsc(g.exercicio):'<span style="color:var(--gray400);font-size:12px">sem exercício indicado</span>'}</td>
+      <td style="font-weight:600">${_ppEsc(avNome(g.aluno_id))}</td>
+      ${AVAL_UCS.map(u=>`<td style="text-align:center">${num(g.rows[u.uc])}</td>`).join('')}
+      <td>${avEstadoBadge(avGrupoEstado(g.rows))}</td>
+    </tr>`).join('')}</tbody></table></div></div>`;
 }
 
 // Admin: resumo com médias por UC (EPQ + admin), só avaliações validadas
@@ -7128,12 +7148,14 @@ function avVerIndividuais(alunoId, uc){
     <div class="page-title" style="font-size:18px;margin:.5rem 0 2px">${_ppEsc(avNome(alunoId))}</div>
     <div class="page-sub" style="margin-bottom:1rem">UC ${uc} — ${_ppEsc(u.nome)} · avaliações individuais</div>
     <div class="table-card"><div class="table-wrap"><table>
-      <thead><tr><th>Avaliador</th><th style="text-align:center">Classificação</th><th>Estado</th><th></th></tr></thead>
-      <tbody>${!fs.length?'<tr><td colspan="4" style="text-align:center;padding:1.25rem;color:var(--gray400);font-size:13px">Ainda sem avaliações.</td></tr>':''}${fs.map(f=>`<tr>
+      <thead><tr><th>Avaliador</th><th>Exercício</th><th>Data / hora</th><th style="text-align:center">Classificação</th><th>Estado</th><th></th></tr></thead>
+      <tbody>${!fs.length?'<tr><td colspan="6" style="text-align:center;padding:1.25rem;color:var(--gray400);font-size:13px">Ainda sem avaliações.</td></tr>':''}${fs.map(f=>`<tr>
         <td>${_ppEsc(avNome(f.avaliador_id))}${f.avaliador_id===currentUser.id?' <span style="font-size:11px;color:var(--gray400)">(eu)</span>':''}</td>
+        <td>${f.exercicio?_ppEsc(f.exercicio):'<span style="color:var(--gray400);font-size:12px">—</span>'}</td>
+        <td style="white-space:nowrap;font-family:'IBM Plex Mono',monospace;font-size:12.5px">${avDataHora(f.data_hora)}</td>
         <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;color:${avBaixo(f.classificacao)?'var(--red)':'var(--gn)'}">${avFmt(f.classificacao)}</td>
         <td>${avEstadoBadge(f.estado)}</td>
-        <td><button class="btn btn-outline btn-sm" onclick="avAbrirFicha('${alunoId}',${uc},'${f.avaliador_id}','individuais')"><i class="fas fa-eye"></i> Abrir ficha</button></td>
+        <td><button class="btn btn-outline btn-sm" onclick="avAbrirGrupo('${avGrupoKey(f)}','individuais','${alunoId}',${uc})"><i class="fas fa-eye"></i> Abrir ficha</button></td>
       </tr>`).join('')}</tbody></table></div></div>`;
 }
 // Admin: consultar as fichas de um avaliador EPQ
@@ -7272,115 +7294,204 @@ async function avGuardarAluno(id, campo, valor){
   const a = _av.alunos.find(x=>x.id===id); if(a) a[campo] = valor.trim();
 }
 
-// ---------- Ficha de avaliação ----------
-function avAbrirFicha(alunoId, uc, avaliadorId, origem){
-  const f = _av.fichas.find(x=>x.aluno_id===alunoId && x.uc===uc && x.avaliador_id===avaliadorId);
-  _av.ficha = { alunoId, uc, avaliadorId, origem: origem||'lista', niveis: JSON.parse(JSON.stringify((f&&f.niveis)||{})), row: f||null };
+// ---------- Ficha única de avaliação (UC 1, UC 2 e UC 3 num exercício) ----------
+function avNovaAvaliacao(base){
+  _av.ficha = { key:null, grupo:null, alunoId:'', avaliadorId:currentUser.id, origem:'lista',
+    exercicio:(base&&base.exercicio)||'', dataHora:(base&&base.dataHora)||'', funcao:(base&&base.funcao)||'',
+    niveis:{1:{},2:{},3:{}}, juizo:{1:'',2:'',3:''}, rows:{}, abertos:{} };
+  avRenderFicha();
+}
+function avAbrirGrupo(key, origem, alunoId, uc){
+  const rows = {};
+  _av.fichas.filter(f=>avGrupoKey(f)===key).forEach(f=>rows[f.uc]=f);
+  const any = Object.values(rows)[0]; if(!any) return;
+  const F = _av.ficha = { key, grupo:any.grupo||null, alunoId:any.aluno_id, avaliadorId:any.avaliador_id, origem:origem||'lista',
+    voltarAluno:alunoId||null, voltarUc:uc||null,
+    exercicio:any.exercicio||'', dataHora:avIsoParaInput(any.data_hora), funcao:any.funcao||'',
+    niveis:{}, juizo:{}, rows, abertos:{} };
+  AVAL_UCS.forEach(u=>{ F.niveis[u.uc] = JSON.parse(JSON.stringify((rows[u.uc]&&rows[u.uc].niveis)||{})); F.juizo[u.uc] = (rows[u.uc]&&rows[u.uc].juizo)||''; });
   avRenderFicha();
 }
 function avFichaEditavel(){
-  const F = _av.ficha; const e = F.row ? F.row.estado : 'rascunho';
+  const F = _av.ficha; const e = avGrupoEstado(F.rows);
   if(F.avaliadorId !== currentUser.id) return false;
   return ['rascunho','devolvida'].includes(e) || (_av.admin && e!=='validada');
 }
+function avToggleDesc(id){
+  const F = _av.ficha; F.abertos[id] = !F.abertos[id];
+  const row = document.getElementById('avd-'+id); if(row) row.classList.toggle('hidden', !F.abertos[id]);
+  const ch = document.getElementById('avc-'+id); if(ch) ch.style.transform = F.abertos[id] ? 'rotate(90deg)' : '';
+}
 function avRenderFicha(){
-  const F = _av.ficha, u = avUcDef(F.uc), r = F.row || {};
+  const F = _av.ficha;
+  const estado = avGrupoEstado(F.rows);
+  const rAny = Object.values(F.rows)[0] || {};
   const al = _av.alunos.find(a=>a.aluno_id===F.alunoId) || {};
   const pAl = _av.perfis[F.alunoId] || {}, pAv = _av.perfis[F.avaliadorId] || {};
   const ed = _av.edicoes.find(e=>e.id===_av.edicaoId) || {};
   const edit = avFichaEditavel();
-  const calc = avCalcular(F.uc, F.niveis);
+  const novo = !Object.keys(F.rows).length;
   const dt = d => d ? new Date(d).toLocaleDateString('pt-PT') : '__/__/____';
-  const voltar = F.origem==='individuais' ? `avVerIndividuais('${F.alunoId}',${F.uc})` : 'avRender()';
-  const linhas = u.params.map(p=>{
-    const n = F.niveis[p.k];
-    return `<tr class="av-lin">
-      <td class="av-par" style="min-width:260px"><div style="font-weight:600;font-size:13px;color:var(--gray900)">${_ppEsc(p.t)}</div>
-        <details style="margin-top:3px"><summary style="font-size:11.5px;color:var(--gl);cursor:pointer">Caracterização</summary><div style="font-size:12px;color:var(--gray600);line-height:1.5;margin-top:4px">${_ppEsc(p.c)}</div></details></td>
-      <td class="av-coef" style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700">${p.coef}</td>
-      ${[1,2,3,4,5].map(v=>`<td class="av-niv" style="text-align:center;padding:4px">${edit
-        ? `<label style="display:inline-flex;width:34px;height:34px;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;border:1.5px solid ${n===v?'var(--gl)':'var(--border)'};background:${n===v?'var(--gl)':'#fff'};color:${n===v?'#fff':'var(--gray600)'};font-weight:700"><input type="radio" name="av-${p.k}" value="${v}" ${n===v?'checked':''} onchange="avSetNivel('${p.k}',${v})" style="display:none">${v}</label>`
-        : `<span style="display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:50%;${n===v?'background:var(--gl);color:#fff;font-weight:700':'color:var(--gray400)'}">${n===v?v:'·'}</span>`}</td>`).join('')}
-      <td class="av-tot" style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700">${n?p.coef*n:''}</td>
-    </tr>`;
-  }).join('');
+  const voltar = F.origem==='individuais' ? `avVerIndividuais('${F.voltarAluno}',${F.voltarUc})` : 'avRender()';
+  const calcs = {}; AVAL_UCS.forEach(u=>calcs[u.uc]=avCalcular(u.uc, F.niveis[u.uc]));
+  const mediaEx = avMedia(AVAL_UCS.map(u=>calcs[u.uc].cls));
+  const exercicios = [...new Set(_av.fichas.map(f=>f.exercicio).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt'));
+
+  const blocoUc = (u, idx) => {
+    const calc = calcs[u.uc], niv = F.niveis[u.uc] || {};
+    const linhas = u.params.map((p,i)=>{
+      const n = niv[p.k], id = u.uc+'-'+p.k, aberto = !!F.abertos[id];
+      return `<tr class="av-lin">
+        <td class="av-par" style="min-width:260px">
+          <button type="button" onclick="avToggleDesc('${id}')" aria-expanded="${aberto}" style="display:flex;gap:6px;align-items:flex-start;background:none;border:0;padding:0;text-align:left;cursor:pointer;font:inherit;color:inherit">
+            <i class="fas fa-chevron-right" id="avc-${id}" style="color:var(--gl);font-size:11px;margin-top:4px;transition:transform .15s;${aberto?'transform:rotate(90deg)':''}"></i>
+            <span style="font-weight:600;font-size:13px;color:var(--gray900)">${i+1} – ${_ppEsc(p.t)}</span>
+          </button></td>
+        <td class="av-coef" style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700">${p.coef}</td>
+        ${[1,2,3,4,5].map(v=>`<td class="av-niv" style="text-align:center;padding:4px">${edit
+          ? `<button type="button" onclick="avSetNivel(${u.uc},'${p.k}',${v})" title="${n===v?'Clicar de novo para retirar a cotação':'Nível '+v}" style="display:inline-flex;width:34px;height:34px;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;border:1.5px solid ${n===v?'var(--gl)':'var(--border)'};background:${n===v?'var(--gl)':'#fff'};color:${n===v?'#fff':'var(--gray600)'};font-weight:700;font-family:inherit;font-size:13px">${v}</button>`
+          : `<span style="display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:50%;${n===v?'background:var(--gl);color:#fff;font-weight:700':'color:var(--gray400)'}">${n===v?v:'·'}</span>`}</td>`).join('')}
+        <td class="av-tot" style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700">${n?p.coef*n:''}</td>
+      </tr>
+      <tr class="av-desc ${aberto?'':'hidden'}" id="avd-${id}"><td colspan="8" style="padding:0 6px 10px">
+        <div style="background:var(--gp);border-left:3px solid var(--gl);border-radius:var(--r);padding:8px 12px;font-size:12.5px;line-height:1.55;color:var(--gray900)">
+          <div style="font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gl);margin-bottom:3px">Competência avaliada — caracterização genérica</div>${_ppEsc(p.c)}</div>
+      </td></tr>`;
+    }).join('');
+    return `<div class="form-section"><h3>${idx}. UC ${u.uc} — ${_ppEsc(u.nome)}</h3>
+      <div class="table-wrap"><table class="av-ficha-tbl">
+        <thead><tr><th rowspan="2">Parâmetros de Avaliação <span style="font-weight:400;text-transform:none;letter-spacing:0">(clicar para ver a competência)</span></th><th rowspan="2" style="text-align:center">Coef.<div style="font-weight:400">(a)</div></th><th colspan="5" style="text-align:center">Pontuação (Níveis) (b)</th><th rowspan="2" style="text-align:center">Total<div style="font-weight:400">(a × b)</div></th></tr>
+          <tr>${[1,2,3,4,5].map(v=>`<th style="text-align:center">${v}</th>`).join('')}</tr></thead>
+        <tbody>${linhas}
+          <tr style="background:var(--gray100)"><td style="font-weight:700">Soma (1) <span style="font-weight:400;font-size:11.5px;color:var(--gray600)">— ${calc.cotados} de ${calc.total} parâmetros cotados</span></td><td style="text-align:center;font-weight:700;font-family:'IBM Plex Mono',monospace">${calc.cotados?calc.s1:'—'}</td><td colspan="5" style="text-align:right;font-weight:700">Soma (2)</td><td style="text-align:center;font-weight:700;font-family:'IBM Plex Mono',monospace">${calc.cotados?calc.s2:'—'}</td></tr>
+          <tr><td colspan="7" style="font-weight:700">Classificação [(Soma 2 / Soma 1) × 5] − 5</td><td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:16px;color:${avBaixo(calc.cls)?'var(--red)':'var(--gn)'}">${avFmt(calc.cls)}</td></tr>
+        </tbody></table></div>
+      <div class="field" style="margin-top:12px"><label>Juízo ampliativo — UC ${u.uc}</label>
+        <textarea rows="3" ${edit?'':'disabled'} oninput="_av.ficha.juizo[${u.uc}]=this.value">${_ppEsc(F.juizo[u.uc]||'')}</textarea></div>
+    </div>`;
+  };
+
   let acoes = '';
   if(edit){
     acoes = `<button class="btn btn-outline" onclick="avGuardarFicha('rascunho')"><i class="fas fa-save"></i> Guardar rascunho</button>
       ${_av.admin
         ? `<button class="btn btn-primary" onclick="avGuardarFicha('validada')"><i class="fas fa-check-double"></i> Guardar e validar</button>`
         : `<button class="btn btn-primary" onclick="avGuardarFicha('submetida')"><i class="fas fa-paper-plane"></i> Submeter para validação</button>`}`;
-  } else if(_av.admin && F.row){
-    if(r.estado==='submetida') acoes = `<button class="btn btn-success" onclick="avDecidir('validada')"><i class="fas fa-check"></i> Validar</button>
+  } else if(_av.admin && !novo){
+    if(estado==='submetida') acoes = `<button class="btn btn-success" onclick="avDecidir('validada')"><i class="fas fa-check"></i> Validar</button>
       <button class="btn btn-outline" style="color:var(--red)" onclick="avDecidir('devolvida')"><i class="fas fa-rotate-left"></i> Devolver para correção</button>`;
-    else if(r.estado==='validada') acoes = `<button class="btn btn-outline" style="color:var(--red)" onclick="avDecidir('devolvida')"><i class="fas fa-rotate-left"></i> Reabrir (devolver)</button>`;
+    else if(estado==='validada') acoes = `<button class="btn btn-outline" style="color:var(--red)" onclick="avDecidir('devolvida')"><i class="fas fa-rotate-left"></i> Reabrir (devolver)</button>`;
   }
+  if(!novo && F.avaliadorId===currentUser.id){
+    acoes += `<button class="btn btn-outline" onclick="avNovaAvaliacao({exercicio:_av.ficha.exercicio,dataHora:_av.ficha.dataHora,funcao:_av.ficha.funcao})"><i class="fas fa-user-plus"></i> Avaliar outro aluno neste exercício</button>`;
+  }
+
+  const motivo = Object.values(F.rows).map(r=>r.motivo).find(Boolean);
+  const submEm = Object.values(F.rows).map(r=>r.submetida_em).find(Boolean);
+  const valEm = Object.values(F.rows).find(r=>r.validado_em);
   const el = document.getElementById('formacao-detalhe-content');
   el.innerHTML = `<button class="detail-back" onclick="${voltar}">← Voltar</button>
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin:.5rem 0 1rem">
-    <div><div class="page-title" style="font-size:18px">Ficha de Avaliação da PP — UC ${F.uc}</div>
-      <div class="page-sub">${_ppEsc(u.nome)} · Anexo B do Regulamento do CNeg (artigo 12.º)</div></div>
-    <div>${avEstadoBadge(r.estado||'rascunho')}</div>
+    <div><div class="page-title" style="font-size:18px">Ficha de Avaliação da PP — UC 1, UC 2 e UC 3</div>
+      <div class="page-sub">Anexo B do Regulamento do CNeg (artigo 12.º) · só contam os parâmetros cotados</div></div>
+    <div>${avEstadoBadge(estado)}</div>
   </div>
-  ${r.estado==='devolvida'&&r.motivo?`<div style="background:var(--redl);border:1px solid var(--red);border-radius:var(--r);padding:10px 12px;font-size:12.5px;color:var(--red);margin-bottom:1rem"><strong>Devolvida para correção:</strong> ${_ppEsc(r.motivo)}</div>`:''}
+  ${estado==='devolvida'&&motivo?`<div style="background:var(--redl);border:1px solid var(--red);border-radius:var(--r);padding:10px 12px;font-size:12.5px;color:var(--red);margin-bottom:1rem"><strong>Devolvida para correção:</strong> ${_ppEsc(motivo)}</div>`:''}
+  <div class="form-section"><h3>Exercício</h3>
+    ${edit ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 16px">
+        <div class="field" style="margin:0;grid-column:1/-1"><label>Designação do exercício</label>
+          <input type="text" list="av-exercicios" value="${_ppEsc(F.exercicio)}" oninput="_av.ficha.exercicio=this.value" placeholder="Ex.: Exercício de barricado com refém">
+          <datalist id="av-exercicios">${exercicios.map(x=>`<option value="${_ppEsc(x)}"></option>`).join('')}</datalist></div>
+        <div class="field" style="margin:0"><label>Data e hora</label>
+          <input type="datetime-local" value="${_ppEsc(F.dataHora)}" oninput="_av.ficha.dataHora=this.value"></div>
+      </div>`
+    : `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 16px;font-size:13px">
+        <div><strong>Exercício:</strong> ${_ppEsc(F.exercicio||'—')}</div><div><strong>Data e hora:</strong> ${avDataHora(rAny.data_hora)}</div></div>`}
+  </div>
   <div class="form-section"><h3>1. Elementos de identificação do formando</h3>
+    ${edit && novo ? `<div class="field" style="margin:0 0 10px;max-width:460px"><label>Aluno</label>
+        <select onchange="_av.ficha.alunoId=this.value;avRenderFicha()"><option value="">— escolher aluno —</option>${_av.alunos.map(a=>`<option value="${a.aluno_id}" ${a.aluno_id===F.alunoId?'selected':''}>${_ppEsc(avNome(a.aluno_id))}</option>`).join('')}</select></div>` : ''}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 16px;font-size:13px">
       <div><strong>Nome:</strong> ${_ppEsc(pAl.nome||'—')}</div><div><strong>Posto:</strong> ${_ppEsc(pAl.posto||'—')}</div>
       <div><strong>N.º Matrícula:</strong> ${_ppEsc(al.matricula||'—')}</div><div><strong>Arma:</strong> ${_ppEsc(al.arma||'—')}</div>
       <div style="grid-column:1/-1"><strong>Duração do Curso:</strong> de ${dt(ed.data_inicio)} a ${dt(ed.data_fim)}</div>
     </div></div>
-  <div class="form-section"><h3>2. Avaliação prática</h3>
-    <div class="table-wrap"><table class="av-ficha-tbl">
-      <thead><tr><th rowspan="2">Parâmetros de Avaliação</th><th rowspan="2" style="text-align:center">Coef.<div style="font-weight:400">(a)</div></th><th colspan="5" style="text-align:center">Pontuação (Níveis) (b)</th><th rowspan="2" style="text-align:center">Total<div style="font-weight:400">(a × b)</div></th></tr>
-        <tr>${[1,2,3,4,5].map(v=>`<th style="text-align:center">${v}</th>`).join('')}</tr></thead>
-      <tbody>${linhas}
-        <tr style="background:var(--gray100)"><td style="font-weight:700">Soma (1)</td><td style="text-align:center;font-weight:700;font-family:'IBM Plex Mono',monospace">${calc.s1}</td><td colspan="5" style="text-align:right;font-weight:700">Soma (2)</td><td style="text-align:center;font-weight:700;font-family:'IBM Plex Mono',monospace">${calc.completo?calc.s2:'—'}</td></tr>
-        <tr><td colspan="7" style="font-weight:700">Classificação [(Soma 2 / Soma 1) × 5] − 5</td><td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:16px;color:${avBaixo(calc.cls)?'var(--red)':'var(--gn)'}">${avFmt(calc.cls)}</td></tr>
-      </tbody></table></div>
-    <div style="font-size:11.5px;color:var(--gray600);margin-top:6px">A classificação resulta da conversão dos Níveis (1 a 5) para a Escala (0 a 20).</div>
-    <details style="margin-top:10px;border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;background:#fff">
+  <div style="font-size:12.5px;color:var(--gray600);margin:0 0 .75rem;line-height:1.5"><strong>2. Avaliação prática</strong> — clica no parâmetro para ver a competência avaliada. Para retirar uma cotação, clica de novo no nível escolhido. Os parâmetros não cotados não contam para a classificação.</div>
+  ${AVAL_UCS.map((u,i)=>blocoUc(u, '2.'+(i+1))).join('')}
+  <div class="form-section" style="background:var(--gp)"><h3>Resultado do exercício</h3>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:13px">
+      ${AVAL_UCS.map(u=>`<div><div style="font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em">UC ${u.uc}</div><div style="font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:17px;color:${avBaixo(calcs[u.uc].cls)?'var(--red)':'var(--gn)'}">${calcs[u.uc].cotados?avFmt(calcs[u.uc].cls):'<span style="font-size:12px;color:var(--gray400);font-weight:400">não avaliada</span>'}</div></div>`).join('')}
+      <div style="border-left:1px solid var(--border);padding-left:24px"><div style="font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em">Média das UC avaliadas</div><div style="font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:17px;color:${avBaixo(mediaEx)?'var(--red)':'var(--gn)'}">${avFmt(mediaEx)}</div></div>
+    </div>
+    <details style="margin-top:12px;border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;background:#fff">
       <summary style="font-size:13px;font-weight:600;color:var(--gn);cursor:pointer">Apêndice 7 — Definição dos Níveis de Avaliação</summary>
       <table style="margin-top:8px"><tbody>${AVAL_NIVEIS.map(x=>`<tr><td style="white-space:nowrap;vertical-align:top"><strong>${x.n}</strong><div style="font-size:11px;color:var(--gray600)">(${x.v})</div></td><td style="font-size:12.5px;line-height:1.5">${x.d}</td></tr>`).join('')}</tbody></table>
     </details>
-    <div class="field" style="margin-top:12px"><label>Juízo ampliativo</label>
-      <textarea id="av-juizo" rows="3" ${edit?'':'disabled'}>${_ppEsc(r.juizo||'')}</textarea></div>
   </div>
   <div class="form-section"><h3>3. Identificação do avaliador</h3>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 16px;font-size:13px;align-items:center">
       <div><strong>Nome:</strong> ${_ppEsc(pAv.nome||'—')}</div><div><strong>Unidade:</strong> ${_ppEsc(pAv.cter||'—')}</div>
       <div><strong>Posto:</strong> ${_ppEsc(pAv.posto||'—')}</div>
-      <div><strong>Função:</strong> ${edit?`<input type="text" id="av-funcao" value="${_ppEsc(r.funcao||'')}" style="font-size:13px;margin-top:3px">`:_ppEsc(r.funcao||'—')}</div>
-      <div><strong>Data:</strong> ${r.submetida_em?new Date(r.submetida_em).toLocaleDateString('pt-PT'):'—'}</div>
-      ${r.validado_em?`<div><strong>Validada em:</strong> ${new Date(r.validado_em).toLocaleDateString('pt-PT')} por ${_ppEsc(avNome(r.validado_por))}</div>`:''}
+      <div><strong>Função:</strong> ${edit?`<input type="text" value="${_ppEsc(F.funcao||'')}" oninput="_av.ficha.funcao=this.value" style="font-size:13px;margin-top:3px">`:_ppEsc(F.funcao||'—')}</div>
+      <div><strong>Data:</strong> ${submEm?new Date(submEm).toLocaleDateString('pt-PT'):'—'}</div>
+      ${valEm?`<div><strong>Validada em:</strong> ${new Date(valEm.validado_em).toLocaleDateString('pt-PT')} por ${_ppEsc(avNome(valEm.validado_por))}</div>`:''}
     </div></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:1rem">${acoes}</div>`;
 }
-function avSetNivel(k, v){ _av.ficha.niveis[k] = v; avRenderFicha(); }
+function avSetNivel(uc, k, v){
+  const niv = _av.ficha.niveis[uc] = _av.ficha.niveis[uc] || {};
+  if(niv[k]===v) delete niv[k]; else niv[k] = v;
+  avRenderFicha();
+}
 async function avGuardarFicha(estado){
   if(window.__sgiVista === 'epq'){ alert('Estás na vista EPQ (simulação). As fichas não são guardadas nesta vista — ficariam registadas em teu nome como avaliação do Núcleo de Negociação. Volta à vista de Admin para avaliar.'); return; }
   const F = _av.ficha;
-  const calc = avCalcular(F.uc, F.niveis);
-  if(estado!=='rascunho' && !calc.completo){ alert('Atribui um nível a todos os parâmetros antes de '+(estado==='validada'?'validar':'submeter')+'.'); return; }
-  if(estado==='submetida' && !confirm('Submeter para validação? Depois de submetida, só o administrador a pode devolver para correção.')) return;
-  const payload = { niveis:F.niveis, juizo:(document.getElementById('av-juizo')?.value||'').trim(), funcao:(document.getElementById('av-funcao')?.value||'').trim(), estado };
-  let res;
-  if(F.row) res = await sb.from('aval_fichas').update(payload).eq('id', F.row.id).select().single();
-  else res = await sb.from('aval_fichas').insert(Object.assign({ edicao_id:_av.edicaoId, aluno_id:F.alunoId, uc:F.uc, avaliador_id:currentUser.id }, payload)).select().single();
-  if(res.error){ alert('Erro: '+res.error.message); return; }
-  const i = _av.fichas.findIndex(x=>x.id===res.data.id);
-  if(i>=0) _av.fichas[i] = res.data; else _av.fichas.push(res.data);
-  F.row = res.data; F.niveis = JSON.parse(JSON.stringify(res.data.niveis||{}));
+  if(!F.alunoId){ alert('Escolhe o aluno.'); return; }
+  if(!(F.exercicio||'').trim()){ alert('Indica o exercício.'); return; }
+  if(!F.dataHora || isNaN(new Date(F.dataHora))){ alert('Indica a data e a hora do exercício.'); return; }
+  const cotadas = AVAL_UCS.filter(u=>avCalcular(u.uc, F.niveis[u.uc]).cotados>0);
+  if(!cotadas.length){
+    if(!Object.keys(F.rows).length){ alert('Cota pelo menos um parâmetro.'); return; }
+    if(!confirm('Nenhum parâmetro está cotado. Apagar esta avaliação?')) return;
+  } else if(estado==='submetida' && !confirm('Submeter para validação? Depois de submetida, só o administrador a pode devolver para correção.')) return;
+  if(!F.grupo) F.grupo = (crypto.randomUUID ? crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)));
+  const base = { exercicio:F.exercicio.trim(), data_hora:new Date(F.dataHora).toISOString(), grupo:F.grupo, funcao:(F.funcao||'').trim(), estado };
+  for(const u of AVAL_UCS){
+    const row = F.rows[u.uc];
+    const niv = {}; Object.entries(F.niveis[u.uc]||{}).forEach(([k,v])=>{ if(v) niv[k]=v; });
+    let res;
+    if(Object.keys(niv).length){
+      const payload = Object.assign({ niveis:niv, juizo:(F.juizo[u.uc]||'').trim() }, base);
+      res = row
+        ? await sb.from('aval_fichas').update(payload).eq('id', row.id).select().single()
+        : await sb.from('aval_fichas').insert(Object.assign({ edicao_id:_av.edicaoId, aluno_id:F.alunoId, uc:u.uc, avaliador_id:currentUser.id }, payload)).select().single();
+      if(res.error){ alert('Erro ao guardar a UC '+u.uc+': '+res.error.message); avRenderFicha(); return; }
+      const i = _av.fichas.findIndex(x=>x.id===res.data.id);
+      if(i>=0) _av.fichas[i] = res.data; else _av.fichas.push(res.data);
+      F.rows[u.uc] = res.data;
+    } else if(row){
+      res = await sb.from('aval_fichas').delete().eq('id', row.id);
+      if(res.error){ alert('Erro ao retirar a UC '+u.uc+': '+res.error.message); avRenderFicha(); return; }
+      _av.fichas = _av.fichas.filter(x=>x.id!==row.id);
+      delete F.rows[u.uc];
+    }
+  }
+  if(!Object.keys(F.rows).length){ _av.ficha = null; avRender(); return; }
+  F.key = F.grupo;
   avRenderFicha();
 }
 async function avDecidir(estado){
   const F = _av.ficha; let motivo = null;
   if(estado==='devolvida'){ motivo = prompt('Motivo da devolução (visível ao avaliador):', ''); if(motivo===null) return; }
-  else if(!confirm('Validar esta avaliação? Passa a contar para a média da UC.')) return;
+  else if(!confirm('Validar esta avaliação? Passa a contar para a média das UC.')) return;
   const patch = { estado }; if(estado==='devolvida') patch.motivo = motivo.trim() || null;
-  const { data, error } = await sb.from('aval_fichas').update(patch).eq('id', F.row.id).select().single();
-  if(error){ alert('Erro: '+error.message); return; }
-  const i = _av.fichas.findIndex(x=>x.id===data.id); if(i>=0) _av.fichas[i] = data;
-  F.row = data; avRenderFicha();
+  for(const row of Object.values(F.rows)){
+    const { data, error } = await sb.from('aval_fichas').update(patch).eq('id', row.id).select().single();
+    if(error){ alert('Erro: '+error.message); avRenderFicha(); return; }
+    const i = _av.fichas.findIndex(x=>x.id===data.id); if(i>=0) _av.fichas[i] = data;
+    F.rows[data.uc] = data;
+  }
+  avRenderFicha();
 }
 
 // ===== FORMAÇÃO =====
