@@ -7045,7 +7045,7 @@ function avRender(){
   const el = document.getElementById('formacao-detalhe-content');
   const ed = _av.edicoes.find(e=>e.id===_av.edicaoId);
   const tabs = _av.admin
-    ? [['resumo','Resumo'],['avaliador','Por avaliador'],['minhas','As minhas avaliações'],['config','Configuração']]
+    ? [['resumo','Resumo'],['quadro','Quadro de avaliações'],['avaliador','Por avaliador'],['minhas','As minhas avaliações'],['config','Configuração']]
     : [['minhas','As minhas avaliações']];
   let head = `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:1rem">
     <div><div class="page-title" style="font-size:20px">${_fa('fa-graduation-cap','var(--gold)')} Avaliação de Formandos</div>
@@ -7058,6 +7058,7 @@ function avRender(){
   if(!ed && _av.tab!=='config'){
     body = `<div style="padding:1.5rem;background:var(--gray100);border-radius:var(--rl);color:var(--gray600);font-size:13.5px">Ainda não existe nenhuma edição do curso.${_av.admin?' Cria a primeira em <strong>Configuração</strong>.':' O administrador tem de criar a edição do curso.'}</div>`;
   } else if(_av.tab==='resumo') body = avHtmlResumo();
+  else if(_av.tab==='quadro' && _av.admin) body = avHtmlQuadro();
   else if(_av.tab==='avaliador') body = avHtmlPorAvaliador();
   else if(_av.tab==='config') body = avHtmlConfig();
   else body = avHtmlGrelhaAvaliador(currentUser.id, true);
@@ -7153,6 +7154,61 @@ function avVerIndividuais(alunoId, uc){
         <td>${avEstadoBadge(f.estado)}</td>
         <td><button class="btn btn-outline btn-sm" onclick="avAbrirGrupo('${avGrupoKey(f)}','individuais','${alunoId}',${uc})"><i class="fas fa-eye"></i> Abrir ficha</button></td>
       </tr>`).join('')}</tbody></table></div></div>`;
+}
+// Admin: quadro de avaliações — por aluno, média de cada item (parâmetro), de cada UC e total; só avaliações validadas.
+// Ao clicar no nome do aluno, abrem-se em linha as avaliações de cada exercício / avaliador.
+function avFmtItem(v){ return (v==null||isNaN(v)) ? '—' : Number(v).toFixed(1).replace('.',','); }
+function avHtmlQuadro(){
+  if(!_av.alunos.length) return '<div style="padding:1.5rem;color:var(--gray400);font-size:13px">Sem alunos inscritos nesta edição.</div>';
+  const sep = 'border-left:2px solid var(--border)';
+  const fix = 'position:sticky;left:0;z-index:1;min-width:220px';
+  const cel = 'text-align:center;padding:7px 6px;font-family:\'IBM Plex Mono\',monospace;font-size:12.5px';
+  const nota = (v, forte) => `<span style="font-weight:${forte?'700':'600'};color:${avBaixo(v)?'var(--red)':(forte?'var(--gn)':'var(--gray900)')}">${avFmt(v)}</span>`;
+  const item = v => v==null ? '<span style="color:var(--gray400)">—</span>' : `<span style="color:var(--gray900)">${avFmtItem(v)}</span>`;
+  const head1 = `<tr><th rowspan="2" style="${fix};background:var(--gray50)">Aluno</th>${AVAL_UCS.map(u=>`<th colspan="${u.params.length+1}" style="text-align:center;${sep}">UC ${u.uc}<div style="font-weight:400;font-size:10px;text-transform:none;letter-spacing:0">${_ppEsc(u.nome)}</div></th>`).join('')}<th rowspan="2" style="text-align:center;${sep}">Média total</th></tr>`;
+  const head2 = `<tr>${AVAL_UCS.map(u=>u.params.map((p,i)=>`<th title="${_ppEsc((i+1)+' – '+p.t)}" style="text-align:center;padding:7px 6px;cursor:help;${i===0?sep:''}">${i+1}</th>`).join('')+`<th style="text-align:center;padding:7px 6px;background:var(--gp)">Média</th>`).join('')}</tr>`;
+  const linhas = _av.alunos.map(a=>{
+    const fs = _av.fichas.filter(f=>f.aluno_id===a.aluno_id && f.estado==='validada');
+    const ucMed = {};
+    const resumo = AVAL_UCS.map(u=>{
+      const fu = fs.filter(f=>f.uc===u.uc);
+      ucMed[u.uc] = avMedia(fu.map(f=>f.classificacao));
+      return u.params.map((p,i)=>{
+        const ns = fu.map(f=>(f.niveis||{})[p.k]).filter(n=>n);
+        return `<td style="${cel};${i===0?sep:''}">${item(ns.length ? ns.reduce((x,y)=>x+Number(y),0)/ns.length : null)}</td>`;
+      }).join('') + `<td style="${cel};background:var(--gp)">${nota(ucMed[u.uc],true)}</td>`;
+    }).join('');
+    const total = avMedia(AVAL_UCS.map(u=>ucMed[u.uc]));
+    const gs = avGrupos(f=>f.aluno_id===a.aluno_id && f.estado==='validada');
+    const id = 'avq-'+a.aluno_id;
+    const sub = gs.map(g=>{
+      const ucs = AVAL_UCS.map(u=>{
+        const f = g.rows[u.uc], nv = (f&&f.niveis)||{};
+        return u.params.map((p,i)=>`<td style="${cel};${i===0?sep:''}">${f&&nv[p.k]?nv[p.k]:'<span style="color:var(--gray400)">·</span>'}</td>`).join('')
+          + `<td style="${cel};background:var(--gp)">${f?nota(f.classificacao,false):'<span style="color:var(--gray400)">—</span>'}</td>`;
+      }).join('');
+      const tg = avMedia(AVAL_UCS.map(u=>g.rows[u.uc]?g.rows[u.uc].classificacao:null));
+      return `<tr class="${id} hidden" style="background:var(--gray50)">
+        <td style="${fix};background:var(--gray50);padding:7px 10px 7px 26px;font-size:12px;line-height:1.4">
+          <div style="font-weight:600;color:var(--gray900)">${g.exercicio?_ppEsc(g.exercicio):'<span style="color:var(--gray400)">sem exercício indicado</span>'}</div>
+          <div style="color:var(--gray600)">${_ppEsc(avNome(g.avaliador_id))} · <span style="font-family:'IBM Plex Mono',monospace">${avDataHora(g.data_hora)}</span></div>
+          <button type="button" class="btn btn-outline btn-sm" style="margin-top:4px;font-size:11px;padding:2px 8px" onclick="avAbrirGrupo('${g.key}')"><i class="fas fa-eye"></i> Ficha</button></td>
+        ${ucs}<td style="${cel};${sep}">${nota(tg,false)}</td></tr>`;
+    }).join('') || `<tr class="${id} hidden" style="background:var(--gray50)"><td style="${fix};background:var(--gray50);padding:8px 10px 8px 26px;font-size:12px;color:var(--gray400)">Sem avaliações validadas.</td><td colspan="${AVAL_UCS.reduce((s,u)=>s+u.params.length+1,0)+1}"></td></tr>`;
+    return `<tr>
+      <td style="${fix};background:#fff;font-weight:700"><button type="button" onclick="avQuadroToggle('${id}')" style="display:flex;gap:6px;align-items:center;background:none;border:0;padding:0;cursor:pointer;font:inherit;color:var(--gray900);text-align:left">
+        <i class="fas fa-chevron-right" id="${id}-ic" style="color:var(--gl);font-size:11px;transition:transform .15s"></i>${_ppEsc(avNome(a.aluno_id))}
+        <span style="font-weight:400;font-size:11px;color:var(--gray400)">(${gs.length})</span></button></td>
+      ${resumo}<td style="${cel};${sep};font-size:14px">${nota(total,true)}</td></tr>${sub}`;
+  }).join('');
+  return `<div style="font-size:12px;color:var(--gray600);margin-bottom:8px;line-height:1.55">Só contam as avaliações <strong>validadas</strong>. Em cada UC, as colunas numeradas são a média do nível (1 a 5) de cada parâmetro (passa o rato pelo número para ver o parâmetro); <strong>Média</strong> é a média das classificações da UC; <strong>Média total</strong> é a média das UC avaliadas. Clica no nome do aluno para ver, em linha, as avaliações de cada exercício e avaliador.</div>
+  <div class="table-card"><div class="table-wrap"><table style="white-space:nowrap"><thead>${head1}${head2}</thead><tbody>${linhas}</tbody></table></div></div>`;
+}
+function avQuadroToggle(id){
+  const rows = document.querySelectorAll('tr.'+CSS.escape(id)); if(!rows.length) return;
+  const abrir = rows[0].classList.contains('hidden');
+  rows.forEach(r=>r.classList.toggle('hidden', !abrir));
+  const ic = document.getElementById(id+'-ic'); if(ic) ic.style.transform = abrir ? 'rotate(90deg)' : '';
 }
 // Admin: consultar as fichas de um avaliador EPQ
 function avHtmlPorAvaliador(){
