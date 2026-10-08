@@ -7179,7 +7179,7 @@ function avHtmlQuadro(){
       }).join('') + `<td style="${cel};background:var(--gp)">${nota(ucMed[u.uc],true)}</td>`;
     }).join('');
     const total = avMedia(AVAL_UCS.map(u=>ucMed[u.uc]));
-    const gs = avGrupos(f=>f.aluno_id===a.aluno_id && f.estado==='validada');
+    const gs = avGrupos(f=>f.aluno_id===a.aluno_id && (f.estado==='validada' || f.estado==='submetida'));
     const id = 'avq-'+a.aluno_id;
     const sub = gs.map(g=>{
       const ucs = AVAL_UCS.map(u=>{
@@ -7192,16 +7192,17 @@ function avHtmlQuadro(){
         <td style="${fix};background:var(--gray50);padding:7px 10px 7px 26px;font-size:12px;line-height:1.4">
           <div style="font-weight:600;color:var(--gray900)">${g.exercicio?_ppEsc(g.exercicio):'<span style="color:var(--gray400)">sem exercício indicado</span>'}</div>
           <div style="color:var(--gray600)">${_ppEsc(avNome(g.avaliador_id))} · <span style="font-family:'IBM Plex Mono',monospace">${avDataHora(g.data_hora)}</span></div>
+          ${avGrupoEstado(g.rows)!=='validada'?'<div style="margin-top:3px">'+avEstadoBadge(avGrupoEstado(g.rows))+'</div>':''}
           <button type="button" class="btn btn-outline btn-sm" style="margin-top:4px;font-size:11px;padding:2px 8px" onclick="avAbrirGrupo('${g.key}')"><i class="fas fa-eye"></i> Ficha</button></td>
         ${ucs}<td style="${cel};${sep}">${nota(tg,false)}</td></tr>`;
-    }).join('') || `<tr class="${id} hidden" style="background:var(--gray50)"><td style="${fix};background:var(--gray50);padding:8px 10px 8px 26px;font-size:12px;color:var(--gray400)">Sem avaliações validadas.</td><td colspan="${AVAL_UCS.reduce((s,u)=>s+u.params.length+1,0)+1}"></td></tr>`;
+    }).join('') || `<tr class="${id} hidden" style="background:var(--gray50)"><td style="${fix};background:var(--gray50);padding:8px 10px 8px 26px;font-size:12px;color:var(--gray400)">Sem avaliações validadas nem a aguardar validação.</td><td colspan="${AVAL_UCS.reduce((s,u)=>s+u.params.length+1,0)+1}"></td></tr>`;
     return `<tr>
       <td style="${fix};background:#fff;font-weight:700"><button type="button" onclick="avQuadroToggle('${id}')" style="display:flex;gap:6px;align-items:center;background:none;border:0;padding:0;cursor:pointer;font:inherit;color:var(--gray900);text-align:left">
         <i class="fas fa-chevron-right" id="${id}-ic" style="color:var(--gl);font-size:11px;transition:transform .15s"></i>${_ppEsc(avNome(a.aluno_id))}
         <span style="font-weight:400;font-size:11px;color:var(--gray400)">(${gs.length})</span></button></td>
       ${resumo}<td style="${cel};${sep};font-size:14px">${nota(total,true)}</td></tr>${sub}`;
   }).join('');
-  return `<div style="font-size:12px;color:var(--gray600);margin-bottom:8px;line-height:1.55">Só contam as avaliações <strong>validadas</strong>. Em cada UC, as colunas numeradas são a média do nível (1 a 5) de cada parâmetro (passa o rato pelo número para ver o parâmetro); <strong>Média</strong> é a média das classificações da UC; <strong>Média total</strong> é a média das UC avaliadas. Clica no nome do aluno para ver, em linha, as avaliações de cada exercício e avaliador.</div>
+  return `<div style="font-size:12px;color:var(--gray600);margin-bottom:8px;line-height:1.55">As médias contam só as avaliações <strong>validadas</strong>; nas linhas de cada aluno aparecem também as que estão a aguardar validação, assinaladas. Em cada UC, as colunas numeradas são a média do nível (1 a 5) de cada parâmetro (passa o rato pelo número para ver o parâmetro); <strong>Média</strong> é a média das classificações da UC; <strong>Média total</strong> é a média das UC avaliadas. Clica no nome do aluno para ver, em linha, as avaliações de cada exercício e avaliador.</div>
   <div class="table-card"><div class="table-wrap"><table style="white-space:nowrap"><thead>${head1}${head2}</thead><tbody>${linhas}</tbody></table></div></div>`;
 }
 function avQuadroToggle(id){
