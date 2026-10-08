@@ -7543,6 +7543,369 @@ async function avDecidir(estado){
   avRenderFicha();
 }
 
+// ===== FORMAÇÃO › AVALIAÇÃO — TESTES DE AVALIAÇÃO (substituem os Google Forms) =====
+// Separado das Fichas de Avaliação (aval_*). Tabelas: formacao_testes, formacao_testes_chave (só admin), formacao_testes_respostas.
+// A correção é feita na base de dados (RPC formacao_teste_submeter). Os alunos só veem certa/errada por pergunta, nunca a nota.
+let _ft = { testes:[], meus:{}, nResp:{}, erro:null, ed:null };
+const FT_VF = ['Verdadeiro','Falso'];
+
+function ftIsAdmin(){ return currentProfile?.role === 'admin'; }
+function ftPerguntas(t){ return (t.perguntas||[]).filter(q=>(q.tipo||'escolha')==='escolha'); }
+function ftVoltar(){ openFormacaoArea('avaliacao'); }
+function ftNl(s){ return _ppEsc(s).replace(/\n/g,'<br>'); }
+
+async function ftCarregar(){
+  const wrap = document.getElementById('ftestes-wrap');
+  if(!wrap) return;
+  wrap.innerHTML = '<div style="padding:1rem;color:var(--gray400);font-size:13px"><span class="spinner"></span></div>';
+  _ft.erro = null; _ft.meus = {}; _ft.nResp = {};
+  try{
+    const { data, error } = await sb.from('formacao_testes').select('id,codigo,ordem,titulo,descricao,visivel,perguntas').order('ordem').order('created_at');
+    if(error) throw error;
+    _ft.testes = data || [];
+    const { data:meus, error:e2 } = await sb.rpc('formacao_testes_meus');
+    if(e2) throw e2;
+    (meus||[]).forEach(m=>_ft.meus[m.teste_id]=m);
+    if(ftIsAdmin()){
+      const { data:rs } = await sb.from('formacao_testes_respostas').select('teste_id');
+      (rs||[]).forEach(r=>_ft.nResp[r.teste_id]=(_ft.nResp[r.teste_id]||0)+1);
+    }
+  }catch(e){ console.warn('formacao_testes', e); _ft.erro = e.message || String(e); _ft.testes = []; }
+  ftRenderLista();
+}
+
+function ftRenderLista(){
+  const wrap = document.getElementById('ftestes-wrap');
+  if(!wrap) return;
+  const admin = ftIsAdmin();
+  if(_ft.erro){
+    wrap.innerHTML = admin ? `<div class="formacao-editor"><div class="alert alert-error" style="margin:0">Testes de avaliação indisponíveis: ${_ppEsc(_ft.erro)}<br><span style="font-size:12px">Confirma que o SQL dos testes (formacao_testes) já foi corrido no Supabase.</span></div></div>` : '';
+    return;
+  }
+  const lista = admin ? _ft.testes : _ft.testes.filter(t=>t.visivel);
+  if(!admin && !lista.length){ wrap.innerHTML = ''; return; }
+  const linhas = lista.map(t=>{
+    const n = ftPerguntas(t).length;
+    const meu = _ft.meus[t.id];
+    const cod = t.codigo ? `<span style="background:var(--goldp);color:#854f0b;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;flex-shrink:0;min-width:34px;text-align:center">${_ppEsc(t.codigo)}</span>` : '';
+    let estado, acoes;
+    if(admin){
+      estado = `<button type="button" onclick="event.stopPropagation();ftAlternarVisivel('${t.id}')" title="${t.visivel?'Visível para os alunos — clicar para ocultar':'Oculto — clicar para tornar visível'}"
+        style="border:1px solid ${t.visivel?'#b9dfbf':'var(--border)'};background:${t.visivel?'var(--gp)':'#fff'};color:${t.visivel?'var(--gm)':'var(--gray600)'};font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:20px;cursor:pointer;white-space:nowrap">
+        <i class="fas ${t.visivel?'fa-eye':'fa-eye-slash'}"></i> ${t.visivel?'Visível':'Oculto'}</button>`;
+      acoes = `<button class="btn btn-outline btn-sm" style="margin:0" onclick="event.stopPropagation();ftAbrir('${t.id}','preview')" title="Pré-visualizar com respostas certas"><i class="fas fa-search"></i> Ver</button>
+        <button class="btn btn-outline btn-sm" style="margin:0" onclick="event.stopPropagation();ftEditar('${t.id}')" title="Editar perguntas"><i class="fas fa-pen"></i> Editar</button>
+        <button class="btn btn-outline btn-sm" style="margin:0" onclick="event.stopPropagation();ftResultados('${t.id}')" title="Resultados"><i class="fas fa-list-ol"></i> Resultados (${_ft.nResp[t.id]||0})</button>`;
+    } else {
+      estado = meu ? `<span class="badge badge-green" style="white-space:nowrap"><i class="fas fa-check"></i> Submetido</span>` : `<span class="badge badge-gold" style="white-space:nowrap">Por realizar</span>`;
+      acoes = meu ? `<button class="btn btn-outline btn-sm" style="margin:0" onclick="event.stopPropagation();ftAbrir('${t.id}','correcao')">Ver correção</button>`
+                  : `<button class="btn btn-primary btn-sm" style="margin:0" onclick="event.stopPropagation();ftAbrir('${t.id}','responder')">Iniciar</button>`;
+    }
+    const clique = admin ? `ftAbrir('${t.id}','preview')` : (meu ? `ftAbrir('${t.id}','correcao')` : `ftAbrir('${t.id}','responder')`);
+    return `<div onclick="${clique}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r);background:#fff;cursor:pointer;flex-wrap:wrap">
+      ${cod}
+      <div style="flex:1;min-width:160px"><div style="font-size:13.5px;font-weight:600;color:var(--gn)">${_ppEsc(t.titulo)}</div>
+        <div style="font-size:11.5px;color:var(--gray400)">${n} pergunta${n===1?'':'s'}${admin&&!n?' — <span style="color:var(--red)">sem perguntas</span>':''}${!admin&&meu?' · '+new Date(meu.submetido_em).toLocaleDateString('pt-PT'):''}</div></div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${estado}${acoes}</div>
+    </div>`;
+  }).join('');
+  wrap.innerHTML = `<div class="formacao-editor">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:.75rem">
+      <h3 style="margin:0"><i class="fas fa-file-signature" style="color:#854f0b;margin-right:6px"></i>Testes de avaliação</h3>
+      ${admin ? `<button class="btn btn-primary btn-sm" style="margin:0" onclick="ftEditar(null)"><i class="fas fa-plus"></i> Novo teste</button>` : ''}
+    </div>
+    ${admin ? `<div style="font-size:12px;color:var(--gray600);margin-bottom:.75rem"><i class="fas fa-info-circle"></i> Os testes ocultos não aparecem aos alunos. Clica em «Oculto/Visível» para mudar.</div>` : ''}
+    <div style="display:flex;flex-direction:column;gap:8px">${linhas || '<div style="font-size:13px;color:var(--gray400);font-style:italic">Ainda sem testes.</div>'}</div>
+  </div>`;
+}
+
+async function ftAlternarVisivel(id){
+  const t = _ft.testes.find(x=>x.id===id); if(!t) return;
+  if(!t.visivel && !ftPerguntas(t).length){ alert('Este teste ainda não tem perguntas. Edita-o antes de o tornar visível.'); return; }
+  const novo = !t.visivel;
+  const { error } = await sb.from('formacao_testes').update({ visivel:novo, updated_at:new Date().toISOString() }).eq('id', id);
+  if(error){ alert('Erro: '+error.message); return; }
+  t.visivel = novo; ftRenderLista();
+}
+
+function ftCabecalho(t, sub){
+  return `<button class="btn btn-outline btn-sm" style="margin-bottom:1rem" onclick="ftVoltar()"><i class="fas fa-arrow-left"></i> Voltar à Avaliação</button>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;flex-wrap:wrap">
+      ${t.codigo?`<span style="background:var(--goldp);color:#854f0b;font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:700;padding:6px 10px;border-radius:8px">${_ppEsc(t.codigo)}</span>`:''}
+      <div style="flex:1;min-width:200px"><h2 style="font-size:19px;font-weight:600;color:var(--gn);margin:0">${_ppEsc(t.titulo)}</h2>
+      ${sub?`<div style="font-size:12.5px;color:var(--gray600);margin-top:2px">${sub}</div>`:''}</div>
+    </div>
+    ${t.descricao?`<div style="font-size:13px;color:var(--gray600);margin-bottom:1rem">${ftNl(t.descricao)}</div>`:''}`;
+}
+
+// modo: 'responder' | 'correcao' | 'preview' (admin)
+async function ftAbrir(id, modo){
+  const t = _ft.testes.find(x=>x.id===id); if(!t) return;
+  const el = document.getElementById('formacao-detalhe-content');
+  let chave = {};
+  if(modo==='preview'){
+    const { data } = await sb.from('formacao_testes_chave').select('chave').eq('teste_id', id).maybeSingle();
+    chave = data?.chave || {};
+  }
+  const meu = _ft.meus[id];
+  if(modo==='responder' && meu) modo = 'correcao';
+  const resp = meu?.respostas || {}, cor = meu?.correcao || {};
+  let n = 0, html = '';
+  (t.perguntas||[]).forEach(q=>{
+    if((q.tipo||'escolha')==='secao'){
+      html += `<div style="margin:1.25rem 0 .5rem;padding:8px 12px;background:var(--gp);border-left:4px solid var(--gl);border-radius:var(--r);font-size:13.5px;font-weight:700;color:var(--gn)">${_ppEsc(q.texto)}</div>`;
+      return;
+    }
+    n++;
+    let marca = '', borda = 'var(--border)';
+    if(modo==='correcao'){
+      const ok = cor[q.id] === true;
+      borda = ok ? '#b9dfbf' : '#f5c6c6';
+      marca = ok ? `<span class="badge badge-green" style="white-space:nowrap"><i class="fas fa-check"></i> Certa</span>` : `<span class="badge badge-red" style="white-space:nowrap"><i class="fas fa-times"></i> Errada</span>`;
+    } else if(modo==='preview'){
+      marca = `<span style="font-size:11px;color:var(--gray400);white-space:nowrap">${chave[q.id]?.p ?? '—'} pts</span>`;
+    }
+    const opcoes = (q.opcoes||[]).map((o,i)=>{
+      const escolhida = String(resp[q.id]) === String(i);
+      const certa = modo==='preview' && String(chave[q.id]?.c) === String(i);
+      if(modo==='responder'){
+        return `<label style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--r);cursor:pointer;font-size:13px;font-weight:400;color:var(--gray900);margin:0">
+          <input type="radio" name="ft-q-${q.id}" value="${i}" style="width:auto;margin-top:2px" onchange="ftMarcar(this)"> <span>${ftNl(o)}</span></label>`;
+      }
+      const sel = modo==='correcao' ? escolhida : certa;
+      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;border:1px solid ${sel?'var(--gl)':'var(--border)'};background:${sel?'var(--gp)':'#fff'};border-radius:var(--r);font-size:13px;color:var(--gray900)">
+        <i class="${sel?'fas fa-dot-circle':'far fa-circle'}" style="color:${sel?'var(--gl)':'var(--gray400)'};margin-top:2px"></i><span>${ftNl(o)}</span>
+        ${modo==='preview'&&certa?'<span style="margin-left:auto;font-size:11px;font-weight:700;color:var(--gm);white-space:nowrap">Resposta certa</span>':''}</div>`;
+    }).join('');
+    html += `<div id="ft-card-${q.id}" style="border:1px solid ${borda};border-radius:var(--rl);padding:12px 14px;margin-bottom:10px;background:#fff">
+      <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px">
+        <span style="font-weight:700;color:var(--gl);font-size:13px;flex-shrink:0">${n}.</span>
+        <div style="flex:1;font-size:13.5px;color:var(--gray900);line-height:1.5">${ftNl(q.texto)}</div>${marca}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">${opcoes}</div>
+    </div>`;
+  });
+  let sub = `${n} pergunta${n===1?'':'s'}`;
+  let topo = '', fundo = '';
+  if(modo==='responder'){
+    topo = `<div style="font-size:12.5px;color:var(--gray600);background:var(--goldl);border:1px solid var(--goldp);border-radius:var(--r);padding:8px 12px;margin-bottom:1rem"><i class="fas fa-info-circle" style="color:var(--gold)"></i> Responde a todas as perguntas. Depois de submeter não é possível alterar as respostas.</div>`;
+    fundo = `<div id="ft-alerta" style="margin:.5rem 0"></div><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:1rem"><button class="btn btn-outline" onclick="ftVoltar()">Cancelar</button><button class="btn btn-primary" id="ft-btn-sub" onclick="ftSubmeter('${id}')"><i class="fas fa-paper-plane"></i> Submeter</button></div>`;
+  } else if(modo==='correcao'){
+    const tot = ftPerguntas(t).length, ok = ftPerguntas(t).filter(q=>cor[q.id]===true).length;
+    sub += ` · submetido em ${new Date(meu.submetido_em).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}`;
+    topo = `<div style="font-size:13px;color:var(--gn);background:var(--gp);border:1px solid #b9dfbf;border-radius:var(--r);padding:8px 12px;margin-bottom:1rem"><i class="fas fa-check-circle" style="color:var(--gl)"></i> Acertaste <strong>${ok}</strong> de <strong>${tot}</strong> perguntas.</div>`;
+  } else {
+    const totPts = ftPerguntas(t).reduce((s,q)=>s+(Number(chave[q.id]?.p)||0),0);
+    sub += ` · ${totPts} pontos · ${t.visivel?'visível':'oculto'} · pré-visualização (admin)`;
+  }
+  el.innerHTML = ftCabecalho(t, sub) + topo + (html || '<div style="font-size:13px;color:var(--gray400);font-style:italic">Este teste ainda não tem perguntas.</div>') + fundo;
+  el.scrollIntoView && window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+function ftMarcar(inp){
+  const card = inp.closest('[id^="ft-card-"]'); if(!card) return;
+  card.style.borderColor = 'var(--border)';
+  card.querySelectorAll('label').forEach(l=>{ const r=l.querySelector('input'); l.style.background = r.checked?'var(--gp)':'#fff'; l.style.borderColor = r.checked?'var(--gl)':'var(--border)'; });
+}
+
+async function ftSubmeter(id){
+  const t = _ft.testes.find(x=>x.id===id); if(!t) return;
+  const resp = {}; const falta = [];
+  ftPerguntas(t).forEach((q,i)=>{
+    const r = document.querySelector(`input[name="ft-q-${q.id}"]:checked`);
+    if(r) resp[q.id] = Number(r.value); else { falta.push(i+1); const c=document.getElementById('ft-card-'+q.id); if(c) c.style.borderColor='var(--red)'; }
+  });
+  const al = document.getElementById('ft-alerta');
+  if(falta.length){ al.innerHTML = `<div class="alert alert-error" style="margin:0">Falta responder ${falta.length===1?'à pergunta':'às perguntas'} ${falta.join(', ')}.</div>`; return; }
+  if(!confirm('Submeter o teste? Depois de submeter não é possível alterar as respostas.')) return;
+  const b = document.getElementById('ft-btn-sub'); if(b){ b.disabled = true; b.innerHTML = '<span class="spinner"></span> A submeter…'; }
+  const { data, error } = await sb.rpc('formacao_teste_submeter', { p_teste:id, p_respostas:resp });
+  if(error){ al.innerHTML = `<div class="alert alert-error" style="margin:0">Erro ao submeter: ${_ppEsc(error.message)}</div>`; if(b){ b.disabled=false; b.innerHTML='<i class="fas fa-paper-plane"></i> Submeter'; } return; }
+  _ft.meus[id] = { teste_id:id, respostas:resp, correcao:data||{}, submetido_em:new Date().toISOString() };
+  ftAbrir(id, 'correcao');
+}
+
+// ---------- Admin: resultados ----------
+async function ftResultados(id){
+  if(!ftIsAdmin()) return;
+  const t = _ft.testes.find(x=>x.id===id); if(!t) return;
+  const el = document.getElementById('formacao-detalhe-content');
+  el.innerHTML = ftCabecalho(t, 'Resultados') + '<div style="padding:1rem;color:var(--gray400)"><span class="spinner"></span></div>';
+  const { data:rs, error } = await sb.from('formacao_testes_respostas').select('*').eq('teste_id', id);
+  if(error){ el.innerHTML = ftCabecalho(t,'Resultados') + `<div class="alert alert-error">${_ppEsc(error.message)}</div>`; return; }
+  const ids = [...new Set((rs||[]).map(r=>r.aluno_id))];
+  const pf = {};
+  if(ids.length){ const { data } = await sb.from('profiles').select('id,nome,posto,cter').in('id', ids); (data||[]).forEach(p=>pf[p.id]=p); }
+  const nome = uid => { const p=pf[uid]; return p ? ((p.posto?p.posto+' ':'')+(p.nome||'')).trim() : '—'; };
+  const lst = (rs||[]).sort((a,b)=>nome(a.aluno_id).localeCompare(nome(b.aluno_id),'pt'));
+  const qs = ftPerguntas(t);
+  const fmt = v => v==null ? '—' : Number(v).toFixed(2).replace('.',',');
+  const media = lst.length ? lst.reduce((s,r)=>s+Number(r.nota||0),0)/lst.length : null;
+  const linhas = lst.map(r=>{
+    const ok = qs.filter(q=>r.correcao?.[q.id]===true).length;
+    const det = qs.map((q,i)=>`<span title="${_escAttr(q.texto)}" style="display:inline-block;min-width:26px;text-align:center;font-size:11px;font-weight:600;padding:2px 4px;margin:2px;border-radius:4px;background:${r.correcao?.[q.id]===true?'var(--gp)':'var(--redl)'};color:${r.correcao?.[q.id]===true?'var(--gm)':'var(--red)'}">${i+1}</span>`).join('');
+    return `<tr style="cursor:pointer" onclick="const d=document.getElementById('ft-det-${r.id}');d.classList.toggle('hidden')">
+        <td>${_ppEsc(nome(r.aluno_id))}</td><td>${_ppEsc(pf[r.aluno_id]?.cter||'—')}</td>
+        <td style="white-space:nowrap">${new Date(r.submetido_em).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
+        <td style="text-align:center">${ok}/${qs.length}</td><td style="text-align:center">${fmt(r.pontos)} / ${fmt(r.total)}</td>
+        <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;color:${r.nota!=null&&Number(r.nota)<10?'var(--red)':'var(--gn)'}">${fmt(r.nota)}</td>
+        <td><button class="btn btn-outline btn-sm" style="margin:0" title="Anular submissão (o aluno pode voltar a fazer o teste)" onclick="event.stopPropagation();ftAnular('${r.id}','${id}')"><i class="fas fa-undo"></i></button></td></tr>
+      <tr id="ft-det-${r.id}" class="hidden"><td colspan="7" style="background:var(--gray50)"><div style="font-size:11.5px;color:var(--gray600);margin-bottom:4px">Perguntas certas (verde) e erradas (vermelho):</div>${det}</td></tr>`;
+  }).join('');
+  el.innerHTML = ftCabecalho(t, `Resultados · ${lst.length} submiss${lst.length===1?'ão':'ões'}${media!=null?' · média '+fmt(media)+' valores':''}`) +
+    (lst.length ? `<div class="table-card"><div class="table-wrap"><table>
+      <thead><tr><th>Aluno</th><th>CTer</th><th>Submetido</th><th style="text-align:center">Certas</th><th style="text-align:center">Pontos</th><th style="text-align:center">Nota (0–20)</th><th></th></tr></thead>
+      <tbody>${linhas}</tbody></table></div></div>
+      <div style="font-size:11.5px;color:var(--gray400);margin-top:6px">A nota só é visível ao administrador. Clica numa linha para ver as perguntas certas/erradas.</div>`
+    : '<div style="padding:1.5rem;background:var(--gray100);border-radius:var(--rl);color:var(--gray600);font-size:13px">Ainda ninguém submeteu este teste.</div>');
+}
+
+async function ftAnular(respId, testeId){
+  if(!confirm('Anular esta submissão? As respostas e a nota são apagadas e o aluno pode voltar a fazer o teste.')) return;
+  const { error } = await sb.from('formacao_testes_respostas').delete().eq('id', respId);
+  if(error){ alert('Erro: '+error.message); return; }
+  _ft.nResp[testeId] = Math.max(0,(_ft.nResp[testeId]||1)-1);
+  ftResultados(testeId);
+}
+
+// ---------- Admin: editor de testes ----------
+async function ftEditar(id){
+  if(!ftIsAdmin()) return;
+  let t = id ? _ft.testes.find(x=>x.id===id) : null;
+  let chave = {};
+  if(id){ const { data } = await sb.from('formacao_testes_chave').select('chave').eq('teste_id', id).maybeSingle(); chave = data?.chave || {}; }
+  const maxOrdem = _ft.testes.filter(x=>x.ordem<100).reduce((m,x)=>Math.max(m,x.ordem||0),0);
+  _ft.ed = {
+    id: id || null,
+    codigo: t?.codigo || String(maxOrdem+1).padStart(2,'0'),
+    ordem: t?.ordem ?? (maxOrdem+1),
+    titulo: t?.titulo || '',
+    descricao: t?.descricao || '',
+    itens: (t?.perguntas||[]).map(q=> (q.tipo||'escolha')==='secao'
+      ? { tipo:'secao', texto:q.texto||'' }
+      : { tipo:'escolha', id:q.id, texto:q.texto||'', opcoes:[...(q.opcoes||[])], c: chave[q.id]?.c ?? null, p: chave[q.id]?.p ?? 2 })
+  };
+  ftRenderEditor();
+}
+
+function ftEdVF(it){ return it.opcoes.length===2 && it.opcoes[0]===FT_VF[0] && it.opcoes[1]===FT_VF[1]; }
+
+function ftRenderEditor(){
+  const E = _ft.ed; const el = document.getElementById('formacao-detalhe-content');
+  let n = 0;
+  const itens = E.itens.map((it,i)=>{
+    const mover = `<div style="display:flex;gap:4px;flex-shrink:0">
+      <button class="btn btn-outline btn-sm" style="margin:0;padding:3px 7px" title="Subir" onclick="ftEdMover(${i},-1)" ${i===0?'disabled':''}><i class="fas fa-arrow-up"></i></button>
+      <button class="btn btn-outline btn-sm" style="margin:0;padding:3px 7px" title="Descer" onclick="ftEdMover(${i},1)" ${i===E.itens.length-1?'disabled':''}><i class="fas fa-arrow-down"></i></button>
+      <button class="btn btn-outline btn-sm" style="margin:0;padding:3px 7px;color:var(--red)" title="Remover" onclick="ftEdRemover(${i})"><i class="fas fa-trash"></i></button></div>`;
+    if(it.tipo==='secao'){
+      return `<div style="display:flex;gap:8px;align-items:center;padding:8px 10px;background:var(--gp);border-left:4px solid var(--gl);border-radius:var(--r);margin-bottom:8px">
+        <span style="font-size:11px;font-weight:700;color:var(--gl);text-transform:uppercase;letter-spacing:.05em;flex-shrink:0">Secção</span>
+        <input type="text" value="${_escAttr(it.texto)}" oninput="_ft.ed.itens[${i}].texto=this.value" placeholder="Título da secção" style="flex:1;font-weight:600">${mover}</div>`;
+    }
+    n++;
+    const vf = ftEdVF(it);
+    const ops = it.opcoes.map((o,j)=>`<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">
+        <input type="radio" name="ft-ed-c-${i}" ${String(it.c)===String(j)?'checked':''} onchange="_ft.ed.itens[${i}].c=${j}" title="Resposta certa" style="width:auto">
+        ${vf ? `<span style="font-size:13px">${_ppEsc(o)}</span>` : `<input type="text" value="${_escAttr(o)}" oninput="_ft.ed.itens[${i}].opcoes[${j}]=this.value" placeholder="Opção ${j+1}" style="flex:1">
+        <button class="btn btn-outline btn-sm" style="margin:0;padding:3px 7px" title="Remover opção" onclick="ftEdRemOpcao(${i},${j})" ${it.opcoes.length<=2?'disabled':''}><i class="fas fa-times"></i></button>`}
+      </div>`).join('');
+    return `<div style="border:1px solid var(--border);border-radius:var(--rl);padding:10px 12px;margin-bottom:8px;background:#fff">
+      <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px">
+        <span style="font-weight:700;color:var(--gl);font-size:13px;padding-top:6px">${n}.</span>
+        <textarea rows="2" oninput="_ft.ed.itens[${i}].texto=this.value" placeholder="Texto da pergunta" style="flex:1">${_ppEsc(it.texto)}</textarea>${mover}
+      </div>
+      <div style="padding-left:22px">
+        <div style="font-size:11px;color:var(--gray400);margin-bottom:4px">${vf?'Verdadeiro / Falso':'Escolha múltipla'} — marca a resposta certa</div>
+        ${ops}
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px">
+          ${vf?'':`<button class="btn btn-outline btn-sm" style="margin:0" onclick="ftEdAddOpcao(${i})"><i class="fas fa-plus"></i> Opção</button>`}
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:400;color:var(--gray600);margin:0">Cotação
+            <input type="number" min="0" step="0.5" value="${_escAttr(it.p)}" oninput="_ft.ed.itens[${i}].p=this.value" style="width:80px"> pts</label>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  const totPts = E.itens.filter(x=>x.tipo==='escolha').reduce((s,x)=>s+(Number(x.p)||0),0);
+  el.innerHTML = `<button class="btn btn-outline btn-sm" style="margin-bottom:1rem" onclick="ftVoltar()"><i class="fas fa-arrow-left"></i> Voltar à Avaliação</button>
+    <h2 style="font-size:19px;font-weight:600;color:var(--gn);margin:0 0 1rem">${E.id?'Editar teste':'Novo teste'}</h2>
+    <div class="formacao-editor">
+      <div class="form-grid">
+        <div class="field"><label>Código</label><input type="text" value="${_escAttr(E.codigo)}" oninput="_ft.ed.codigo=this.value" placeholder="Ex.: 17"></div>
+        <div class="field"><label>Ordem</label><input type="number" value="${_escAttr(E.ordem)}" oninput="_ft.ed.ordem=this.value"></div>
+        <div class="field form-full"><label>Título *</label><input type="text" value="${_escAttr(E.titulo)}" oninput="_ft.ed.titulo=this.value"></div>
+        <div class="field form-full"><label>Instruções (opcional)</label><textarea rows="2" oninput="_ft.ed.descricao=this.value">${_ppEsc(E.descricao)}</textarea></div>
+      </div>
+    </div>
+    <div style="margin:1rem 0 .5rem;font-size:12.5px;color:var(--gray600)">${n} pergunta${n===1?'':'s'} · ${totPts} pontos no total</div>
+    ${itens}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:.75rem 0">
+      <button class="btn btn-outline btn-sm" onclick="ftEdAdd('vf')"><i class="fas fa-plus"></i> Pergunta V/F</button>
+      <button class="btn btn-outline btn-sm" onclick="ftEdAdd('mc')"><i class="fas fa-plus"></i> Escolha múltipla</button>
+      <button class="btn btn-outline btn-sm" onclick="ftEdAdd('secao')"><i class="fas fa-plus"></i> Secção</button>
+    </div>
+    <div id="ft-ed-alerta"></div>
+    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+      <div>${E.id?`<button class="btn btn-outline" style="color:var(--red)" onclick="ftEdEliminar()"><i class="fas fa-trash"></i> Eliminar teste</button>`:''}</div>
+      <div style="display:flex;gap:8px"><button class="btn btn-outline" onclick="ftVoltar()">Cancelar</button>
+      <button class="btn btn-primary" id="ft-ed-guardar" onclick="ftEdGuardar()"><i class="fas fa-save"></i> Guardar</button></div>
+    </div>`;
+}
+function ftEdAdd(tipo){
+  const E=_ft.ed;
+  if(tipo==='secao') E.itens.push({ tipo:'secao', texto:'' });
+  else E.itens.push({ tipo:'escolha', texto:'', opcoes: tipo==='vf' ? [...FT_VF] : ['','','',''], c:null, p:2 });
+  ftRenderEditor();
+}
+function ftEdMover(i,d){ const a=_ft.ed.itens, j=i+d; if(j<0||j>=a.length) return; [a[i],a[j]]=[a[j],a[i]]; ftRenderEditor(); }
+function ftEdRemover(i){ if(!confirm('Remover este elemento?')) return; _ft.ed.itens.splice(i,1); ftRenderEditor(); }
+function ftEdAddOpcao(i){ _ft.ed.itens[i].opcoes.push(''); ftRenderEditor(); }
+function ftEdRemOpcao(i,j){ const it=_ft.ed.itens[i]; it.opcoes.splice(j,1); if(it.c===j) it.c=null; else if(it.c>j) it.c--; ftRenderEditor(); }
+
+async function ftEdGuardar(){
+  const E=_ft.ed; const al=document.getElementById('ft-ed-alerta');
+  const erro = m => { al.innerHTML = `<div class="alert alert-error">${_ppEsc(m)}</div>`; };
+  if(!String(E.titulo).trim()) return erro('Indica o título do teste.');
+  let usados = E.itens.filter(x=>x.tipo==='escolha'&&x.id).map(x=>parseInt(String(x.id).replace(/\D/g,''))||0);
+  let prox = (usados.length?Math.max(...usados):0)+1, n=0;
+  const perguntas=[], chave={};
+  for(const it of E.itens){
+    if(it.tipo==='secao'){ if(String(it.texto).trim()) perguntas.push({ tipo:'secao', texto:String(it.texto).trim() }); continue; }
+    n++;
+    const ops = it.opcoes.map(o=>String(o).trim());
+    if(!String(it.texto).trim()) return erro(`Pergunta ${n}: falta o texto.`);
+    if(ops.length<2 || ops.some(o=>!o)) return erro(`Pergunta ${n}: todas as opções têm de estar preenchidas (mínimo 2).`);
+    if(it.c==null || it.c<0 || it.c>=ops.length) return erro(`Pergunta ${n}: marca a resposta certa.`);
+    const p = Number(it.p); if(!(p>0)) return erro(`Pergunta ${n}: a cotação tem de ser maior que zero.`);
+    if(!it.id) it.id = 'q'+(prox++);
+    perguntas.push({ id:it.id, tipo:'escolha', texto:String(it.texto).trim(), opcoes:ops });
+    chave[it.id] = { c:Number(it.c), p };
+  }
+  const b=document.getElementById('ft-ed-guardar'); if(b){ b.disabled=true; }
+  const reg = { codigo:String(E.codigo||'').trim()||null, ordem:parseInt(E.ordem)||0, titulo:String(E.titulo).trim(), descricao:String(E.descricao||'').trim()||null, perguntas, updated_at:new Date().toISOString() };
+  let id = E.id;
+  if(id){
+    const { error } = await sb.from('formacao_testes').update(reg).eq('id', id);
+    if(error){ if(b) b.disabled=false; return erro('Erro ao guardar: '+error.message); }
+  } else {
+    const { data, error } = await sb.from('formacao_testes').insert({ ...reg, visivel:false }).select('id').single();
+    if(error){ if(b) b.disabled=false; return erro('Erro ao guardar: '+error.message); }
+    id = data.id;
+  }
+  const { error:e2 } = await sb.from('formacao_testes_chave').upsert({ teste_id:id, chave }, { onConflict:'teste_id' });
+  if(e2){ if(b) b.disabled=false; return erro('Perguntas gravadas, mas as respostas certas falharam: '+e2.message); }
+  _ft.ed = null;
+  ftVoltar();
+}
+
+async function ftEdEliminar(){
+  const E=_ft.ed; if(!E?.id) return;
+  if(!confirm('Eliminar este teste? As perguntas e TODAS as submissões dos alunos são apagadas.')) return;
+  const { error } = await sb.from('formacao_testes').delete().eq('id', E.id);
+  if(error){ alert('Erro: '+error.message); return; }
+  _ft.ed = null; ftVoltar();
+}
+
 // ===== FORMAÇÃO =====
 window.__SGI_BUILD = 'pastas-dnd-select-autoedit-2026';
 // Ícones da Formação: Font Awesome (iguais em todos os telemóveis), em vez de emojis que cada sistema desenha à sua maneira
@@ -7832,6 +8195,8 @@ async function openFormacaoArea(area) {
       </div>
     </div>
 
+    ${area === 'avaliacao' ? '<div id="ftestes-wrap"></div>' : ''}
+
     ${renderLinksGrupado(links, area) ? `
     <div class="formacao-editor">
       <div id="formacao-links-view">
@@ -7860,6 +8225,7 @@ async function openFormacaoArea(area) {
     </div>
   `;
   loadFicheirosArea(area);
+  if (area === 'avaliacao') ftCarregar();
 }
 
 async function editFormacaoArea(area) {
