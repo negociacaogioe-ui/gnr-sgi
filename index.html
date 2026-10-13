@@ -733,8 +733,7 @@ body.is-mobile .filter-bar input,body.is-mobile .filter-bar select{flex:1 1 45%;
         <button class="tab-btn" id="tab-visado-btn" onclick="showTab('tab-visado')"><i class="fas fa-user-tag"></i> Descrição do Visado</button>
         <button class="tab-btn" onclick="showTab('tab-sari')"><i class="fas fa-shield-alt"></i> Aval. Risco/Coop.</button>
         <button class="tab-btn" onclick="showTab('tab-pn2')"><i class="fas fa-clipboard-list"></i> Plano de Negociação</button>
-        <button class="tab-btn" id="tab-pd-btn" onclick="showTab('tab-pd')"><i class="fas fa-comments"></i> Plano de Diálogo</button>
-        <button class="tab-btn" onclick="showTab('tab-pd2')" title="Versão simplificada para comparação"><i class="fas fa-flask"></i> PD simplificado</button>
+        <button class="tab-btn" id="tab-pd-btn" onclick="showTab('tab-pd2')"><i class="fas fa-comments"></i> Plano de Diálogo</button>
         <button class="tab-btn" id="tab-posto-btn" onclick="showTab('tab-posto')"><i class="fas fa-user-shield"></i> Coordenação</button>
         <button class="tab-btn" onclick="showTab('tab-info')"><i class="fas fa-info-circle"></i> Informações</button>
         <button class="tab-btn" onclick="showTab('tab-rnrv')"><i class="fas fa-phone-alt"></i> Contactos</button>
@@ -759,7 +758,6 @@ body.is-mobile .filter-bar input,body.is-mobile .filter-bar select{flex:1 1 45%;
         </div>
         <!-- TAB SARI -->
         <div id="tab-posto" class="tab-panel"><div id="posto-content"></div></div>
-        <div id="tab-pd" class="tab-panel"><div id="pd-content"></div></div>
         <div id="tab-pn2" class="tab-panel"><div id="pn2-content"></div></div>
         <div id="tab-pd2" class="tab-panel"><div id="pd2-content"></div></div>
         <div id="tab-visado" class="tab-panel">
@@ -1723,19 +1721,19 @@ function goBack(){
 
 function showTab(tabId){
   if(tabId==='tab-plano') tabId='tab-pn2'; // o PN antigo foi eliminado: o PN é agora o tab-pn2
+  if(tabId==='tab-pd') tabId='tab-pd2';    // o PD antigo foi eliminado: o PD é agora o tab-pd2
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById(tabId).classList.add('active');
   var _vb=document.getElementById('tab-visado-btn'); if(_vb) _vb.style.display=(currentDetail&&currentDetail.isTreino)?'none':'';
   aplicarFiltroPosto();
-  const idx=['tab-resumo','tab-iris','tab-visado','tab-sari','tab-pn2','tab-pd','tab-pd2','tab-posto','tab-info','tab-rnrv','tab-hist'].indexOf(tabId);
+  const idx=['tab-resumo','tab-iris','tab-visado','tab-sari','tab-pn2','tab-pd2','tab-posto','tab-info','tab-rnrv','tab-hist'].indexOf(tabId);
   document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
   if(tabId==='tab-resumo')renderResumo();
   if(tabId==='tab-info')renderInfo();
   if(tabId==='tab-iris')renderIRIS();
   if(tabId==='tab-visado')renderVisado();
   if(tabId==='tab-posto')renderPosto();
-  if(tabId==='tab-pd')renderPD();
   if(tabId==='tab-pn2')renderPN2();
   if(tabId==='tab-pd2')renderPD2();
   if(tabId==='tab-rnrv'){renderRNRV();setTimeout(checkActiveLiveSession,500);}
@@ -1870,7 +1868,7 @@ const SGI_FORMS = {
   visado:{panel:'tab-visado',    titulo:'Descrição do Visado', save:()=>saveVisado()},
   pd:    {panel:'pd-content',    titulo:'Plano de Diálogo',    save:()=>guardarPD()},
   pn2:   {panel:'pn2-content',   titulo:'Plano de Negociação', save:()=>savePN2()},
-  pd2:   {panel:'pd2-content',   titulo:'Plano de Diálogo (simplificado)',    save:()=>guardarPD2()}
+  pd2:   {panel:'pd2-content',   titulo:'Plano de Diálogo',    save:()=>guardarPD2()}
 };
 
 function _sgiValor(el){
@@ -2600,10 +2598,10 @@ const EN_TABS = {
   n1: ['tab-posto','tab-resumo','tab-rnrv'],
   n2: ['tab-posto','tab-resumo','tab-info','tab-rnrv'],
   n3: ['tab-posto','tab-resumo','tab-info','tab-rnrv'],
-  n4: ['tab-posto','tab-resumo','tab-info','tab-pd','tab-pn2','tab-pd2','tab-iris','tab-sari','tab-visado','tab-hist'],
-  nc: ['tab-posto','tab-resumo','tab-info','tab-pn2','tab-pd','tab-pd2','tab-iris','tab-sari','tab-rnrv','tab-hist']
+  n4: ['tab-posto','tab-resumo','tab-info','tab-pn2','tab-pd2','tab-iris','tab-sari','tab-visado','tab-hist'],
+  nc: ['tab-posto','tab-resumo','tab-info','tab-pn2','tab-pd2','tab-iris','tab-sari','tab-rnrv','tab-hist']
 };
-const TAB_BTN_ORDEM = ['tab-resumo','tab-iris','tab-visado','tab-sari','tab-pn2','tab-pd','tab-pd2','tab-posto','tab-info','tab-rnrv','tab-hist'];
+const TAB_BTN_ORDEM = ['tab-resumo','tab-iris','tab-visado','tab-sari','tab-pn2','tab-pd2','tab-posto','tab-info','tab-rnrv','tab-hist'];
 
 // Posição que o militar declarou ocupar neste caso (só nesta sessão, não é gravada).
 let _postoEscolhido = null;
@@ -3188,7 +3186,7 @@ function _seletorPostoHTML(){
 // No mobile, os botões do posto abrem os formulários em ecrã inteiro (não há separadores).
 function _postoIrTab(t){
   if(typeof isMobile!=='undefined' && isMobile){
-    const m = {'tab-info':'info','tab-plano':'pn2','tab-pd':'pd','tab-pn2':'pn2','tab-pd2':'pd2'};
+    const m = {'tab-info':'info','tab-plano':'pn2','tab-pd':'pd2','tab-pn2':'pn2','tab-pd2':'pd2'};
     if(m[t]) mobAbrirForm(m[t]);
     return;
   }
@@ -3933,7 +3931,7 @@ async function savePN2(){
   if(!pn) return;
   _sgiGuardou('Plano de Negociação guardado!');
 }
-// ===== PD simplificado — guia do contacto (o que fazer e o que não fazer) =====
+// ===== Plano de Diálogo — guia do contacto (o que fazer e o que não fazer) =====
 // Grava no mesmo plano_dialogo do registo, em chaves próprias (uma opção por linha);
 // não mexe em quadro_ref / problema / pos_int / solucoes do PD atual.
 // Todas as listas são proposta (para validar com a doutrina): pode sempre escrever-se outra opção.
@@ -4152,10 +4150,10 @@ async function renderPD2(){
   _pd2Extra.respostas = _pd2Linhas(v.posicao_adversario).map(t => t.replace(/^[-•*]\s*/, '').replace(/^[«"]|[»"]$/g, '')).filter(t => t.length <= 120).map(t => [t, '']);
   const ro = (rot, val) => val ? '<div style="font-size:12.5px;line-height:1.55;margin-bottom:3px"><strong style="color:var(--gm)">' + rot + ':</strong> ' + _escHtml(val) + '</div>' : '';
   const probH = probs.length ? '<ul style="margin:2px 0 4px;padding-left:17px;font-size:12.5px;line-height:1.55">' + probs.map((p, i) => '<li><strong>P' + (i+1) + '</strong> <span style="font-size:11px;color:' + (p.tipo === 'pe' ? 'var(--gm)' : 'var(--red)') + '">' + (p.tipo === 'pe' ? 'Pessoal' : 'Operacional') + '</span> — ' + _escHtml(pn2ProbFrase(p)) + '</li>').join('') + '</ul>' : '';
-  const legado = (pd.quadro_ref || pd.solucoes)
-    ? '<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11.5px;color:var(--gray600)">Também escrito no PD atual (só leitura)</summary>'
-      + (pd.quadro_ref ? '<div style="margin-top:6px"><div style="font-size:10.5px;font-weight:700;color:var(--gm);text-transform:uppercase">Quadro de referência</div>' + _txtRO(pd.quadro_ref) + '</div>' : '')
-      + (pd.solucoes ? '<div style="margin-top:6px"><div style="font-size:10.5px;font-weight:700;color:var(--gm);text-transform:uppercase">Abordagem / soluções</div>' + _txtRO(pd.solucoes) + '</div>' : '')
+  const _leg = [['quadro_ref','Quadro de referência'],['problema','Identificação do problema'],['pos_int','Posição e interesses'],['solucoes','Abordagem / soluções']].filter(x => pd[x[0]]);
+  const legado = _leg.length
+    ? '<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11.5px;color:var(--gray600)">Escrito no Plano de Diálogo anterior (só leitura)</summary>'
+      + _leg.map(x => '<div style="margin-top:6px"><div style="font-size:10.5px;font-weight:700;color:var(--gm);text-transform:uppercase">' + x[1] + '</div>' + _txtRO(pd[x[0]]) + '</div>').join('')
       + '</details>' : '';
   const hid = k => '<textarea id="pd2-' + k + '" style="display:none">' + _escHtml(pd[k] || '') + '</textarea>';
   const sec = (n, ic, t, sub, corpo, cls) => '<div class="form-section' + (cls ? ' ' + cls : '') + '"><h3><i class="fas fa-' + ic + '" style="margin-right:6px;opacity:.75"></i>' + n + '. ' + t + '</h3>'
@@ -13614,7 +13612,7 @@ function mobDevolverSari() {
   const homeI = document.getElementById('tab-iris'), elI = document.getElementById('iris-content');
   if (homeI && elI && !homeI.contains(elI)) homeI.appendChild(elI);
   // Plano de Negociação, Plano de Diálogo e Informações: mesmos formulários do desktop
-  [['tab-pd','pd-content'],['tab-pn2','pn2-content'],['tab-pd2','pd2-content'],['tab-info','info-content'],['tab-hist','hist-content']].forEach(([t,c]) => {
+  [['tab-pn2','pn2-content'],['tab-pd2','pd2-content'],['tab-info','info-content'],['tab-hist','hist-content']].forEach(([t,c]) => {
     const home = document.getElementById(t), el = document.getElementById(c);
     if (home && el && !home.contains(el)) home.appendChild(el);
   });
@@ -13672,15 +13670,10 @@ function mobMostrarSeletorFormularios() {
         <div style="font-size:15px;font-weight:600;color:var(--gn)">Plano</div>
         <div style="font-size:11px;color:var(--gray600);margin-top:4px">Negociação</div>
       </button>
-      <button onclick="mobAbrirForm('pd')" style="padding:22px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+      <button onclick="mobAbrirForm('pd2')" style="padding:22px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.08)">
         <i class="fas fa-comments" style="font-size:32px;color:var(--gold);display:block;margin-bottom:10px"></i>
         <div style="font-size:15px;font-weight:600;color:var(--gn)">Plano</div>
         <div style="font-size:11px;color:var(--gray600);margin-top:4px">Diálogo</div>
-      </button>
-      <button onclick="mobAbrirForm('pd2')" style="padding:22px 10px;background:#fff;border:1px dashed var(--gl);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.08)">
-        <i class="fas fa-flask" style="font-size:32px;color:var(--gold);display:block;margin-bottom:10px"></i>
-        <div style="font-size:15px;font-weight:600;color:var(--gn)">PD simplificado</div>
-        <div style="font-size:11px;color:var(--gray600);margin-top:4px">Para comparação</div>
       </button>
       <button onclick="mobAbrirForm('rnrv')" style="padding:22px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.08)">
         <i class="fas fa-phone-alt" style="font-size:32px;color:var(--gl);display:block;margin-bottom:10px"></i>
@@ -13703,6 +13696,7 @@ function mobMostrarSeletorFormularios() {
 
 async function mobAbrirForm(form) {
   if (form === 'plano') form = 'pn2'; // o PN antigo foi eliminado
+  if (form === 'pd') form = 'pd2';     // o PD antigo foi eliminado
   mobDevolverSari();
   // Use a fullscreen overlay — completely independent of tab system
   let overlay = document.getElementById('mob-form-fullscreen');
@@ -13717,7 +13711,7 @@ async function mobAbrirForm(form) {
   overlay.scrollTop = 0;
 
   // Header back button
-  const titles = {iris:'IRIS',sari:'Risco e Cooperação',pd:'Plano de Diálogo',pn2:'Plano de Negociação',pd2:'PD simplificado',info:'Informações',hist:'Histórico',rnrv:'Registar Contacto'};
+  const titles = {iris:'IRIS',sari:'Risco e Cooperação',pn2:'Plano de Negociação',pd2:'Plano de Diálogo',info:'Informações',hist:'Histórico',rnrv:'Registar Contacto'};
   document.getElementById('mob-header-title').textContent = titles[form]||'Formulário';
   document.getElementById('mob-header-sub').textContent = mobDetail?.record?.tipo||'';
   const backBtn = document.getElementById('mob-back-btn');
@@ -13761,15 +13755,8 @@ async function mobAbrirForm(form) {
     const sariEl = document.getElementById('sari-content');
     if (sariEl) { document.getElementById('mob-sari-wrap').appendChild(sariEl); await renderSARI(); }
 
-  } else if (form === 'pd') {
-    // Mesmo formulário do desktop (renderPD/guardarPD)
-    currentDetail = { type, record:r, isTreino: mobDetail.isTreino };
-    overlay.innerHTML = `<div style="padding:.875rem"><div id="mob-pd-wrap" style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px"></div></div>`;
-    const pdEl = document.getElementById('pd-content');
-    if (pdEl) { document.getElementById('mob-pd-wrap').appendChild(pdEl); renderPD(); }
-
   } else if (form === 'pn2' || form === 'pd2') {
-    // Plano de Negociação e PD simplificado: mesmos formulários do desktop
+    // Plano de Negociação e Plano de Diálogo: mesmos formulários do desktop
     currentDetail = { type, record:r, isTreino: mobDetail.isTreino };
     overlay.innerHTML = `<div style="padding:.875rem"><div id="mob-${form}-wrap" style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px"></div></div>`;
     const el2 = document.getElementById(form + '-content');
