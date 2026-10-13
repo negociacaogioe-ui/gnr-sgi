@@ -3521,6 +3521,117 @@ const PN2_SUG_FACTO = {
 const _PN2_SUG_IDX = {};
 Object.keys(PN2_SUG_FACTO).forEach(k => { _PN2_SUG_IDX[k.toLowerCase()] = PN2_SUG_FACTO[k]; });
 function _pn2SugFacto(p){ return _PN2_SUG_IDX[String((p && p.texto) || '').trim().toLowerCase()] || null; }
+// Modalidades que fazem sentido para cada objetivo intermédio (proposta; pode sempre escrever-se outra).
+const PN2_MOD_OBJ = {
+  'Acordar regras de contacto (quando se volta a ligar)': 'TM',
+  'Afastar a exigência sem a negar frontalmente': 'GDT',
+  'Afastar ou prolongar o prazo ou ultimato': 'GTD',
+  'Assistência médica imediata': 'STD',
+  'Avaliar a pessoa pedida (informação, sem contacto direto)': 'A',
+  'Avaliar o risco (IRIS)': 'DTA',
+  'Comunicar que a força não vai entrar': 'TIM',
+  'Comunicar que ninguém vai entrar': 'TIM',
+  'Conceder recuo visível, sem perder segurança, em troca de algo': 'XE',
+  'Confirmar número de agressores e armamento': 'TAE',
+  'Confirmar número de pessoas no interior': 'TAE',
+  'Confirmar número e estado das vítimas ou reféns': 'TX',
+  'Confirmar se tem arma e de que tipo': 'TA',
+  'Confirmar tipo e número de armas': 'TAE',
+  'Construir uma saída com dignidade': 'DTE',
+  'Contacto com família ou amigos de confiança': 'AM',
+  'Contacto com pessoa de confiança': 'AM',
+  'Contacto com pessoa de confiança (já avaliada)': 'AM',
+  'Desviar a conversa do prazo': 'DGT',
+  'Encaminhamento para acompanhamento médico': 'DTM',
+  'Encaminhamento para acompanhamento médico / psiquiátrico': 'DTM',
+  'Encaminhamento para apoio ao sobre-endividamento': 'DTM',
+  'Encaminhamento para apoio jurídico': 'DTM',
+  'Encaminhamento para apoio jurídico (separação / divórcio)': 'DTM',
+  'Encaminhamento para apoio jurídico laboral': 'DTM',
+  'Encaminhamento para apoio psicológico': 'DTM',
+  'Encaminhamento para apoio psicológico / social': 'DTM',
+  'Encaminhamento para apoio psicológico especializado (luto)': 'DTM',
+  'Encaminhamento para apoio social': 'DTM',
+  'Encaminhamento para apoio social / habitação': 'DTM',
+  'Encaminhamento para apoio social de emergência / alojamento': 'DTM',
+  'Encaminhamento para os serviços de emprego': 'DTM',
+  'Estabelecer contacto direto com o negociador': 'TMI',
+  'Estabelecer contacto direto com o visado': 'TIMP',
+  'Estabelecer contacto e baixar a tensão': 'ITD',
+  'Estabelecer contacto e rapport': 'PTD',
+  'Estabelecer linha de comunicação estável': 'TD',
+  'Estabelecer o primeiro contacto': 'TIMA',
+  'Explicar a medida e as vias legais para a rever': 'TMD',
+  'Explicar o que acontece a seguir, sem prometer resultados': 'TD',
+  'Explorar a intenção': 'TD',
+  'Explorar o interesse (o que lhe quer dizer)': 'DT',
+  'Explorar o interesse por trás da exigência': 'DT',
+  'Explorar o receio por trás da exigência': 'DT',
+  'Explorar porque quer essa pessoa': 'DT',
+  'Explorar quem ainda lhe é importante': 'DTA',
+  'Fazer chegar um telefone': 'IMXE',
+  'Ganhar tempo sem recusar frontalmente': 'GDT',
+  'Garantir acesso a advogado / defensor': 'TM',
+  'Garantir informação de que os filhos estão bem': 'MT',
+  'Garantir meios de segurança no solo': 'SE',
+  'Garantir que a força não se aproxima sem aviso': 'ET',
+  'Garantir tratamento digno durante a saída': 'TE',
+  'Garantir um recuo visível do perímetro': 'EX',
+  'Garantir uma saída discreta': 'ET',
+  'Identificar e envolver uma âncora': 'AT',
+  'Identificar o quê, quanto e quando tomou': 'TD',
+  'Identificar um canal alternativo': 'MIA',
+  'Informar sobre os meios legais (regulação das responsabilidades parentais)': 'TM',
+  'Informar sobre os meios legais de revisão': 'TM',
+  'Manter linha de comunicação estável': 'TD',
+  'Manter linha de comunicação estável durante e após o prazo': 'TG',
+  'Mediação através de um familiar ou pessoa de confiança': 'A',
+  'Mediação do conflito laboral': 'AT',
+  'Minimizar a exposição pública da saída': 'ET',
+  'Mostrar que a situação ainda tem saída, sem prometer resultados': 'DT',
+  'Obter acordo de saída sem o dispositivo': 'TE',
+  'Obter acordo sobre como sai sem arma': 'TE',
+  'Obter acordo sobre ponto e modo de saída': 'TEP',
+  'Obter compromisso de não acionar': 'TD',
+  'Obter compromisso de não agressão durante o contacto': 'TDI',
+  'Obter compromisso de não voltar a disparar': 'ITD',
+  'Obter descrição do dispositivo (tipo e local)': 'TA',
+  'Obter entrega ou neutralização da arma': 'TXE',
+  'Obter informação do interior (pessoas, posições, armas)': 'TAE',
+  'Obter libertação da totalidade das vítimas ou reféns': 'TXG',
+  'Obter libertação da vítima': 'TX',
+  'Obter libertação de pessoas vulneráveis (menores, feridos, idosos)': 'XT',
+  'Obter prova de vida': 'TXM',
+  'Obter prova de vida e estado dos reféns': 'TX',
+  'Obter que aceite assistência médica': 'DTS',
+  'Obter que aceite descer': 'PDS',
+  'Obter que afaste a arma do corpo': 'DTP',
+  'Obter que baixe ou afaste a arma': 'DT',
+  'Obter que pouse ou afaste a arma': 'DTP',
+  'Obter que se afaste do bordo ou se sente': 'PD',
+  'Obter que seja ele a abrir a porta': 'TE',
+  'Obter rendição voluntária': 'TEP',
+  'Obter uma saída rápida para tratamento': 'TS',
+  'Permitir acesso de assistência médica': 'STX',
+  'Permitir assistência médica ou libertação de feridos': 'XTS',
+  'Possibilidade de contacto futuro com os filhos, pelos meios legais': 'DT',
+  'Possibilidade de contacto futuro, pelos meios legais e em segurança': 'DT',
+  'Prolongar a duração de cada contacto': 'TD',
+  'Recolher informação junto de terceiros': 'A',
+  'Reduzir a perceção de ameaça (recuo visível)': 'EID',
+  'Reduzir a tensão imediata': 'DT',
+  'Repor a segurança do perímetro (prioridade tática)': 'E',
+  'Validar a emoção sem tomar partido': 'D',
+  'Validar o luto': 'D',
+  'Valorizar o papel de pai no futuro': 'D'
+};
+const _PN2_MOD_OBJ_IDX = {};
+Object.keys(PN2_MOD_OBJ).forEach(k => { _PN2_MOD_OBJ_IDX[k.toLowerCase()] = PN2_MOD_OBJ[k]; });
+// Objetivo conhecido: só as suas modalidades. Objetivo escrito livremente: lista completa (as do problema primeiro).
+function _pn2ModsObj(o){
+  const c = _PN2_MOD_OBJ_IDX[String((o && o.obj) || '').trim().toLowerCase()];
+  return c ? c.split('').map(x => _PN2_MODC[x]).filter(Boolean) : null;
+}
 function _pn2ModsProb(p){ const f = _pn2SugFacto(p); return f ? f[0].split('').map(c => _PN2_MODC[c]).filter(Boolean) : []; }
 const PN2_SOL_TODAS = _pn2Uniq([].concat.apply([], Object.keys(PN2_CAT_PE).map(k => PN2_CAT_PE[k])));
 const PN2_TIPOS = {op:{t:'Operacional', cor:'var(--red)'}, pe:{t:'Pessoal', cor:'var(--gm)'}};
@@ -3638,7 +3749,8 @@ function _pn2ObjLinhaHTML(o, i, dlObj, dlMod){
     + '</div>'
     + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
     +   inp('obj', dlObj, 'Objetivo intermédio', 3)
-    +   inp('mod', dlMod || 'pn2-dl-mod', 'Modalidade de ação', 2)
+    +   inp('mod', _pn2ModsObj(o) ? 'pn2-dl-modo-' + i : (dlMod || 'pn2-dl-mod'), 'Modalidade de ação', 2)
+    + (_pn2ModsObj(o) ? '<datalist id="pn2-dl-modo-' + i + '">' + _pn2ModsObj(o).map(t => '<option value="' + _escHtml(t) + '">').join('') + '</datalist>' : '')
     +   inp('tempo', 'pn2-dl-tempo', 'Tempo aprox.', 1)
     + '</div>'
     + _pn2MeiosHTML(o, i)
@@ -3767,16 +3879,14 @@ function pn2ProbTipo(k, tipo){
 function pn2ObjSug(k, j){
   const p = _pn2Prob[k]; if(!p) return;
   const t = _pn2Sugestoes(p)[j]; if(!t) return;
-  const o = _pn2NovoObj(p.uid); o.obj = t; o.mod = _pn2ModsProb(p)[0] || ''; _pn2Obj.push(o); pn2Sync(); pn2ProbRender();
+  const o = _pn2NovoObj(p.uid); o.obj = t; o.mod = (_pn2ModsObj(o) || _pn2ModsProb(p))[0] || ''; _pn2Obj.push(o); pn2Sync(); pn2ProbRender();
 }
-// Ao escolher um objetivo sugerido, sem modalidade escrita: pré-preenche a modalidade principal do problema
+// Ao escolher um objetivo: a lista de modalidades passa a ser a desse objetivo; sem modalidade escrita, pré-preenche a principal
 function pn2ObjEscolheu(i){
-  const o = _pn2Obj[i]; if(!o || (o.mod||'').trim()) return;
-  const p = _pn2Prob.find(x => x.uid === o.puid); if(!p) return;
-  const t = (o.obj||'').trim().toLowerCase();
-  if(!_pn2Sugestoes(p).some(s => s.toLowerCase() === t)) return;
-  o.mod = _pn2ModsProb(p)[0] || ''; if(!o.mod) return;
-  pn2Sync(); pn2ProbRender();
+  const o = _pn2Obj[i]; if(!o) return;
+  const ms = _pn2ModsObj(o);
+  if(ms && ms.length && !(o.mod||'').trim()){ o.mod = ms[0]; pn2Sync(); }
+  pn2ProbRender(); // atualiza a lista de modalidades deste objetivo
 }
 function pn2ProbDel(k){
   const p = _pn2Prob[k]; if(!p) return;
