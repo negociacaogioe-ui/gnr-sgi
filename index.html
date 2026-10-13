@@ -3993,10 +3993,46 @@ const PD2_RESP = [
   ['Não confio em vocês','Faz sentido não confiares. Vou ser sempre honesto contigo, mesmo quando a resposta não for a que queres.']
 ];
 const PD2_TERMINAR = ['Deixar a linha aberta','Combinar como se volta a falar','Resumir o que ficou combinado','Agradecer a conversa','Nunca terminar a seguir a uma recusa ou ameaça'];
-const PD2_ABERTURA = {
-  crise:    ['Olá, [nome]. Sou o [nome do negociador]. Estou aqui para te ouvir.','Sou o [nome do negociador]. Vejo que estás a passar por um momento muito difícil. Estou aqui para te ajudar.'],
-  conflito: ['Sou o [nome do negociador], da GNR. Estou aqui para falar contigo e para que isto acabe sem ninguém se magoar.','Sou o [nome do negociador]. Quero perceber o que precisas para resolvermos isto.']
-};
+// Frases de abertura: nome do visado + condução suave ao foco do contacto (objetivo intermédio),
+// convidando à conversa. Sem frases feitas («estou aqui para te ouvir / ajudar»).
+// {V} visado · {N} negociador · {X} vítima (preenchidos com os nomes do caso quando existem)
+const PD2_ABERT_REGRAS = [
+  [/risco|iris/, ['{V}, sou o {N}. Estou preocupado contigo. Tens pensado em fazer-te mal?']],
+  [/tomou|saída rápida para tratamento/, ['{V}, sou o {N}. Antes de mais nada, interessa-me que fiques bem. O que é que tomaste?']],
+  [/assistência médica/, ['{V}, sou o {N}. Interessa-me que fiques bem. Deixavas que alguém da equipa médica te visse?','{V}, sou o {N}. Se alguém aí precisar de cuidados médicos, podemos tratar disso já. Como é que estão as coisas?']],
+  [/libertação/, ['{V}, sou o {N}. Percebo que tenhas as tuas razões para estares onde estás. A {X} não tem de passar por isto. O que é que precisamos de resolver para ela poder sair?','{V}, sou o {N}. Há pessoas aí contigo que não têm nada a ver com isto. Vamos falar sobre como podem sair?']],
+  [/prova de vida|estado das vítimas|estado dos reféns/, ['{V}, sou o {N}. A {X} está aí contigo? Gostava de saber como é que ela está.','{V}, sou o {N}. Diz-me como é que estão as pessoas que estão aí contigo.']],
+  [/não agressão|não voltar a disparar|não acionar/, ['{V}, sou o {N}. Enquanto estivermos a falar, ninguém precisa de se magoar: nem tu, nem ela, nem os meus colegas. Podemos combinar isso?']],
+  [/não vai entrar|ninguém vai entrar|não se aproxima|recuo|perceção de ameaça|segurança do perímetro/, ['{V}, sou o {N}. Ninguém vai entrar enquanto estivermos a falar. O que é que te deixaria mais tranquilo agora?','{V}, sou o {N}. Percebo que tanta gente cá fora te deixe nervoso. Diz-me o que te incomoda mais e vemos o que se pode fazer.']],
+  [/prazo|ultimato/, ['{V}, sou o {N}. Percebi que isto tem um tempo para ti. Prefiro usar esse tempo a perceber bem o que precisas. O que é mais importante para ti agora?']],
+  [/dispositivo/, ['{V}, sou o {N}. Disseste que tens aí alguma coisa preparada. Não quero que ninguém se magoe, incluindo tu. Ajuda-me a perceber o que é.']],
+  [/confirmar|informação do interior|informação junto|recolher/, ['{V}, sou o {N}. Quero perceber bem como estão as coisas aí dentro, para ninguém tomar decisões erradas. Quantas pessoas estão aí contigo?']],
+  [/bordo|descer|segurança no solo/, ['{V}, sou o {N}. Daí de cima deve ser difícil estar a falar comigo. Importas-te de te sentar um bocadinho, para falarmos com mais calma?']],
+  [/validar|emoção|dignidade|exposição|discreta|papel de pai|mostrar que/, ['{V}, sou o {N}. Percebo que isto te esteja a custar muito. Vamos tratar disto com calma, só entre nós.','{V}, sou o {N}. Ainda há muita coisa que se pode resolver. O que é que te preocupa mais agora?']],
+  [/saída|rendição|abrir a porta|sai sem/, ['{V}, sou o {N}. Mais cedo ou mais tarde isto vai ter de acabar, e eu quero que acabe bem para ti. Como é que achas que podíamos fazer isso?','{V}, sou o {N}. Já falámos bastante. Vamos pensar juntos na melhor forma de saíres daí, com calma e sem ninguém se magoar?']],
+  [/arma/, ['{V}, sou o {N}. Percebo que te sintas mais seguro com isso contigo. Enquanto conversamos, podes pousá-la ao teu lado?','{V}, sou o {N}. Ninguém aqui quer que alguém se magoe, incluindo tu. Como é que podemos pôr isso de parte enquanto falamos?']],
+  [/âncora|pessoa de confiança|família ou amigos|quem ainda|mediação através|pessoa pedida/, ['{V}, sou o {N}. Imagino que haja alguém que seja importante para ti. Fala-me dessa pessoa.']],
+  [/explorar|porque quer|ganhar tempo sem recusar|afastar a exigência|conceder recuo/, ['{V}, sou o {N}. Percebi que isso é muito importante para ti. Ajuda-me a perceber porquê.','{V}, sou o {N}. Ouvi o que pediste. Antes de mais, quero perceber o que é que isso resolve para ti.']],
+  [/tensão/, ['{V}, sou o {N}. Parece-me que isto tem sido muito pesado para ti. Como é que estás agora?']],
+  [/encaminhamento|apoio|meios legais|advogado|explicar|informar|possibilidade de contacto|filhos estão bem|tratamento digno|mediação do conflito/, ['{V}, sou o {N}. Percebi que isso te está a pesar muito. Há caminhos para resolver isso que talvez ainda não conheças. Queres que te fale deles?','{V}, sou o {N}. O que estás a passar não se resolve hoje, mas tem solução. Podemos falar sobre o que pode acontecer a seguir?']],
+  [/contacto|linha|canal|telefone|prolongar|regras|rapport/, ['{V}, sou o {N}. Prefiro falar contigo diretamente do que estar a gritar cá de fora. Podemos falar pelo telefone?','{V}, sou o {N}. Sei que não te apetece falar connosco. Vamos com calma e ao teu ritmo. Quando é que preferes que te ligue?']]
+];
+const PD2_ABERT_GERAL = ['{V}, sou o {N}, da GNR. Gostava de falar contigo. Como é que estás?'];
+function _pd2PrimeiroNome(t){ return String(t || '').trim().split(/\s+/)[0] || ''; }
+function pd2Aberturas(foco){
+  const r = (currentDetail && currentDetail.record) || {};
+  const V = _pd2PrimeiroNome(currentDetail && currentDetail.type === 'itp' ? (r.nome_agressor || r.nome_vitima) : r.nome_agressor) || '[nome do visado]';
+  const X = _pd2PrimeiroNome(r.nome_vitima) || '[nome da vítima]';
+  const f = String(foco || '').toLowerCase();
+  const regra = f ? PD2_ABERT_REGRAS.find(x => x[0].test(f)) : null;
+  return (regra ? regra[1] : PD2_ABERT_GERAL).map(t => t.replace(/\{V\}/g, V).replace(/\{N\}/g, '[nome do negociador]').replace(/\{X\}/g, X));
+}
+function pd2AberturaSug(){
+  const b = document.getElementById('pd2-abertura-sug'); if(!b) return;
+  const foco = (document.getElementById('pd2-foco') || {}).value || '';
+  b.innerHTML = '<div style="font-size:11px;color:var(--gray600);margin-bottom:4px">' + (foco.trim() ? 'Dirigidas ao foco: <strong>' + _escHtml(foco) + '</strong>' : 'Escolha o foco (1) para ter frases dirigidas ao objetivo.') + '</div>'
+    + pd2Aberturas(foco).map(f => '<button type="button" onclick="pd2Escolher(\'abertura\',' + _escHtml(JSON.stringify(f)) + ')" style="text-align:left;border:1px dashed var(--gl);background:#fff;color:var(--gn);border-radius:var(--r);padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit"><i class="fas fa-plus" style="font-size:9px;margin-right:5px"></i>' + _escHtml(f) + '</button>').join('');
+}
 const PD2_TRATAMENTO = ['Pelo nome próprio, por tu','Pelo nome próprio, por você','Pela alcunha','Pelo apelido, por senhor'];
 const PD2_APRESENTACAO = ['Nome próprio','Nome próprio, da GNR','Nome próprio, negociador da GNR'];
 
@@ -4160,7 +4196,6 @@ async function renderPD2(){
     + (sub ? '<p style="font-size:12px;color:var(--gray600);margin:-2px 0 8px;line-height:1.5">' + sub + '</p>' : '') + corpo + '</div>';
   const grupo = (k, cor) => hid(k) + '<div id="pd2-g-' + k + '" data-cor="' + (cor || '') + '"></div>';
   const linhasDL = (id, arr) => '<datalist id="' + id + '">' + arr.map(t => '<option value="' + _escHtml(t) + '">').join('') + '</datalist>';
-  const frases = sit ? PD2_ABERTURA[sit].concat(PD2_ABERTURA[sit === 'crise' ? 'conflito' : 'crise']) : PD2_ABERTURA.crise.concat(PD2_ABERTURA.conflito);
 
   el.innerHTML = '<div id="pd2-alert" class="hidden" style="margin-bottom:.75rem"></div>'
     + '<div class="form-section"><h3><i class="fas fa-route" style="color:var(--gl);margin-right:6px"></i>Plano de Diálogo — guia do contacto</h3>'
@@ -4173,14 +4208,14 @@ async function renderPD2(){
     +     legado
     +   '</div></div>'
     + sec(1, 'bullseye', 'Foco deste contacto', 'Que objetivo intermédio queremos alcançar neste contacto? Escolha um dos que estão por alcançar no PN, ou escreva outro.',
-        '<input type="text" id="pd2-foco" list="pd2-dl-foco" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(pd.foco || '') + '" placeholder="' + (pendentes.length ? 'Escolha um objetivo intermédio' : 'Sem objetivos por alcançar no PN — escreva o foco') + '" style="width:100%;font-size:13px">'
+        '<input type="text" id="pd2-foco" list="pd2-dl-foco" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" onchange="pd2AberturaSug()" value="' + _escHtml(pd.foco || '') + '" placeholder="' + (pendentes.length ? 'Escolha um objetivo intermédio' : 'Sem objetivos por alcançar no PN — escreva o foco') + '" style="width:100%;font-size:13px">'
         + linhasDL('pd2-dl-foco', pendentes.map(o => o.obj)))
     + sec(2, 'user', 'Como tratar o visado', '',
         '<div class="form-grid"><div class="field"><label>Tratar o visado por</label><input type="text" id="pd2-tratamento" list="pd2-dl-trat" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(pd.tratamento || '') + '" placeholder="Ex.: pelo nome próprio, por tu"></div>'
         + '<div class="field"><label>O negociador apresenta-se como</label><input type="text" id="pd2-apresentacao" list="pd2-dl-apres" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(pd.apresentacao || '') + '" placeholder="Ex.: nome próprio"></div></div>'
         + linhasDL('pd2-dl-trat', PD2_TRATAMENTO) + linhasDL('pd2-dl-apres', PD2_APRESENTACAO))
-    + sec(3, 'door-open', 'Frase de abertura', 'Clique numa frase para a usar' + (sit ? ' (primeiro as adequadas a ' + sit + ')' : '') + ' e ajuste-a.',
-        '<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:6px">' + frases.map(f => '<button type="button" onclick="pd2Escolher(\'abertura\',' + _escHtml(JSON.stringify(f)) + ')" style="text-align:left;border:1px dashed var(--gl);background:#fff;color:var(--gn);border-radius:var(--r);padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit"><i class="fas fa-plus" style="font-size:9px;margin-right:5px"></i>' + _escHtml(f) + '</button>').join('') + '</div>'
+    + sec(3, 'door-open', 'Frase de abertura', 'Começa pelo nome e conduz, de forma suave, ao foco deste contacto, convidando à conversa. Clique numa frase para a usar e ajuste-a.',
+        '<div id="pd2-abertura-sug" style="display:flex;flex-direction:column;gap:5px;margin-bottom:6px"></div>'
         + '<textarea id="pd2-abertura" rows="2" placeholder="Frase de abertura a usar">' + _escHtml(pd.abertura || '') + '</textarea>')
     + sec(4, 'circle-check', 'Fazer — técnicas a usar', 'Marque as técnicas a privilegiar neste contacto.', grupo('fazer'), '')
     + sec(5, 'circle-question', 'Perguntas úteis', 'Perguntas sobre o presente e o futuro (o «porquê» é útil para explorar interesses). Nunca, por iniciativa própria, sobre o que aconteceu ou sobre o passado que o fez chegar aqui.', grupo('perguntas'))
@@ -4201,6 +4236,7 @@ async function renderPD2(){
     + '<div class="form-section"><details ontoggle="if(this.open)pd2PreVer()"><summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--gn)"><i class="fas fa-id-card" style="margin-right:6px"></i>Pré-visualizar o cartão do n.º 1</summary><div id="pd2-preview" style="margin-top:8px"></div></details></div>'
     + sgiBarraHTML('pd2','Guardar PD');
   ['fazer','perguntas','seguros','evitar','terminar'].forEach(k => _pd2Redesenhar(k));
+  pd2AberturaSug();
   ['substituir','respostas'].forEach(k => { _pd2Rows[k] = _pd2RowsLer(k); _pd2RowsRedesenhar(k); });
   sgiAutosaveLigar('pd2');
 }
