@@ -1857,7 +1857,7 @@ const SGI_LABELS = {
          'pn2-align':'Alinhamento posição/interesses',
          'pn2-obji':'Objetivos intermédios'},
   pd2:  {'pd2-foco':'Foco deste contacto','pd2-tratamento':'Tratar o visado por','pd2-apresentacao':'Apresentação do negociador',
-         'pd2-abertura':'Frase de abertura','pd2-fazer':'Fazer — técnicas','pd2-perguntas':'Perguntas úteis','pd2-seguros':'Temas seguros',
+         'pd2-abertura':'Frase de abertura','pd2-fazer':'Fazer — técnicas','pd2-perguntas':'Perguntas úteis','pd2-seguros':'Temas trazidos pelo visado',
          'pd2-evitar':'Temas a evitar','pd2-substituir':'Palavras a substituir','pd2-respostas':'Respostas preparadas','pd2-local':'O local','pd2-terminar':'Como terminar'}
 };
 
@@ -3942,7 +3942,7 @@ const PD2_GUIA_CAMPOS = [
   {k:'abertura',    t:'Frase de abertura'},
   {k:'fazer',       t:'Fazer — técnicas a usar'},
   {k:'perguntas',   t:'Perguntas úteis'},
-  {k:'seguros',     t:'Temas seguros'},
+  {k:'seguros',     t:'Temas trazidos pelo visado'},
   {k:'evitar',      t:'Temas a evitar neste caso'},
   {k:'substituir',  t:'Palavras a substituir'},
   {k:'respostas',   t:'Respostas preparadas'},
@@ -3952,6 +3952,7 @@ const PD2_GUIA_CAMPOS = [
 const PD2_REGRAS_NAO = [
   'Perguntar, por iniciativa própria, o que aconteceu',
   'Fazer perguntas sobre o passado que façam reviver a situação ou o trauma',
+  'Introduzir temas pessoais (filhos, família, trabalho…) que o visado não tenha trazido',
   'Mentir',
   'Prometer o que não se controla',
   'Dizer «não» de forma direta',
@@ -3979,9 +3980,11 @@ const PD2_FAZER = [
 const PD2_PERGUNTAS = [
   {g:'Presente', itens:['Como é que está agora?','O que é que precisa neste momento?','O que é que o preocupa mais agora?','Está alguém ferido?']},
   {g:'Interesse', itens:['Porque é que isso é tão importante para si?','O que é que mudava para si se isso acontecesse?','Porque é que precisa de falar com essa pessoa?']},
-  {g:'Futuro', itens:['O que gostava que acontecesse a seguir?','Quem é que está à sua espera?','O que é que precisa para isto acabar bem?']}
+  {g:'Futuro', itens:['O que gostava que acontecesse a seguir?','O que é que precisa para isto acabar bem?']}
 ];
-const PD2_SEGUROS = ['Filhos','Pessoas importantes para ele','Planos para o futuro','Trabalho / ocupação futura','Passatempos e gostos','Animais de estimação','Necessidades do momento (comer, beber, descansar)'];
+// Sem lista pré-definida: não sabemos se filhos, família, trabalho, etc. são temas seguros —
+// só se registam temas que o próprio visado trouxe para a conversa.
+const PD2_SEGUROS = [];
 const PD2_EVITAR = ['Pormenores do que aconteceu','Culpas / quem tem razão','A relação com a vítima','Antecedentes criminais','Prisão / consequências legais','Comportamentos passados','Pessoas que o magoaram','Temas religiosos ou políticos'];
 const PD2_SUBST = [['rendição','sair'],['refém','o nome da pessoa'],['exigência','o que precisa'],['arma','isso que tem consigo'],['acalme-se','estou a ver que isto é muito difícil'],['tem de','podemos']];
 const PD2_RESP = [
@@ -4056,7 +4059,7 @@ function _pd2Chip(t, on, acao, titulo, cor){
 function _pd2Opcoes(k){
   if(k === 'fazer') return PD2_FAZER.map(o => o.t);
   if(k === 'perguntas') return [].concat.apply([], PD2_PERGUNTAS.map(g => g.itens));
-  if(k === 'seguros') return _pn2Uniq((_pd2Extra.seguros || []).concat(PD2_SEGUROS));
+  if(k === 'seguros') return PD2_SEGUROS;
   if(k === 'evitar') return PD2_EVITAR;
   if(k === 'terminar') return PD2_TERMINAR;
   return [];
@@ -4150,7 +4153,7 @@ function pd2CartaoHTML(pd){
   const fz = L('fazer'), pg = L('perguntas'), sg = L('seguros');
   const colF = (fz.length ? tit('circle-check', 'Fazer', 'var(--gm)') + lista(fz, fazerFmt) : '')
     + (pg.length ? tit('circle-question', 'Perguntas úteis', 'var(--gm)') + lista(pg) : '')
-    + (sg.length ? tit('comments', 'Temas seguros', 'var(--gm)') + lista(sg) : '');
+    + (sg.length ? tit('comments', 'Temas trazidos pelo visado', 'var(--gm)') + lista(sg) : '');
   const colN = tit('ban', 'Não fazer', 'var(--red)') + lista(PD2_REGRAS_NAO)
     + '<div style="font-size:11.5px;color:var(--gray600);margin-top:4px;line-height:1.45">' + PD2_NOTA_PASSADO + '</div>'
     + (L('evitar').length ? tit('triangle-exclamation', 'Temas a evitar neste caso', 'var(--red)') + lista(L('evitar')) : '');
@@ -4182,7 +4185,6 @@ async function renderPD2(){
   const pendentes = objs.filter(o => !o.feito && (o.obj||'').trim());
   const sit = v.tipo_situacao === 'crise' || v.tipo_situacao === 'conflito' ? v.tipo_situacao : '';
   const alin = v.alinhamento === 'alinhados' ? 'Alinhados' : v.alinhamento === 'desalinhados' ? 'Não alinhados' : '';
-  _pd2Extra.seguros = _pd2Linhas(v.interesses_adversario).map(t => t.replace(/^[-•*]\s*/, '')).filter(t => t.length <= 80);
   _pd2Extra.respostas = _pd2Linhas(v.posicao_adversario).map(t => t.replace(/^[-•*]\s*/, '').replace(/^[«"]|[»"]$/g, '')).filter(t => t.length <= 120).map(t => [t, '']);
   const ro = (rot, val) => val ? '<div style="font-size:12.5px;line-height:1.55;margin-bottom:3px"><strong style="color:var(--gm)">' + rot + ':</strong> ' + _escHtml(val) + '</div>' : '';
   const probH = probs.length ? '<ul style="margin:2px 0 4px;padding-left:17px;font-size:12.5px;line-height:1.55">' + probs.map((p, i) => '<li><strong>P' + (i+1) + '</strong> <span style="font-size:11px;color:' + (p.tipo === 'pe' ? 'var(--gm)' : 'var(--red)') + '">' + (p.tipo === 'pe' ? 'Pessoal' : 'Operacional') + '</span> — ' + _escHtml(pn2ProbFrase(p)) + '</li>').join('') + '</ul>' : '';
@@ -4219,7 +4221,7 @@ async function renderPD2(){
         + '<textarea id="pd2-abertura" rows="2" placeholder="Frase de abertura a usar">' + _escHtml(pd.abertura || '') + '</textarea>')
     + sec(4, 'circle-check', 'Fazer — técnicas a usar', 'Marque as técnicas a privilegiar neste contacto.', grupo('fazer'), '')
     + sec(5, 'circle-question', 'Perguntas úteis', 'Perguntas sobre o presente e o futuro (o «porquê» é útil para explorar interesses). Nunca, por iniciativa própria, sobre o que aconteceu ou sobre o passado que o fez chegar aqui.', grupo('perguntas'))
-    + sec(6, 'comments', 'Temas seguros', 'Temas para falar, virados para o presente e o futuro.' + (_pd2Extra.seguros.length ? ' Os primeiros vêm dos interesses do PN.' : ''), grupo('seguros'))
+    + sec(6, 'comments', 'Temas trazidos pelo visado', 'Não sabemos à partida se filhos, família, trabalho, etc. são temas seguros, por isso não os abordamos por iniciativa própria. Registe aqui só os temas que o próprio visado trouxe para a conversa, para a equipa saber que pode voltar a eles.', grupo('seguros'))
     + sec(7, 'ban', 'Não fazer — zona vermelha', '',
         '<div style="background:#fff;border:1px solid var(--border);border-left:3px solid var(--red);border-radius:var(--r);padding:8px 12px;margin-bottom:10px">'
         + '<div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Regras fixas — sempre</div>'
