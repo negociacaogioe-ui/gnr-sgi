@@ -1858,7 +1858,7 @@ const SGI_LABELS = {
          'pn2-obji':'Objetivos intermédios'},
   pd2:  {'pd2-foco':'Foco deste contacto','pd2-tratamento':'Tratar o visado por','pd2-apresentacao':'Apresentação do negociador',
          'pd2-abertura':'Frase de abertura','pd2-fazer':'Fazer — técnicas','pd2-perguntas':'Perguntas úteis','pd2-seguros':'Temas trazidos pelo visado',
-         'pd2-evitar':'Temas a evitar','pd2-substituir':'Palavras a substituir','pd2-respostas':'Respostas preparadas','pd2-local':'O local','pd2-terminar':'Como terminar'}
+         'pd2-evitar':'Temas a evitar','pd2-substituir':'Palavras a substituir','pd2-respostas':'Respostas preparadas','pd2-terminar':'Como terminar'}
 };
 
 const SGI_FORMS = {
@@ -3946,7 +3946,6 @@ const PD2_GUIA_CAMPOS = [
   {k:'evitar',      t:'Temas a evitar neste caso'},
   {k:'substituir',  t:'Palavras a substituir'},
   {k:'respostas',   t:'Respostas preparadas'},
-  {k:'local',       t:'O local'},
   {k:'terminar',    t:'Como terminar o contacto'}
 ];
 const PD2_REGRAS_NAO = [
@@ -4163,7 +4162,6 @@ function pd2CartaoHTML(pd){
   if(L('substituir').length) h += tit('right-left', 'Palavras a substituir') + lista(L('substituir'), seta);
   if(L('respostas').length) h += tit('reply', 'Respostas preparadas') + lista(L('respostas'), seta);
   if(L('terminar').length) h += tit('flag-checkered', 'Terminar o contacto') + lista(L('terminar'));
-  if(pd.local) h += tit('location-dot', 'Local') + '<div style="font-size:12.5px;white-space:pre-wrap;line-height:1.5">' + _escHtml(pd.local) + '</div>';
   return h;
 }
 function pd2PreVer(){
@@ -4231,25 +4229,13 @@ async function renderPD2(){
         + grupo('evitar', 'var(--red)'), 'red')
     + sec(8, 'right-left', 'Palavras a substituir', 'Palavras que podem escalar a tensão e o que dizer em vez delas.', hid('substituir') + '<div id="pd2-g-substituir"></div>')
     + sec(9, 'reply', 'Respostas preparadas', 'O que responder ao que é previsível ouvir.' + (_pd2Extra.respostas.length ? ' As ameaças registadas na posição do PN aparecem primeiro nas sugestões.' : ''), hid('respostas') + '<div id="pd2-g-respostas"></div>')
-    + sec(10, 'location-dot', 'O local', 'Condicionantes do contacto: ruído, distância, visibilidade, presença de terceiros…',
-        '<div style="display:flex;justify-content:flex-end;margin-bottom:6px"><button class="btn btn-outline btn-sm" onclick="pd2Puxar()"><i class="fas fa-download"></i> Puxar local do caso</button></div>'
-        + '<textarea id="pd2-local" rows="2" placeholder="Condicionantes do local no contacto">' + _escHtml(pd.local || '') + '</textarea>')
-    + sec(11, 'flag-checkered', 'Como terminar o contacto', '', grupo('terminar'))
+    + sec(10, 'flag-checkered', 'Como terminar o contacto', '', grupo('terminar'))
     + '<div class="form-section"><details ontoggle="if(this.open)pd2PreVer()"><summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--gn)"><i class="fas fa-id-card" style="margin-right:6px"></i>Pré-visualizar o cartão do n.º 1</summary><div id="pd2-preview" style="margin-top:8px"></div></details></div>'
     + sgiBarraHTML('pd2','Guardar PD');
   ['fazer','perguntas','seguros','evitar','terminar'].forEach(k => _pd2Redesenhar(k));
   pd2AberturaSug();
   ['substituir','respostas'].forEach(k => { _pd2Rows[k] = _pd2RowsLer(k); _pd2RowsRedesenhar(k); });
   sgiAutosaveLigar('pd2');
-}
-async function pd2Puxar(){
-  if(!currentDetail) return;
-  const r = currentDetail.record;
-  const e = document.getElementById('pd2-local'); if(!e) return;
-  const loc = [r.local, r.cter].filter(Boolean).join(' · ');
-  if(!loc){ alert('O caso não tem local registado.'); return; }
-  if(e.value.trim() && !confirm('O campo já tem texto. Substituir pelo local do caso?')) return;
-  e.value = loc; e.dispatchEvent(new Event('input', {bubbles:true}));
 }
 async function guardarPD2(){
   if(!currentDetail) return;
