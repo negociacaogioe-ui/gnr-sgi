@@ -3394,7 +3394,8 @@ const PN2_MODALIDADES = [
   'Troca ou concessão',
   'Ganhar tempo / protelar',
   'Desescalada emocional (escuta ativa)',
-  'Articulação com a equipa tática'
+  'Articulação com a equipa tática',
+  'Articulação com meios de socorro'
 ];
 const PN2_TEMPOS = ['5 min','10 min','15 min','30 min','45 min','1 h','2 h','Mais de 2 h'];
 // Meios por objetivo intermédio (proposta, não doutrina): seleção múltipla + «Outro».
@@ -3453,6 +3454,74 @@ const PN2_FACTOS_PE = [
   'Vive sozinho e sem apoio','Cortou relações com a família'
 ];
 const _pn2Uniq = a => a.filter((t, i) => a.indexOf(t) === i);
+// Sugestões por problema (proposta para validar com a doutrina do curso):
+// ao escolher um destes problemas, os objetivos aparecem no topo da lista e como
+// sugestões clicáveis; a modalidade principal fica pré-preenchida (pode alterar-se).
+// Códigos: T telefónico · P presencial · I intercomunicador/megafone · M mensagens escritas
+// A âncora/intermediário · X troca/concessão · G ganhar tempo · D desescalada · E equipa tática · S meios de socorro
+const _PN2_MODC = {T:'Contacto telefónico',P:'Contacto presencial (face a face)',I:'Intercomunicador / megafone',M:'Mensagens escritas (SMS / aplicação)',A:'Recurso a âncora / intermediário',X:'Troca ou concessão',G:'Ganhar tempo / protelar',D:'Desescalada emocional (escuta ativa)',E:'Articulação com a equipa tática',S:'Articulação com meios de socorro'};
+const PN2_SUG_FACTO = {
+  // ---- Operacionais ----
+  'Ameaça matar a vítima se entrarmos': ['TDEG', ['Comunicar que a força não vai entrar','Estabelecer linha de comunicação estável','Obter compromisso de não agressão durante o contacto','Obter prova de vida','Obter libertação da vítima']],
+  'Ameaça ferir os reféns se nos aproximarmos': ['ITEX', ['Garantir um recuo visível do perímetro','Obter prova de vida e estado dos reféns','Obter libertação de pessoas vulneráveis (menores, feridos, idosos)','Obter libertação da totalidade das vítimas ou reféns']],
+  'Mantém uma arma apontada à vítima': ['DTE', ['Reduzir a tensão imediata','Obter que baixe ou afaste a arma','Obter compromisso de não agressão durante o contacto','Obter libertação da vítima']],
+  'Ameaça matar a vítima se a exigência não for cumprida': ['GTX', ['Explorar o interesse por trás da exigência','Afastar ou prolongar o prazo ou ultimato','Obter prova de vida','Obter compromisso de não agressão durante o contacto']],
+  'Ameaça matar-se se nos aproximarmos': ['TDA', ['Garantir que a força não se aproxima sem aviso','Manter linha de comunicação estável','Avaliar o risco (IRIS)','Identificar e envolver uma âncora','Obter que aceite assistência médica']],
+  'Está num local elevado e ameaça atirar-se': ['PDGS', ['Estabelecer contacto e rapport','Obter que se afaste do bordo ou se sente','Garantir meios de segurança no solo','Obter que aceite descer']],
+  'Tem uma arma apontada a si próprio': ['TDA', ['Obter que afaste a arma do corpo','Manter linha de comunicação estável','Avaliar o risco (IRIS)','Obter entrega ou neutralização da arma']],
+  'Diz que já tomou medicação / substâncias': ['TSD', ['Identificar o quê, quanto e quando tomou','Permitir acesso de assistência médica','Obter uma saída rápida para tratamento']],
+  'Ameaça disparar sobre quem entrar': ['TIE', ['Comunicar que ninguém vai entrar','Obter compromisso de não agressão durante o contacto','Confirmar número de agressores e armamento','Obter acordo sobre ponto e modo de saída']],
+  'Disparou contra a força': ['ITED', ['Repor a segurança do perímetro (prioridade tática)','Estabelecer contacto e baixar a tensão','Obter compromisso de não voltar a disparar','Obter entrega ou neutralização da arma','Obter rendição voluntária']],
+  'Diz que tem explosivos / armadilhas': ['TEG', ['Obter descrição do dispositivo (tipo e local)','Obter compromisso de não acionar','Obter acordo de saída sem o dispositivo']],
+  'Tem uma arma de fogo': ['TDE', ['Confirmar tipo e número de armas','Obter que pouse ou afaste a arma','Obter entrega ou neutralização da arma','Obter acordo sobre como sai sem arma']],
+  'Tem uma arma branca': ['TPD', ['Obter que pouse ou afaste a arma','Obter compromisso de não agressão durante o contacto','Obter entrega ou neutralização da arma','Obter acordo sobre ponto e modo de saída']],
+  'Desconhece-se o tipo de arma': ['TA', ['Confirmar se tem arma e de que tipo','Recolher informação junto de terceiros']],
+  'Não atende o telefone': ['MIA', ['Estabelecer o primeiro contacto','Fazer chegar um telefone','Identificar um canal alternativo']],
+  'Desliga sempre que ligamos': ['TMD', ['Prolongar a duração de cada contacto','Manter linha de comunicação estável','Acordar regras de contacto (quando se volta a ligar)']],
+  'Grita para nos irmos embora': ['IDE', ['Reduzir a perceção de ameaça (recuo visível)','Estabelecer contacto direto com o visado','Explorar o interesse por trás da exigência']],
+  'Só aceita falar com uma pessoa específica': ['TMA', ['Explorar porque quer essa pessoa','Estabelecer contacto direto com o negociador','Avaliar a pessoa pedida (informação, sem contacto direto)']],
+  'Não sabemos se a vítima está viva': ['TX', ['Obter prova de vida']],
+  'Desconhece-se o número de pessoas no interior': ['TAE', ['Confirmar número de pessoas no interior','Confirmar número de agressores e armamento']],
+  'Desconhece-se o estado de saúde das vítimas': ['TXS', ['Confirmar número e estado das vítimas ou reféns','Permitir assistência médica ou libertação de feridos']],
+  'Exige falar com a ex-companheira': ['GDM', ['Explorar o interesse (o que lhe quer dizer)','Ganhar tempo sem recusar frontalmente','Obter compromisso de não agressão durante o contacto']],
+  'Exige que a força se retire': ['XET', ['Explorar o receio por trás da exigência','Conceder recuo visível, sem perder segurança, em troca de algo','Obter compromisso de não agressão durante o contacto']],
+  'Exige um meio de fuga / transporte': ['GTE', ['Explorar o interesse por trás da exigência','Afastar a exigência sem a negar frontalmente','Obter acordo sobre ponto e modo de saída']],
+  'Impôs um prazo (ultimato)': ['GTD', ['Afastar ou prolongar o prazo ou ultimato','Desviar a conversa do prazo','Manter linha de comunicação estável durante e após o prazo']],
+  'Barricou-se no interior': ['TIG', ['Estabelecer contacto direto com o visado','Explorar a intenção','Obter acordo sobre ponto e modo de saída','Obter rendição voluntária']],
+  'Porta reforçada / bloqueada': ['TE', ['Obter que seja ele a abrir a porta','Obter acordo sobre ponto e modo de saída']],
+  'Local sem visibilidade para o interior': ['TAE', ['Obter informação do interior (pessoas, posições, armas)','Obter prova de vida']],
+  // ---- Pessoais (soluções a propor; modalidade base: desescalada) ----
+  'A companheira saiu de casa': ['DA', ['Mediação através de um familiar ou pessoa de confiança','Encaminhamento para apoio psicológico','Possibilidade de contacto futuro, pelos meios legais e em segurança']],
+  'A companheira pediu o divórcio': ['D', ['Encaminhamento para apoio jurídico (separação / divórcio)','Encaminhamento para apoio psicológico']],
+  'Descobriu uma traição': ['DA', ['Validar a emoção sem tomar partido','Encaminhamento para apoio psicológico','Contacto com pessoa de confiança']],
+  'Tem medida de afastamento da companheira': ['D', ['Explicar a medida e as vias legais para a rever','Encaminhamento para apoio jurídico']],
+  'A companheira levou os filhos': ['DM', ['Garantir informação de que os filhos estão bem','Informar sobre os meios legais (regulação das responsabilidades parentais)']],
+  'Perdeu a guarda dos filhos': ['D', ['Informar sobre os meios legais de revisão','Encaminhamento para apoio jurídico','Valorizar o papel de pai no futuro']],
+  'Está impedido de ver os filhos': ['D', ['Possibilidade de contacto futuro com os filhos, pelos meios legais','Encaminhamento para apoio jurídico']],
+  'Tem dívidas que não consegue pagar': ['D', ['Encaminhamento para apoio ao sobre-endividamento','Encaminhamento para apoio social']],
+  'Vai perder a casa por dívidas': ['D', ['Encaminhamento para apoio jurídico','Encaminhamento para apoio social / habitação']],
+  'Foi penhorado': ['D', ['Encaminhamento para apoio jurídico','Encaminhamento para apoio ao sobre-endividamento']],
+  'Foi despedido': ['D', ['Encaminhamento para apoio jurídico laboral','Encaminhamento para os serviços de emprego']],
+  'Está desempregado há muito tempo': ['D', ['Encaminhamento para os serviços de emprego','Encaminhamento para apoio social']],
+  'Conflito com a entidade patronal': ['D', ['Encaminhamento para apoio jurídico laboral','Mediação do conflito laboral']],
+  'Recebeu um diagnóstico grave': ['DA', ['Encaminhamento para acompanhamento médico','Encaminhamento para apoio psicológico','Contacto com família ou amigos de confiança']],
+  'Deixou de tomar a medicação': ['DS', ['Assistência médica imediata','Encaminhamento para acompanhamento médico / psiquiátrico']],
+  'Tem um mandado de detenção': ['D', ['Explicar o que acontece a seguir, sem prometer resultados','Garantir acesso a advogado / defensor','Garantir tratamento digno durante a saída']],
+  'Teme ser preso pelo que fez hoje': ['DG', ['Mostrar que a situação ainda tem saída, sem prometer resultados','Explicar o que acontece a seguir, sem prometer resultados','Garantir acesso a advogado / defensor','Garantir tratamento digno durante a saída']],
+  'Já esteve preso e não quer voltar': ['D', ['Garantir tratamento digno durante a saída','Garantir acesso a advogado / defensor','Explicar o que acontece a seguir, sem prometer resultados']],
+  'Vai ser despejado': ['D', ['Encaminhamento para apoio social / habitação','Encaminhamento para apoio jurídico']],
+  'Ficou sem casa': ['D', ['Encaminhamento para apoio social de emergência / alojamento']],
+  'Morreu um familiar próximo': ['DA', ['Validar o luto','Encaminhamento para apoio psicológico','Contacto com família ou amigos de confiança']],
+  'Perdeu um filho': ['DA', ['Validar o luto','Encaminhamento para apoio psicológico especializado (luto)','Contacto com família ou amigos de confiança']],
+  'Sente-se humilhado perante a família / vizinhos': ['DE', ['Construir uma saída com dignidade','Minimizar a exposição pública da saída']],
+  'Foi exposto publicamente': ['DE', ['Minimizar a exposição pública da saída','Garantir uma saída discreta']],
+  'Vive sozinho e sem apoio': ['DA', ['Contacto com pessoa de confiança','Encaminhamento para apoio psicológico / social']],
+  'Cortou relações com a família': ['DA', ['Explorar quem ainda lhe é importante','Contacto com pessoa de confiança (já avaliada)']]
+};
+const _PN2_SUG_IDX = {};
+Object.keys(PN2_SUG_FACTO).forEach(k => { _PN2_SUG_IDX[k.toLowerCase()] = PN2_SUG_FACTO[k]; });
+function _pn2SugFacto(p){ return _PN2_SUG_IDX[String((p && p.texto) || '').trim().toLowerCase()] || null; }
+function _pn2ModsProb(p){ const f = _pn2SugFacto(p); return f ? f[0].split('').map(c => _PN2_MODC[c]).filter(Boolean) : []; }
 const PN2_SOL_TODAS = _pn2Uniq([].concat.apply([], Object.keys(PN2_CAT_PE).map(k => PN2_CAT_PE[k])));
 const PN2_TIPOS = {op:{t:'Operacional', cor:'var(--red)'}, pe:{t:'Pessoal', cor:'var(--gm)'}};
 let _pn2Prob = [], _pn2Obj = [], _pn2Uid = 0;
@@ -3465,7 +3534,7 @@ function pn2ObjDatalists(){
     + '<datalist id="pn2-dl-facto-pe">' + opt(PN2_FACTOS_PE) + '</datalist>';
 }
 function _pn2CatMapa(tipo){ return tipo === 'pe' ? PN2_CAT_PE : PN2_CAT_OP; }
-function _pn2Sugestoes(p){ const m = _pn2CatMapa(p.tipo); return m[(p.cat||'').trim()] || []; }
+function _pn2Sugestoes(p){ const m = _pn2CatMapa(p.tipo), f = _pn2SugFacto(p); return _pn2Uniq((f ? f[1] : []).concat(m[(p.cat||'').trim()] || [])); }
 function _pn2ListaObj(p){
   const todas = p.tipo === 'pe' ? PN2_SOL_TODAS : [].concat.apply([], OBJ_INTERMEDIOS.map(g => g.itens));
   return _pn2Uniq(_pn2Sugestoes(p).concat(todas));
@@ -3559,8 +3628,8 @@ function pn2Sync(){
   tp.value = r.prob; to.value = r.obji;
   tp.dispatchEvent(new Event('input', {bubbles:true}));
 }
-function _pn2ObjLinhaHTML(o, i, dlObj){
-  const inp = (k, dl, ph, flex) => '<input type="text" list="' + dl + '" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(o[k]||'') + '" placeholder="' + ph + '" oninput="pn2ObjSet(' + i + ',\'' + k + '\',this.value)" style="flex:' + flex + ';min-width:130px;font-size:13px">';
+function _pn2ObjLinhaHTML(o, i, dlObj, dlMod){
+  const inp = (k, dl, ph, flex) => '<input type="text" list="' + dl + '" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(o[k]||'') + '" placeholder="' + ph + '" oninput="pn2ObjSet(' + i + ',\'' + k + '\',this.value)"' + (k === 'obj' ? ' onchange="pn2ObjEscolheu(' + i + ')"' : '') + ' style="flex:' + flex + ';min-width:130px;font-size:13px">';
   return '<div style="border:1px solid var(--border);border-left:3px solid ' + (o.feito ? 'var(--gm)' : 'var(--gray300)') + ';border-radius:var(--r);padding:7px 9px;margin-bottom:6px;background:#fff">'
     + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">'
     +   '<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray600);cursor:pointer;white-space:nowrap"><input type="checkbox" ' + (o.feito ? 'checked' : '') + ' onchange="pn2ObjFeito(' + i + ',this.checked)" style="width:auto;margin:0"> Alcançado' + (o.feito && o.quando ? ' <span style="font-family:\'IBM Plex Mono\',monospace;color:var(--gm)">' + o.quando + '</span>' : '') + '</label>'
@@ -3569,7 +3638,7 @@ function _pn2ObjLinhaHTML(o, i, dlObj){
     + '</div>'
     + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
     +   inp('obj', dlObj, 'Objetivo intermédio', 3)
-    +   inp('mod', 'pn2-dl-mod', 'Modalidade de ação', 2)
+    +   inp('mod', dlMod || 'pn2-dl-mod', 'Modalidade de ação', 2)
     +   inp('tempo', 'pn2-dl-tempo', 'Tempo aprox.', 1)
     + '</div>'
     + _pn2MeiosHTML(o, i)
@@ -3647,12 +3716,19 @@ function pn2ProbRender(){
       +   '<button type="button" class="btn btn-ghost btn-sm" onclick="pn2ProbDel(' + k + ')" title="Remover problema" style="padding:2px 7px;font-size:11px;color:var(--gray400);margin-left:auto"><i class="fas fa-trash"></i></button>'
       + '</div>';
     const pe = p.tipo === 'pe';
-    h += '<input type="text" list="pn2-dl-facto-' + p.tipo + '" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(p.texto) + '" oninput="pn2ProbSet(' + k + ',\'texto\',this.value)" placeholder="' + (pe ? 'Escolha uma opção ou escreva (ex.: a companheira saiu de casa com os filhos)' : 'Escolha uma opção ou escreva (ex.: ameaça matar a ex-companheira se entrarmos)') + '" style="width:100%;font-size:13px;padding:10px 12px;margin-bottom:4px">'
+    h += '<input type="text" list="pn2-dl-facto-' + p.tipo + '" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(p.texto) + '" oninput="pn2ProbSet(' + k + ',\'texto\',this.value)" onchange="pn2ProbRender()" placeholder="' + (pe ? 'Escolha uma opção ou escreva (ex.: a companheira saiu de casa com os filhos)' : 'Escolha uma opção ou escreva (ex.: ameaça matar a ex-companheira se entrarmos)') + '" style="width:100%;font-size:13px;padding:10px 12px;margin-bottom:4px">'
       + '<div id="pn2-aviso-' + p.uid + '" style="font-size:11px;color:var(--amber);font-weight:600;margin-bottom:6px;line-height:1.45">' + _pn2AvisoTexto(p) + '</div>';
     const dlId = 'pn2-dl-obj-' + p.uid;
+    const dlMod = 'pn2-dl-mod-' + p.uid;
     h += '<datalist id="' + dlId + '">' + _pn2ListaObj(p).map(t => '<option value="' + _escHtml(t) + '">').join('') + '</datalist>'
+      + '<datalist id="' + dlMod + '">' + _pn2Uniq(_pn2ModsProb(p).concat(PN2_MODALIDADES)).map(t => '<option value="' + _escHtml(t) + '">').join('') + '</datalist>'
       + '<div style="font-size:10.5px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">' + (pe ? 'Soluções a propor' : 'Objetivos intermédios') + '</div>';
-    h += objs.map(x => _pn2ObjLinhaHTML(x.o, x.i, dlId)).join('')
+    const jaTem = objs.map(x => (x.o.obj||'').trim().toLowerCase());
+    const sugs = _pn2Sugestoes(p).map((t, j) => ({t, j})).filter(x => jaTem.indexOf(x.t.toLowerCase()) === -1);
+    if(sugs.length && _pn2SugFacto(p)) h += '<div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:7px"><span style="font-size:10.5px;color:var(--gray600)"><i class="fas fa-lightbulb" style="color:var(--amber);margin-right:3px"></i>Sugeridos:</span>'
+      + sugs.map(x => '<button type="button" onclick="pn2ObjSug(' + k + ',' + x.j + ')" style="border:1px dashed var(--gl);background:#fff;color:var(--gn);border-radius:14px;padding:2px 9px;font-size:11.5px;cursor:pointer;font-family:inherit"><i class="fas fa-plus" style="font-size:9px;margin-right:4px"></i>' + _escHtml(x.t) + '</button>').join('')
+      + '</div>';
+    h += objs.map(x => _pn2ObjLinhaHTML(x.o, x.i, dlId, dlMod)).join('')
       + '<button type="button" class="btn btn-ghost btn-sm" onclick="pn2ObjAdd(' + p.uid + ')" style="font-size:11.5px"><i class="fas fa-plus"></i> ' + (pe ? 'Solução' : 'Objetivo intermédio') + ' para P' + (k+1) + '</button>'
       + '</div>';
   });
@@ -3691,7 +3767,16 @@ function pn2ProbTipo(k, tipo){
 function pn2ObjSug(k, j){
   const p = _pn2Prob[k]; if(!p) return;
   const t = _pn2Sugestoes(p)[j]; if(!t) return;
-  const o = _pn2NovoObj(p.uid); o.obj = t; _pn2Obj.push(o); pn2Sync(); pn2ProbRender();
+  const o = _pn2NovoObj(p.uid); o.obj = t; o.mod = _pn2ModsProb(p)[0] || ''; _pn2Obj.push(o); pn2Sync(); pn2ProbRender();
+}
+// Ao escolher um objetivo sugerido, sem modalidade escrita: pré-preenche a modalidade principal do problema
+function pn2ObjEscolheu(i){
+  const o = _pn2Obj[i]; if(!o || (o.mod||'').trim()) return;
+  const p = _pn2Prob.find(x => x.uid === o.puid); if(!p) return;
+  const t = (o.obj||'').trim().toLowerCase();
+  if(!_pn2Sugestoes(p).some(s => s.toLowerCase() === t)) return;
+  o.mod = _pn2ModsProb(p)[0] || ''; if(!o.mod) return;
+  pn2Sync(); pn2ProbRender();
 }
 function pn2ProbDel(k){
   const p = _pn2Prob[k]; if(!p) return;
