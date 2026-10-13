@@ -1858,7 +1858,9 @@ const SGI_LABELS = {
          'pn2-pos':'Posição do adversário','pn2-int':'Interesses do adversário',
          'pn2-align':'Alinhamento posição/interesses',
          'pn2-obji':'Objetivos intermédios'},
-  pd2:  {'pd2-quadro_ref':'Quem — quadro de referência','pd2-local':'Onde — o local','pd2-solucoes':'Como — abordagem'}
+  pd2:  {'pd2-foco':'Foco deste contacto','pd2-tratamento':'Tratar o visado por','pd2-apresentacao':'Apresentação do negociador',
+         'pd2-abertura':'Frase de abertura','pd2-fazer':'Fazer — técnicas','pd2-perguntas':'Perguntas úteis','pd2-seguros':'Temas seguros',
+         'pd2-evitar':'Temas a evitar','pd2-substituir':'Palavras a substituir','pd2-respostas':'Respostas preparadas','pd2-local':'O local','pd2-terminar':'Como terminar'}
 };
 
 const SGI_FORMS = {
@@ -3140,7 +3142,8 @@ async function renderResumoPlanos(){
     : '<div style="font-size:12px;color:var(--gray400);font-style:italic">Plano de Negociação por preencher.</div>';
 
   let pdH = '';
-  if(typeof PD_CAMPOS !== 'undefined') PD_CAMPOS.forEach(cp => { if(pd[cp.k]) pdH += linha(cp.t, pd[cp.k]); });
+  if(typeof pd2TemGuia === 'function' && pd2TemGuia(pd)) pdH += pd2CartaoHTML(pd);
+  else if(typeof PD_CAMPOS !== 'undefined') PD_CAMPOS.forEach(cp => { if(pd[cp.k]) pdH += linha(cp.t, pd[cp.k]); });
   if(!pdH) pdH = '<div style="font-size:12px;color:var(--gray400);font-style:italic">Plano de Diálogo por preencher.</div>';
 
   const _soPD = box.dataset.so === 'pd';
@@ -3302,8 +3305,8 @@ function renderPD(){
 }
 async function guardarPD(){
   if(!currentDetail) return;
-  const pd={};
-  PD_CAMPOS.forEach(cp=>{ const e=document.getElementById('pd-'+cp.k); if(e&&e.value.trim()) pd[cp.k]=e.value.trim(); });
+  const pd=Object.assign({}, currentDetail.record.plano_dialogo||{}); // preserva as chaves do guia (PD simplificado)
+  PD_CAMPOS.forEach(cp=>{ const e=document.getElementById('pd-'+cp.k); if(!e) return; if(e.value.trim()) pd[cp.k]=e.value.trim(); else delete pd[cp.k]; });
   const btn=document.getElementById('pd-save-btn'); if(btn) btn.disabled=true;
   const ok=await _postoUpdate({plano_dialogo:pd});
   if(btn) btn.disabled=false;
@@ -3930,6 +3933,208 @@ async function savePN2(){
   if(!pn) return;
   _sgiGuardou('Plano de Negociação guardado!');
 }
+// ===== PD simplificado — guia do contacto (o que fazer e o que não fazer) =====
+// Grava no mesmo plano_dialogo do registo, em chaves próprias (uma opção por linha);
+// não mexe em quadro_ref / problema / pos_int / solucoes do PD atual.
+// Todas as listas são proposta (para validar com a doutrina): pode sempre escrever-se outra opção.
+const PD2_GUIA_CAMPOS = [
+  {k:'foco',        t:'Foco deste contacto'},
+  {k:'tratamento',  t:'Tratar o visado por'},
+  {k:'apresentacao',t:'O negociador apresenta-se como'},
+  {k:'abertura',    t:'Frase de abertura'},
+  {k:'fazer',       t:'Fazer — técnicas a usar'},
+  {k:'perguntas',   t:'Perguntas úteis'},
+  {k:'seguros',     t:'Temas seguros'},
+  {k:'evitar',      t:'Temas a evitar neste caso'},
+  {k:'substituir',  t:'Palavras a substituir'},
+  {k:'respostas',   t:'Respostas preparadas'},
+  {k:'local',       t:'O local'},
+  {k:'terminar',    t:'Como terminar o contacto'}
+];
+const PD2_REGRAS_NAO = [
+  'Perguntar, por iniciativa própria, o que aconteceu',
+  'Fazer perguntas sobre o passado que façam reviver a situação ou o trauma',
+  'Mentir',
+  'Prometer o que não se controla',
+  'Dizer «não» de forma direta',
+  'Contrariar ou discutir',
+  'Minimizar («não é assim tão grave»)',
+  'Usar «mas» (anula o que vem antes)',
+  'Dar ordens ou impor prazos',
+  'Envolver terceiros sem avaliação'
+];
+const PD2_NOTA_PASSADO = 'Se for o visado a trazer o passado: ouvir e validar a emoção, sem pedir pormenores, e voltar ao presente e ao futuro.';
+const PD2_FAZER = [
+  {t:'Escuta ativa', ex:'deixar falar, sem interromper'},
+  {t:'Rotulagem emocional', ex:'«Parece que estás muito cansado disto tudo»'},
+  {t:'Paráfrase', ex:'repetir por palavras nossas o que ele disse'},
+  {t:'Reformulação positiva', ex:'transformar a ameaça numa necessidade'},
+  {t:'Incentivos mínimos', ex:'«Hum-hum», «Estou a ouvir»'},
+  {t:'Pausas e silêncio', ex:'dar tempo para responder'},
+  {t:'Mensagens na primeira pessoa', ex:'«Eu estou preocupado contigo»'},
+  {t:'Resumos', ex:'juntar o que foi dito e confirmar'},
+  {t:'Perguntas abertas', ex:'sobre o presente e o futuro, incluindo o «porquê»'},
+  {t:'Usar as palavras do visado', ex:'a mesma linguagem e expressões'},
+  {t:'Tom calmo e ritmo lento', ex:'baixar o volume e a velocidade'},
+  {t:'Tratar pelo nome', ex:'o nome ou alcunha combinados'}
+];
+const PD2_PERGUNTAS = [
+  {g:'Presente', itens:['Como é que estás agora?','O que é que precisas neste momento?','O que é que te preocupa mais agora?','Está alguém ferido?']},
+  {g:'Interesse', itens:['Porque é que isso é tão importante para ti?','O que é que mudava para ti se isso acontecesse?','Porque é que precisas de falar com essa pessoa?']},
+  {g:'Futuro', itens:['O que gostavas que acontecesse a seguir?','Quem é que está à tua espera?','O que é que precisas para isto acabar bem?']}
+];
+const PD2_SEGUROS = ['Filhos','Pessoas importantes para ele','Planos para o futuro','Trabalho / ocupação futura','Passatempos e gostos','Animais de estimação','Necessidades do momento (comer, beber, descansar)'];
+const PD2_EVITAR = ['Pormenores do que aconteceu','Culpas / quem tem razão','A relação com a vítima','Antecedentes criminais','Prisão / consequências legais','Comportamentos passados','Pessoas que o magoaram','Temas religiosos ou políticos'];
+const PD2_SUBST = [['rendição','sair'],['refém','o nome da pessoa'],['exigência','o que precisas'],['arma','isso que tens contigo'],['acalma-te','estou a ver que isto é muito difícil'],['tens de','podemos']];
+const PD2_RESP = [
+  ['Vou-me matar','Estou aqui contigo. Quero ajudar-te a sair disto bem.'],
+  ['Se entrarem, mato-a','Ninguém vai entrar enquanto estivermos a falar.'],
+  ['Quero falar com ela','Percebo que isso é muito importante para ti. Porque é que precisas de falar com ela?'],
+  ['Vão-se embora','Estamos aqui para que ninguém se magoe, incluindo tu.'],
+  ['Tens 10 minutos','Estou a trabalhar nisso contigo. Enquanto isso, diz-me o que precisas agora.'],
+  ['Não confio em vocês','Faz sentido não confiares. Vou ser sempre honesto contigo, mesmo quando a resposta não for a que queres.']
+];
+const PD2_TERMINAR = ['Deixar a linha aberta','Combinar como se volta a falar','Resumir o que ficou combinado','Agradecer a conversa','Nunca terminar a seguir a uma recusa ou ameaça'];
+const PD2_ABERTURA = {
+  crise:    ['Olá, [nome]. Sou o [nome do negociador]. Estou aqui para te ouvir.','Sou o [nome do negociador]. Vejo que estás a passar por um momento muito difícil. Estou aqui para te ajudar.'],
+  conflito: ['Sou o [nome do negociador], da GNR. Estou aqui para falar contigo e para que isto acabe sem ninguém se magoar.','Sou o [nome do negociador]. Quero perceber o que precisas para resolvermos isto.']
+};
+const PD2_TRATAMENTO = ['Pelo nome próprio, por tu','Pelo nome próprio, por você','Pela alcunha','Pelo apelido, por senhor'];
+const PD2_APRESENTACAO = ['Nome próprio','Nome próprio, da GNR','Nome próprio, negociador da GNR'];
+
+const _pd2Linhas = t => String(t || '').split('\n').map(x => x.trim()).filter(Boolean);
+let _pd2Extra = {seguros:[], respostas:[]};
+let _pd2Rows = {substituir:[], respostas:[]};
+
+function _pd2Val(k){ const e = document.getElementById('pd2-' + k); return e ? e.value : ''; }
+function _pd2Set(k, v){
+  const e = document.getElementById('pd2-' + k); if(!e) return;
+  e.value = v; e.dispatchEvent(new Event('input', {bubbles:true}));
+}
+function _pd2Chip(t, on, acao, titulo, cor){
+  cor = cor || 'var(--gm)';
+  return '<button type="button" onclick="' + acao + '"' + (titulo ? ' title="' + _escHtml(titulo) + '"' : '')
+    + ' style="border:1px solid ' + (on ? cor : 'var(--border)') + ';background:' + (on ? cor : '#fff') + ';color:' + (on ? '#fff' : 'var(--gray600)')
+    + ';border-radius:14px;padding:3px 10px;font-size:11.5px;cursor:pointer;font-family:inherit;line-height:1.4;text-align:left">'
+    + (on ? '<i class="fas fa-check" style="margin-right:4px;font-size:10px"></i>' : '') + _escHtml(t) + '</button>';
+}
+// Opções de cada grupo de escolha múltipla
+function _pd2Opcoes(k){
+  if(k === 'fazer') return PD2_FAZER.map(o => o.t);
+  if(k === 'perguntas') return [].concat.apply([], PD2_PERGUNTAS.map(g => g.itens));
+  if(k === 'seguros') return _pn2Uniq((_pd2Extra.seguros || []).concat(PD2_SEGUROS));
+  if(k === 'evitar') return PD2_EVITAR;
+  if(k === 'terminar') return PD2_TERMINAR;
+  return [];
+}
+function _pd2GrupoHTML(k, cor){
+  const sel = _pd2Linhas(_pd2Val(k)), ops = _pd2Opcoes(k);
+  const ch = (t, i) => _pd2Chip(t, sel.indexOf(t) > -1, 'pd2Alternar(\'' + k + '\',' + i + ')', k === 'fazer' ? (PD2_FAZER[i] || {}).ex : '', cor);
+  let h = '';
+  if(k === 'perguntas'){
+    let i = 0;
+    PD2_PERGUNTAS.forEach(g => {
+      h += '<div style="font-size:10px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.05em;margin:4px 0">' + g.g + '</div><div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px">'
+        + g.itens.map(t => ch(t, i++)).join('') + '</div>';
+    });
+  } else {
+    h += '<div style="display:flex;gap:5px;flex-wrap:wrap">' + ops.map(ch).join('') + '</div>';
+  }
+  const outros = sel.filter(t => ops.indexOf(t) === -1);
+  if(outros.length) h += '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px">' + outros.map(t => _pd2Chip(t + ' ×', true, 'pd2Remover(\'' + k + '\',' + sel.indexOf(t) + ')', 'Remover', cor)).join('') + '</div>';
+  h += '<div style="display:flex;gap:6px;margin-top:6px"><input type="text" id="pd2-outro-' + k + '" placeholder="Outra opção…" onkeydown="if(event.key===\'Enter\'){event.preventDefault();pd2Outro(\'' + k + '\');}" style="flex:1;font-size:12.5px">'
+    + '<button type="button" class="btn btn-outline btn-sm" onclick="pd2Outro(\'' + k + '\')"><i class="fas fa-plus"></i></button></div>';
+  if(k === 'fazer' && sel.length){
+    const ex = sel.map(t => { const o = PD2_FAZER.find(x => x.t === t); return o ? '<div><strong>' + _escHtml(t) + '</strong> — ' + _escHtml(o.ex) + '</div>' : ''; }).join('');
+    if(ex) h += '<div style="font-size:11.5px;color:var(--gray600);line-height:1.55;margin-top:6px">' + ex + '</div>';
+  }
+  return h;
+}
+function _pd2Redesenhar(k){
+  const box = document.getElementById('pd2-g-' + k); if(!box) return;
+  box.innerHTML = _pd2GrupoHTML(k, box.dataset.cor);
+}
+function pd2Alternar(k, i){
+  const t = _pd2Opcoes(k)[i]; if(!t) return;
+  const sel = _pd2Linhas(_pd2Val(k)), j = sel.indexOf(t);
+  if(j > -1) sel.splice(j, 1); else sel.push(t);
+  _pd2Set(k, sel.join('\n')); _pd2Redesenhar(k);
+}
+function pd2Remover(k, j){ const sel = _pd2Linhas(_pd2Val(k)); sel.splice(j, 1); _pd2Set(k, sel.join('\n')); _pd2Redesenhar(k); }
+function pd2Outro(k){
+  const e = document.getElementById('pd2-outro-' + k); if(!e) return;
+  const t = e.value.replace(/\n/g, ' ').trim(); if(!t) return;
+  const sel = _pd2Linhas(_pd2Val(k)); if(sel.indexOf(t) === -1) sel.push(t);
+  _pd2Set(k, sel.join('\n')); _pd2Redesenhar(k);
+}
+function pd2Escolher(k, t){ _pd2Set(k, t); const e = document.getElementById('pd2-' + k); if(e) e.focus(); }
+
+// Linhas «A → B» (palavras a substituir / respostas preparadas)
+const PD2_SEP = ' → ';
+function _pd2RowsLer(k){ return _pd2Linhas(_pd2Val(k)).map(l => { const i = l.indexOf(PD2_SEP); return i > -1 ? [l.slice(0, i), l.slice(i + PD2_SEP.length)] : [l, '']; }); }
+function _pd2RowsSync(k){
+  const v = _pd2Rows[k].filter(r => (r[0]||'').trim() || (r[1]||'').trim()).map(r => (r[0]||'').replace(/\n/g,' ').trim() + PD2_SEP + (r[1]||'').replace(/\n/g,' ').trim()).join('\n');
+  _pd2Set(k, v);
+}
+function _pd2RowsHTML(k){
+  const ph = k === 'substituir' ? ['Em vez de…', 'Dizer…'] : ['Se ele disser…', 'Responder…'];
+  let h = _pd2Rows[k].map((r, i) => '<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px;flex-wrap:wrap">'
+    + '<input type="text" value="' + _escHtml(r[0]) + '" placeholder="' + ph[0] + '" oninput="pd2RowSet(\'' + k + '\',' + i + ',0,this.value)" style="flex:1;min-width:140px;font-size:12.5px">'
+    + '<i class="fas fa-arrow-right" style="color:var(--gray400);font-size:11px"></i>'
+    + '<input type="text" value="' + _escHtml(r[1]) + '" placeholder="' + ph[1] + '" oninput="pd2RowSet(\'' + k + '\',' + i + ',1,this.value)" style="flex:2;min-width:180px;font-size:12.5px">'
+    + '<button type="button" class="btn btn-ghost btn-sm" onclick="pd2RowDel(\'' + k + '\',' + i + ')" title="Remover" style="padding:2px 7px;color:var(--gray400)"><i class="fas fa-xmark"></i></button></div>').join('');
+  const usados = _pd2Rows[k].map(r => (r[0]||'').trim().toLowerCase());
+  const sug = (k === 'substituir' ? PD2_SUBST : (_pd2Extra.respostas || []).concat(PD2_RESP)).map((s, i) => ({s, i})).filter(x => usados.indexOf(x.s[0].toLowerCase()) === -1);
+  if(sug.length) h += '<div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin:4px 0 6px"><span style="font-size:10.5px;color:var(--gray600)"><i class="fas fa-lightbulb" style="color:var(--amber);margin-right:3px"></i>Sugeridos:</span>'
+    + sug.map(x => '<button type="button" onclick="pd2RowSug(\'' + k + '\',' + x.i + ')" title="' + _escHtml(x.s[1] ? x.s[0] + PD2_SEP + x.s[1] : x.s[0]) + '" style="border:1px dashed var(--gl);background:#fff;color:var(--gn);border-radius:14px;padding:2px 9px;font-size:11.5px;cursor:pointer;font-family:inherit"><i class="fas fa-plus" style="font-size:9px;margin-right:4px"></i>«' + _escHtml(x.s[0]) + '»</button>').join('') + '</div>';
+  h += '<button type="button" class="btn btn-ghost btn-sm" onclick="pd2RowAdd(\'' + k + '\')" style="font-size:11.5px"><i class="fas fa-plus"></i> Acrescentar linha</button>';
+  return h;
+}
+function _pd2RowsRedesenhar(k){ const b = document.getElementById('pd2-g-' + k); if(b) b.innerHTML = _pd2RowsHTML(k); }
+function pd2RowSet(k, i, c, v){ if(!_pd2Rows[k][i]) return; _pd2Rows[k][i][c] = v; _pd2RowsSync(k); }
+function pd2RowAdd(k){ _pd2Rows[k].push(['','']); _pd2RowsRedesenhar(k); }
+function pd2RowDel(k, i){ _pd2Rows[k].splice(i, 1); _pd2RowsSync(k); _pd2RowsRedesenhar(k); }
+function pd2RowSug(k, i){
+  const s = (k === 'substituir' ? PD2_SUBST : (_pd2Extra.respostas || []).concat(PD2_RESP))[i]; if(!s) return;
+  _pd2Rows[k].push([s[0], s[1]]); _pd2RowsSync(k); _pd2RowsRedesenhar(k);
+}
+
+// Cartão de consulta rápida (n.º 1 / n.º 2 / Coordenação e pré-visualização)
+function pd2TemGuia(pd){ return !!pd && PD2_GUIA_CAMPOS.some(c => c.k !== 'local' && String(pd[c.k] || '').trim()); }
+function pd2CartaoHTML(pd){
+  pd = pd || {};
+  const L = k => _pd2Linhas(pd[k]);
+  const tit = (ic, t, cor) => '<div style="font-size:10px;font-weight:700;color:' + (cor || 'var(--gm)') + ';text-transform:uppercase;letter-spacing:.06em;margin:8px 0 3px"><i class="fas fa-' + ic + '" style="margin-right:4px"></i>' + t + '</div>';
+  const lista = (arr, fmt) => '<ul style="margin:0;padding-left:17px;font-size:12.5px;line-height:1.55">' + arr.map(x => '<li>' + (fmt ? fmt(x) : _escHtml(x)) + '</li>').join('') + '</ul>';
+  const seta = l => { const i = l.indexOf(PD2_SEP); return i > -1 ? _escHtml(l.slice(0, i)) + ' <span style="color:var(--gray400)">→</span> <strong>' + _escHtml(l.slice(i + PD2_SEP.length)) + '</strong>' : _escHtml(l); };
+  const fazerFmt = t => { const o = PD2_FAZER.find(x => x.t === t); return '<strong>' + _escHtml(t) + '</strong>' + (o ? ' <span style="color:var(--gray600)">— ' + _escHtml(o.ex) + '</span>' : ''); };
+  let h = '';
+  if(pd.foco) h += tit('bullseye', 'Foco deste contacto') + '<div style="font-size:13px;font-weight:600;color:var(--gn)">' + _escHtml(pd.foco) + '</div>';
+  const trat = [pd.tratamento ? 'Tratar por: <strong>' + _escHtml(pd.tratamento) + '</strong>' : '', pd.apresentacao ? 'Apresentar-se como: <strong>' + _escHtml(pd.apresentacao) + '</strong>' : ''].filter(Boolean).join(' · ');
+  if(trat) h += '<div style="font-size:12px;color:var(--gray600);margin-top:5px">' + trat + '</div>';
+  if(pd.abertura) h += tit('door-open', 'Abertura') + '<div style="font-size:12.5px;font-style:italic;line-height:1.5">«' + _escHtml(pd.abertura) + '»</div>';
+  const fz = L('fazer'), pg = L('perguntas'), sg = L('seguros');
+  const colF = (fz.length ? tit('circle-check', 'Fazer', 'var(--gm)') + lista(fz, fazerFmt) : '')
+    + (pg.length ? tit('circle-question', 'Perguntas úteis', 'var(--gm)') + lista(pg) : '')
+    + (sg.length ? tit('comments', 'Temas seguros', 'var(--gm)') + lista(sg) : '');
+  const colN = tit('ban', 'Não fazer', 'var(--red)') + lista(PD2_REGRAS_NAO)
+    + '<div style="font-size:11.5px;color:var(--gray600);margin-top:4px;line-height:1.45">' + PD2_NOTA_PASSADO + '</div>'
+    + (L('evitar').length ? tit('triangle-exclamation', 'Temas a evitar neste caso', 'var(--red)') + lista(L('evitar')) : '');
+  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-top:6px">'
+    + '<div style="border-left:3px solid var(--gm);padding-left:9px">' + (colF || tit('circle-check', 'Fazer', 'var(--gm)') + '<div style="font-size:12px;color:var(--gray400);font-style:italic">Por preencher</div>') + '</div>'
+    + '<div style="border-left:3px solid var(--red);padding-left:9px">' + colN + '</div></div>';
+  if(L('substituir').length) h += tit('right-left', 'Palavras a substituir') + lista(L('substituir'), seta);
+  if(L('respostas').length) h += tit('reply', 'Respostas preparadas') + lista(L('respostas'), seta);
+  if(L('terminar').length) h += tit('flag-checkered', 'Terminar o contacto') + lista(L('terminar'));
+  if(pd.local) h += tit('location-dot', 'Local') + '<div style="font-size:12.5px;white-space:pre-wrap;line-height:1.5">' + _escHtml(pd.local) + '</div>';
+  return h;
+}
+function pd2PreVer(){
+  const b = document.getElementById('pd2-preview'); if(!b) return;
+  const pd = {}; PD2_GUIA_CAMPOS.forEach(c => { pd[c.k] = _pd2Val(c.k); });
+  b.innerHTML = pd2CartaoHTML(pd);
+}
+
 async function renderPD2(){
   const el = document.getElementById('pd2-content');
   if(!el || !currentDetail) return;
@@ -3937,50 +4142,85 @@ async function renderPD2(){
   let v = {};
   try { v = await _pn2Ler(); } catch(e){}
   const pd = currentDetail.record.plano_dialogo || {};
-  const ro = (rot, val) => '<div style="margin-bottom:8px"><div style="font-size:10.5px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">' + rot + '</div>'
-    + (val ? _txtRO(val) : '<span style="font-size:12px;color:var(--gray400);font-style:italic">Por preencher no PN</span>') + '</div>';
+  // Do PN: problemas, objetivos por alcançar, interesses e ameaças da posição
+  const probs = pn2ProbParse(v.identificacao_problema || '');
+  const objs = pn2ObjParse(v['objetivos_intermédios'] || '');
+  const pendentes = objs.filter(o => !o.feito && (o.obj||'').trim());
+  const sit = v.tipo_situacao === 'crise' || v.tipo_situacao === 'conflito' ? v.tipo_situacao : '';
   const alin = v.alinhamento === 'alinhados' ? 'Alinhados' : v.alinhamento === 'desalinhados' ? 'Não alinhados' : '';
-  const posInt = [v.posicao_adversario ? 'Posição: ' + v.posicao_adversario : '', v.interesses_adversario ? 'Interesses: ' + v.interesses_adversario : '', alin ? 'Alinhamento: ' + alin : ''].filter(Boolean).join('\n');
-  const antigos = (pd.problema || pd.pos_int)
-    ? '<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11.5px;color:var(--gray600)">Também escrito no PD atual (não editável aqui)</summary>'
-      + (pd.problema ? ro('Problema (PD atual)', pd.problema) : '') + (pd.pos_int ? ro('Posição e interesses (PD atual)', pd.pos_int) : '') + '</details>'
-    : '';
-  const ta = (k, rot, ph) => '<div class="field form-full"><label>' + rot + '</label><textarea id="pd2-' + k + '" rows="3" placeholder="' + ph + '">' + _escHtml(pd[k]||'') + '</textarea></div>';
-  el.innerHTML = '<div class="form-section">'
-    + '<h3><i class="fas fa-flask" style="color:var(--gl)"></i> Plano de Diálogo — versão simplificada</h3>'
-    + '<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px;line-height:1.5">Decide <strong>o como</strong>, respondendo às cinco questões base (4.88). <em>O quê</em> e <em>porquê</em> vêm do PN. Grava nos mesmos dados do Plano de Diálogo atual.</p>'
-    + '<div style="background:var(--gp);border:1px solid var(--border);border-left:3px solid var(--gl);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">'
-    +   '<div style="font-size:10px;font-weight:700;color:var(--gl);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Do Plano de Negociação (só leitura)</div>'
-    +   ro('O quê — problema', v.identificacao_problema)
-    +   ro('Porquê — posição e interesses', posInt)
-    +   ro('Tipo de situação', (v.tipo_situacao||'').toUpperCase())
-    +   ro('Objetivo principal', v.objetivo_principal)
-    +   antigos
-    + '</div>'
-    + '<div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button class="btn btn-outline btn-sm" onclick="pd2Puxar()"><i class="fas fa-download"></i> Puxar dados do caso</button></div>'
-    + ta('quadro_ref', 'Quem — quadro de referência da contraparte', 'Como vê o mundo, o que valoriza, linguagem a usar, âncoras...')
-    + ta('local', 'Onde — o local', 'Condicionantes do local no discurso e no contacto...')
-    + ta('solucoes', 'Como — abordagem', 'Respostas preparadas, temas a introduzir, o que evitar...')
-    + '<div id="pd2-alert" class="hidden" style="margin-bottom:.75rem"></div>'
-    + '</div>' + sgiBarraHTML('pd2','Guardar PD');
+  _pd2Extra.seguros = _pd2Linhas(v.interesses_adversario).map(t => t.replace(/^[-•*]\s*/, '')).filter(t => t.length <= 80);
+  _pd2Extra.respostas = _pd2Linhas(v.posicao_adversario).map(t => t.replace(/^[-•*]\s*/, '').replace(/^[«"]|[»"]$/g, '')).filter(t => t.length <= 120).map(t => [t, '']);
+  const ro = (rot, val) => val ? '<div style="font-size:12.5px;line-height:1.55;margin-bottom:3px"><strong style="color:var(--gm)">' + rot + ':</strong> ' + _escHtml(val) + '</div>' : '';
+  const probH = probs.length ? '<ul style="margin:2px 0 4px;padding-left:17px;font-size:12.5px;line-height:1.55">' + probs.map((p, i) => '<li><strong>P' + (i+1) + '</strong> <span style="font-size:11px;color:' + (p.tipo === 'pe' ? 'var(--gm)' : 'var(--red)') + '">' + (p.tipo === 'pe' ? 'Pessoal' : 'Operacional') + '</span> — ' + _escHtml(pn2ProbFrase(p)) + '</li>').join('') + '</ul>' : '';
+  const legado = (pd.quadro_ref || pd.solucoes)
+    ? '<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11.5px;color:var(--gray600)">Também escrito no PD atual (só leitura)</summary>'
+      + (pd.quadro_ref ? '<div style="margin-top:6px"><div style="font-size:10.5px;font-weight:700;color:var(--gm);text-transform:uppercase">Quadro de referência</div>' + _txtRO(pd.quadro_ref) + '</div>' : '')
+      + (pd.solucoes ? '<div style="margin-top:6px"><div style="font-size:10.5px;font-weight:700;color:var(--gm);text-transform:uppercase">Abordagem / soluções</div>' + _txtRO(pd.solucoes) + '</div>' : '')
+      + '</details>' : '';
+  const hid = k => '<textarea id="pd2-' + k + '" style="display:none">' + _escHtml(pd[k] || '') + '</textarea>';
+  const sec = (n, ic, t, sub, corpo, cls) => '<div class="form-section' + (cls ? ' ' + cls : '') + '"><h3><i class="fas fa-' + ic + '" style="margin-right:6px;opacity:.75"></i>' + n + '. ' + t + '</h3>'
+    + (sub ? '<p style="font-size:12px;color:var(--gray600);margin:-2px 0 8px;line-height:1.5">' + sub + '</p>' : '') + corpo + '</div>';
+  const grupo = (k, cor) => hid(k) + '<div id="pd2-g-' + k + '" data-cor="' + (cor || '') + '"></div>';
+  const linhasDL = (id, arr) => '<datalist id="' + id + '">' + arr.map(t => '<option value="' + _escHtml(t) + '">').join('') + '</datalist>';
+  const frases = sit ? PD2_ABERTURA[sit].concat(PD2_ABERTURA[sit === 'crise' ? 'conflito' : 'crise']) : PD2_ABERTURA.crise.concat(PD2_ABERTURA.conflito);
+
+  el.innerHTML = '<div id="pd2-alert" class="hidden" style="margin-bottom:.75rem"></div>'
+    + '<div class="form-section"><h3><i class="fas fa-route" style="color:var(--gl);margin-right:6px"></i>Plano de Diálogo — guia do contacto</h3>'
+    +   '<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px;line-height:1.5">Pontos de referência para o contacto: <strong>o que fazer</strong> e <strong>o que não fazer</strong>. As listas são sugestões — pode sempre escrever-se outra opção.</p>'
+    +   '<div style="background:var(--gp);border:1px solid var(--border);border-left:3px solid var(--gl);border-radius:var(--r);padding:10px 12px">'
+    +     '<div style="font-size:10px;font-weight:700;color:var(--gl);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Do Plano de Negociação (só leitura)</div>'
+    +     (sit || v.posicao_adversario || v.interesses_adversario || probs.length
+            ? ro('Tipo de situação', sit.toUpperCase()) + ro('Posição', v.posicao_adversario) + ro('Interesses', v.interesses_adversario) + ro('Alinhamento', alin) + probH
+            : '<span style="font-size:12px;color:var(--gray400);font-style:italic">Plano de Negociação por preencher.</span>')
+    +     legado
+    +   '</div></div>'
+    + sec(1, 'bullseye', 'Foco deste contacto', 'Que objetivo intermédio queremos alcançar neste contacto? Escolha um dos que estão por alcançar no PN, ou escreva outro.',
+        '<input type="text" id="pd2-foco" list="pd2-dl-foco" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(pd.foco || '') + '" placeholder="' + (pendentes.length ? 'Escolha um objetivo intermédio' : 'Sem objetivos por alcançar no PN — escreva o foco') + '" style="width:100%;font-size:13px">'
+        + linhasDL('pd2-dl-foco', pendentes.map(o => o.obj)))
+    + sec(2, 'user', 'Como tratar o visado', '',
+        '<div class="form-grid"><div class="field"><label>Tratar o visado por</label><input type="text" id="pd2-tratamento" list="pd2-dl-trat" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(pd.tratamento || '') + '" placeholder="Ex.: pelo nome próprio, por tu"></div>'
+        + '<div class="field"><label>O negociador apresenta-se como</label><input type="text" id="pd2-apresentacao" list="pd2-dl-apres" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(pd.apresentacao || '') + '" placeholder="Ex.: nome próprio"></div></div>'
+        + linhasDL('pd2-dl-trat', PD2_TRATAMENTO) + linhasDL('pd2-dl-apres', PD2_APRESENTACAO))
+    + sec(3, 'door-open', 'Frase de abertura', 'Clique numa frase para a usar' + (sit ? ' (primeiro as adequadas a ' + sit + ')' : '') + ' e ajuste-a.',
+        '<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:6px">' + frases.map(f => '<button type="button" onclick="pd2Escolher(\'abertura\',' + _escHtml(JSON.stringify(f)) + ')" style="text-align:left;border:1px dashed var(--gl);background:#fff;color:var(--gn);border-radius:var(--r);padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit"><i class="fas fa-plus" style="font-size:9px;margin-right:5px"></i>' + _escHtml(f) + '</button>').join('') + '</div>'
+        + '<textarea id="pd2-abertura" rows="2" placeholder="Frase de abertura a usar">' + _escHtml(pd.abertura || '') + '</textarea>')
+    + sec(4, 'circle-check', 'Fazer — técnicas a usar', 'Marque as técnicas a privilegiar neste contacto.', grupo('fazer'), '')
+    + sec(5, 'circle-question', 'Perguntas úteis', 'Perguntas sobre o presente e o futuro (o «porquê» é útil para explorar interesses). Nunca, por iniciativa própria, sobre o que aconteceu ou sobre o passado que o fez chegar aqui.', grupo('perguntas'))
+    + sec(6, 'comments', 'Temas seguros', 'Temas para falar, virados para o presente e o futuro.' + (_pd2Extra.seguros.length ? ' Os primeiros vêm dos interesses do PN.' : ''), grupo('seguros'))
+    + sec(7, 'ban', 'Não fazer — zona vermelha', '',
+        '<div style="background:#fff;border:1px solid var(--border);border-left:3px solid var(--red);border-radius:var(--r);padding:8px 12px;margin-bottom:10px">'
+        + '<div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Regras fixas — sempre</div>'
+        + '<ul style="margin:0;padding-left:17px;font-size:12.5px;line-height:1.6">' + PD2_REGRAS_NAO.map(t => '<li>' + _escHtml(t) + '</li>').join('') + '</ul>'
+        + '<div style="font-size:11.5px;color:var(--gray600);margin-top:5px;line-height:1.45"><i class="fas fa-circle-info" style="margin-right:4px"></i>' + PD2_NOTA_PASSADO + ' Ex.: evitar «O que é que ela te fez?»; usar «Isso deixou-te muito magoado. O que é que precisas agora para isto acabar bem?»</div></div>'
+        + '<div style="font-size:11px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Temas a evitar neste caso</div>'
+        + grupo('evitar', 'var(--red)'), 'red')
+    + sec(8, 'right-left', 'Palavras a substituir', 'Palavras que podem escalar a tensão e o que dizer em vez delas.', hid('substituir') + '<div id="pd2-g-substituir"></div>')
+    + sec(9, 'reply', 'Respostas preparadas', 'O que responder ao que é previsível ouvir.' + (_pd2Extra.respostas.length ? ' As ameaças registadas na posição do PN aparecem primeiro nas sugestões.' : ''), hid('respostas') + '<div id="pd2-g-respostas"></div>')
+    + sec(10, 'location-dot', 'O local', 'Condicionantes do contacto: ruído, distância, visibilidade, presença de terceiros…',
+        '<div style="display:flex;justify-content:flex-end;margin-bottom:6px"><button class="btn btn-outline btn-sm" onclick="pd2Puxar()"><i class="fas fa-download"></i> Puxar local do caso</button></div>'
+        + '<textarea id="pd2-local" rows="2" placeholder="Condicionantes do local no contacto">' + _escHtml(pd.local || '') + '</textarea>')
+    + sec(11, 'flag-checkered', 'Como terminar o contacto', '', grupo('terminar'))
+    + '<div class="form-section"><details ontoggle="if(this.open)pd2PreVer()"><summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--gn)"><i class="fas fa-id-card" style="margin-right:6px"></i>Pré-visualizar o cartão do n.º 1</summary><div id="pd2-preview" style="margin-top:8px"></div></details></div>'
+    + sgiBarraHTML('pd2','Guardar PD');
+  ['fazer','perguntas','seguros','evitar','terminar'].forEach(k => _pd2Redesenhar(k));
+  ['substituir','respostas'].forEach(k => { _pd2Rows[k] = _pd2RowsLer(k); _pd2RowsRedesenhar(k); });
   sgiAutosaveLigar('pd2');
 }
 async function pd2Puxar(){
-  setTimeout(() => sgiAutosaveAgendar('pd2'), 400);
   if(!currentDetail) return;
   const r = currentDetail.record;
-  const qr = []; const vis = _pxVisado(); if(vis) qr.push(vis);
-  const iris = await _pxIris(); if(iris) qr.push(iris);
-  const anc = _pxQuadro('ancoras'); if(anc) qr.push('Âncoras:\n' + anc);
-  const fam = _pxQuadro('familiares'); if(fam) qr.push('Familiares / amigos:\n' + fam);
-  _pxPreencher({ 'pd2-quadro_ref': qr.join('\n\n'), 'pd2-local': [r.local, r.cter].filter(Boolean).join(' · ') });
+  const e = document.getElementById('pd2-local'); if(!e) return;
+  const loc = [r.local, r.cter].filter(Boolean).join(' · ');
+  if(!loc){ alert('O caso não tem local registado.'); return; }
+  if(e.value.trim() && !confirm('O campo já tem texto. Substituir pelo local do caso?')) return;
+  e.value = loc; e.dispatchEvent(new Event('input', {bubbles:true}));
 }
 async function guardarPD2(){
   if(!currentDetail) return;
   const pd = Object.assign({}, currentDetail.record.plano_dialogo || {});
-  ['quadro_ref','local','solucoes'].forEach(k => {
-    const e = document.getElementById('pd2-' + k); if(!e) return;
-    const t = e.value.trim(); if(t) pd[k] = t; else delete pd[k];
+  PD2_GUIA_CAMPOS.forEach(c => {
+    const e = document.getElementById('pd2-' + c.k); if(!e) return;
+    const t = e.value.trim(); if(t) pd[c.k] = t; else delete pd[c.k];
   });
   const ok = await _postoUpdate({plano_dialogo:pd});
   if(!ok){ _sgiLastError = 'Não foi possível guardar o Plano de Diálogo.'; return; }
@@ -5202,6 +5442,7 @@ function _relatorioPDF(r, type, iris, sari, plano, contactos, hist){
   const pd = r.plano_dialogo || {};
   let temPD = false;
   PD_CAMPOS.forEach(cp => { if(pd[cp.k]){ temPD = true; kv(cp.t, ''); par(pd[cp.k]); } });
+  if(typeof PD2_GUIA_CAMPOS !== 'undefined') PD2_GUIA_CAMPOS.forEach(cp => { if(cp.k !== 'local' && pd[cp.k]){ temPD = true; kv(cp.t, ''); par(pd[cp.k]); } });
   if(!temPD) vazio('Plano de Diálogo não preenchido.');
 
   // ---------------- 9. Descrição do Visado
