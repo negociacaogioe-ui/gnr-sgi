@@ -732,9 +732,8 @@ body.is-mobile .filter-bar input,body.is-mobile .filter-bar select{flex:1 1 45%;
         <button class="tab-btn" onclick="showTab('tab-iris')"><i class="fas fa-heartbeat"></i> IRIS</button>
         <button class="tab-btn" id="tab-visado-btn" onclick="showTab('tab-visado')"><i class="fas fa-user-tag"></i> Descrição do Visado</button>
         <button class="tab-btn" onclick="showTab('tab-sari')"><i class="fas fa-shield-alt"></i> Aval. Risco/Coop.</button>
-        <button class="tab-btn" onclick="showTab('tab-plano')"><i class="fas fa-clipboard-list"></i> Plano de Negociação</button>
+        <button class="tab-btn" onclick="showTab('tab-pn2')"><i class="fas fa-clipboard-list"></i> Plano de Negociação</button>
         <button class="tab-btn" id="tab-pd-btn" onclick="showTab('tab-pd')"><i class="fas fa-comments"></i> Plano de Diálogo</button>
-        <button class="tab-btn" onclick="showTab('tab-pn2')" title="Versão simplificada para comparação"><i class="fas fa-flask"></i> PN simplificado</button>
         <button class="tab-btn" onclick="showTab('tab-pd2')" title="Versão simplificada para comparação"><i class="fas fa-flask"></i> PD simplificado</button>
         <button class="tab-btn" id="tab-posto-btn" onclick="showTab('tab-posto')"><i class="fas fa-user-shield"></i> Coordenação</button>
         <button class="tab-btn" onclick="showTab('tab-info')"><i class="fas fa-info-circle"></i> Informações</button>
@@ -788,10 +787,6 @@ body.is-mobile .filter-bar input,body.is-mobile .filter-bar select{flex:1 1 45%;
         </div>
         <div id="tab-sari" class="tab-panel">
           <div id="sari-content"></div>
-        </div>
-        <!-- TAB PLANO -->
-        <div id="tab-plano" class="tab-panel">
-          <div id="plano-content"></div>
         </div>
         <!-- TAB HISTÓRICO -->
         <div id="tab-hist" class="tab-panel">
@@ -1727,12 +1722,13 @@ function goBack(){
 }
 
 function showTab(tabId){
+  if(tabId==='tab-plano') tabId='tab-pn2'; // o PN antigo foi eliminado: o PN é agora o tab-pn2
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById(tabId).classList.add('active');
   var _vb=document.getElementById('tab-visado-btn'); if(_vb) _vb.style.display=(currentDetail&&currentDetail.isTreino)?'none':'';
   aplicarFiltroPosto();
-  const idx=['tab-resumo','tab-iris','tab-visado','tab-sari','tab-plano','tab-pd','tab-pn2','tab-pd2','tab-posto','tab-info','tab-rnrv','tab-hist'].indexOf(tabId);
+  const idx=['tab-resumo','tab-iris','tab-visado','tab-sari','tab-pn2','tab-pd','tab-pd2','tab-posto','tab-info','tab-rnrv','tab-hist'].indexOf(tabId);
   document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
   if(tabId==='tab-resumo')renderResumo();
   if(tabId==='tab-info')renderInfo();
@@ -1744,7 +1740,6 @@ function showTab(tabId){
   if(tabId==='tab-pd2')renderPD2();
   if(tabId==='tab-rnrv'){renderRNRV();setTimeout(checkActiveLiveSession,500);}
   if(tabId==='tab-sari')renderSARI();
-  if(tabId==='tab-plano')renderPlano();
   if(tabId==='tab-hist')renderHistorico();
 }
 
@@ -1859,7 +1854,7 @@ const SGI_LABELS = {
           'visado-arma':'Presença de arma','visado-motivacao':'Motivação aparente'},
   pd:   {'pd-quadro_ref':'Quadro de referência','pd-problema':'Identificação do problema',
          'pd-local':'O local','pd-pos_int':'Posição e interesses','pd-solucoes':'Soluções'},
-  pn2:  {'pn2-prob':'Identificação do problema','pn2-sit':'Tipo de situação',
+  pn2:  {'pn2-prob':'Problemas','pn2-sit':'Tipo de situação',
          'pn2-pos':'Posição do adversário','pn2-int':'Interesses do adversário',
          'pn2-align':'Alinhamento posição/interesses',
          'pn2-obji':'Objetivos intermédios'},
@@ -1872,7 +1867,7 @@ const SGI_FORMS = {
   plano: {panel:'plano-content', titulo:'Plano de Negociação', save:()=>savePlano()},
   visado:{panel:'tab-visado',    titulo:'Descrição do Visado', save:()=>saveVisado()},
   pd:    {panel:'pd-content',    titulo:'Plano de Diálogo',    save:()=>guardarPD()},
-  pn2:   {panel:'pn2-content',   titulo:'Plano de Negociação (simplificado)', save:()=>savePN2()},
+  pn2:   {panel:'pn2-content',   titulo:'Plano de Negociação', save:()=>savePN2()},
   pd2:   {panel:'pd2-content',   titulo:'Plano de Diálogo (simplificado)',    save:()=>guardarPD2()}
 };
 
@@ -2603,10 +2598,10 @@ const EN_TABS = {
   n1: ['tab-posto','tab-resumo','tab-rnrv'],
   n2: ['tab-posto','tab-resumo','tab-info','tab-rnrv'],
   n3: ['tab-posto','tab-resumo','tab-info','tab-rnrv'],
-  n4: ['tab-posto','tab-resumo','tab-info','tab-pd','tab-plano','tab-pn2','tab-pd2','tab-iris','tab-sari','tab-visado','tab-hist'],
-  nc: ['tab-posto','tab-resumo','tab-info','tab-plano','tab-pd','tab-pn2','tab-pd2','tab-iris','tab-sari','tab-rnrv','tab-hist']
+  n4: ['tab-posto','tab-resumo','tab-info','tab-pd','tab-pn2','tab-pd2','tab-iris','tab-sari','tab-visado','tab-hist'],
+  nc: ['tab-posto','tab-resumo','tab-info','tab-pn2','tab-pd','tab-pd2','tab-iris','tab-sari','tab-rnrv','tab-hist']
 };
-const TAB_BTN_ORDEM = ['tab-resumo','tab-iris','tab-visado','tab-sari','tab-plano','tab-pd','tab-pn2','tab-pd2','tab-posto','tab-info','tab-rnrv','tab-hist'];
+const TAB_BTN_ORDEM = ['tab-resumo','tab-iris','tab-visado','tab-sari','tab-pn2','tab-pd','tab-pd2','tab-posto','tab-info','tab-rnrv','tab-hist'];
 
 // Posição que o militar declarou ocupar neste caso (só nesta sessão, não é gravada).
 let _postoEscolhido = null;
@@ -3190,7 +3185,7 @@ function _seletorPostoHTML(){
 // No mobile, os botões do posto abrem os formulários em ecrã inteiro (não há separadores).
 function _postoIrTab(t){
   if(typeof isMobile!=='undefined' && isMobile){
-    const m = {'tab-info':'info','tab-plano':'plano','tab-pd':'pd','tab-pn2':'pn2','tab-pd2':'pd2'};
+    const m = {'tab-info':'info','tab-plano':'pn2','tab-pd':'pd','tab-pn2':'pn2','tab-pd2':'pd2'};
     if(m[t]) mobAbrirForm(m[t]);
     return;
   }
@@ -3354,8 +3349,20 @@ async function renderPN2(){
   try { v = await _pn2Ler(); } catch(e){}
   const ta = (id, val, rows, ph) => '<textarea id="' + id + '" rows="' + rows + '" placeholder="' + (ph||'') + '">' + _escHtml(val||'') + '</textarea>';
   el.innerHTML = '<div id="pn2-alert" class="hidden" style="margin-bottom:.75rem"></div>'
-    + '<div class="form-section"><h3>1. Problemas e objetivos intermédios</h3>'
-    +   '<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px;line-height:1.5">Para cada problema — <strong>pessoal</strong> (o da pessoa) ou <strong>operacional</strong> (o que nos impede de resolver o incidente) — defina os objetivos intermédios, a modalidade de ação e o tempo aproximado. Pode escolher das listas ou escrever outra opção.</p>'
+    + '<div class="form-section"><h3>1. Tipo de situação</h3><div class="situation-type-btns">'
+    +   '<div class="sit-btn ' + (v.tipo_situacao==='crise'?'selected':'') + '" id="pn2-sit-crise" onclick="pn2Sel(\'sit\',\'crise\')"><h4>CRISE</h4><p>Não planeada ou por descontrolo emocional</p></div>'
+    +   '<div class="sit-btn ' + (v.tipo_situacao==='conflito'?'selected':'') + '" id="pn2-sit-conflito" onclick="pn2Sel(\'sit\',\'conflito\')"><h4>CONFLITO</h4><p>Ações planeadas que preveem o confronto</p></div>'
+    + '</div><input type="hidden" id="pn2-sit" value="' + ((v.tipo_situacao==='crise'||v.tipo_situacao==='conflito')?v.tipo_situacao:'') + '">' + consultaPNHTML('sit','pn2') + '</div>'
+    + '<div class="form-section red"><h3>2. Posição / Interesses</h3><div class="form-grid">'
+    +   '<div class="field"><label>Posição (comportamento / ameaça demonstrada)</label>' + ta('pn2-pos', v.posicao_adversario, 3) + '</div>'
+    +   '<div class="field"><label>Interesses (necessidades reais)</label>' + ta('pn2-int', v.interesses_adversario, 3) + '</div></div>'
+    +   apoioPIHTML('pn2')
+    +   '<div class="field"><label>Alinhamento</label><div class="situation-type-btns">'
+    +     '<div class="sit-btn ' + (v.alinhamento==='desalinhados'?'selected':'') + '" id="pn2-align-desalinhados" onclick="pn2Sel(\'align\',\'desalinhados\')"><h4>NÃO ALINHADOS</h4><p>✅ Favorável — trabalhar os interesses</p></div>'
+    +     '<div class="sit-btn ' + (v.alinhamento==='alinhados'?'selected':'') + '" id="pn2-align-alinhados" onclick="pn2Sel(\'align\',\'alinhados\')"><h4>ALINHADOS</h4><p>⚠️ Desfavorável — criar valor ou explorar contradições</p></div>'
+    +   '</div><input type="hidden" id="pn2-align" value="' + ((v.alinhamento==='alinhados'||v.alinhamento==='desalinhados')?v.alinhamento:'') + '">' + consultaPNHTML('align','pn2') + '</div></div>'
+    + '<div class="form-section"><h3>3. Problemas e objetivos intermédios</h3>'
+    +   '<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px;line-height:1.5">Para cada problema — <strong>pessoal</strong> (o da pessoa) ou <strong>operacional</strong> (o que nos impede de resolver o incidente) — defina os objetivos intermédios, a modalidade de ação, os meios e o tempo aproximado. Pode escolher das listas ou escrever outra opção.</p>'
     +   '<div id="pn2-prob-lista"></div>'
     +   '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">'
     +     '<button type="button" class="btn btn-outline btn-sm" onclick="pn2ProbAdd(\'op\')"><i class="fas fa-plus"></i> Problema operacional</button>'
@@ -3364,19 +3371,9 @@ async function renderPN2(){
     +   '<textarea id="pn2-prob" style="display:none">' + _escHtml(v.identificacao_problema||'') + '</textarea>'
     +   '<textarea id="pn2-obji" style="display:none">' + _escHtml(v['objetivos_intermédios']||'') + '</textarea>'
     +   pn2ObjDatalists()
+    +   '<div id="pn2-meios-resumo"></div>'
+    +   (v.meios && String(v.meios).trim() ? '<details style="margin-top:8px"><summary style="cursor:pointer;font-size:11.5px;color:var(--gray600)">Meios registados no plano anterior (só leitura)</summary>' + _txtRO(v.meios) + '</details>' : '')
     + '</div>'
-    + '<div class="form-section"><h3>2. Tipo de situação</h3><div class="situation-type-btns">'
-    +   '<div class="sit-btn ' + (v.tipo_situacao==='crise'?'selected':'') + '" id="pn2-sit-crise" onclick="pn2Sel(\'sit\',\'crise\')"><h4>CRISE</h4><p>Não planeada ou por descontrolo emocional</p></div>'
-    +   '<div class="sit-btn ' + (v.tipo_situacao==='conflito'?'selected':'') + '" id="pn2-sit-conflito" onclick="pn2Sel(\'sit\',\'conflito\')"><h4>CONFLITO</h4><p>Ações planeadas que preveem o confronto</p></div>'
-    + '</div><input type="hidden" id="pn2-sit" value="' + ((v.tipo_situacao==='crise'||v.tipo_situacao==='conflito')?v.tipo_situacao:'') + '">' + consultaPNHTML('sit','pn2') + '</div>'
-    + '<div class="form-section red"><h3>3. Posição / Interesses</h3><div class="form-grid">'
-    +   '<div class="field"><label>Posição (comportamento / ameaça demonstrada)</label>' + ta('pn2-pos', v.posicao_adversario, 3) + '</div>'
-    +   '<div class="field"><label>Interesses (necessidades reais)</label>' + ta('pn2-int', v.interesses_adversario, 3) + '</div></div>'
-    +   apoioPIHTML('pn2')
-    +   '<div class="field"><label>Alinhamento</label><div class="situation-type-btns">'
-    +     '<div class="sit-btn ' + (v.alinhamento==='desalinhados'?'selected':'') + '" id="pn2-align-desalinhados" onclick="pn2Sel(\'align\',\'desalinhados\')"><h4>NÃO ALINHADOS</h4><p>✅ Favorável — trabalhar os interesses</p></div>'
-    +     '<div class="sit-btn ' + (v.alinhamento==='alinhados'?'selected':'') + '" id="pn2-align-alinhados" onclick="pn2Sel(\'align\',\'alinhados\')"><h4>ALINHADOS</h4><p>⚠️ Desfavorável — criar valor ou explorar contradições</p></div>'
-    +   '</div><input type="hidden" id="pn2-align" value="' + ((v.alinhamento==='alinhados'||v.alinhamento==='desalinhados')?v.alinhamento:'') + '">' + consultaPNHTML('align','pn2') + '</div></div>'
     + sgiBarraHTML('pn2','Guardar PN');
   sgiAutosaveLigar('pn2');
   pn2ObjCarregar();
@@ -3400,6 +3397,14 @@ const PN2_MODALIDADES = [
   'Articulação com a equipa tática'
 ];
 const PN2_TEMPOS = ['5 min','10 min','15 min','30 min','45 min','1 h','2 h','Mais de 2 h'];
+// Meios por objetivo intermédio (proposta, não doutrina): seleção múltipla + «Outro».
+const PN2_MEIOS = {
+  'Comunicação':   ['Telefone de negociação','Telemóvel do visado','Megafone','Comunicação presencial','Comunicação escrita (cartaz / papel)','Terceiro intermediário'],
+  'Humanos':       ['Reforço da EN','Intérprete / tradutor','Psicólogo','Familiar / pessoa de referência','Equipa tática (GIOE)','Equipa cinotécnica'],
+  'Apoio externo': ['INEM / VMER','Bombeiros','Fornecedor de energia / água','Operadora de comunicações'],
+  'Logística':     ['Água / alimentação','Tabaco','Medicação','Sistema de entrega','Viatura','Iluminação','Drone','Meios de gravação']
+};
+const PN2_MEIOS_TODOS = [].concat.apply([], Object.keys(PN2_MEIOS).map(k => PN2_MEIOS[k]));
 // Problemas = FACTOS (o que se passa); objetivos intermédios / soluções = AÇÕES nossas.
 // Para cada categoria, as sugestões aparecem primeiro (proposta, não doutrina).
 const PN2_CAT_OP = {
@@ -3466,7 +3471,7 @@ function _pn2ListaObj(p){
   return _pn2Uniq(_pn2Sugestoes(p).concat(todas));
 }
 function _pn2NovoProb(tipo){ return {uid: ++_pn2Uid, tipo: tipo, cat:'', texto:''}; }
-function _pn2NovoObj(puid){ return {puid: puid, feito:false, quando:'', obj:'', mod:'', tempo:''}; }
+function _pn2NovoObj(puid){ return {puid: puid, feito:false, quando:'', obj:'', mod:'', tempo:'', meios:[]}; }
 function pn2ProbFrase(p){
   const c = (p.cat||'').trim(), t = (p.texto||'').trim();
   return c && t ? c + ' — ' + t : (c || t);
@@ -3513,10 +3518,11 @@ function pn2ObjParse(txt){
     const m = l.match(/^\s*-\s*\[([ xX])\]\s*(.*?)\s*(?:\((\d{2}\/\d{2}\s+\d{2}:\d{2})\))?\s*$/);
     const corpo = m ? m[2] : l.replace(/^\s*(?:[•\-*]\s*)/, '').trim();
     const partes = corpo.split(' | ');
-    const o = { feito: !!(m && /x/i.test(m[1])), quando: (m && m[3]) || '', obj: partes.shift() || '', mod: '', tempo: '', pnum: '' };
+    const o = { feito: !!(m && /x/i.test(m[1])), quando: (m && m[3]) || '', obj: partes.shift() || '', mod: '', tempo: '', meios: [], pnum: '' };
     partes.forEach(p => {
       if(/^Modalidade:\s*/.test(p)) o.mod = p.replace(/^Modalidade:\s*/, '');
       else if(/^Tempo:\s*/.test(p)) o.tempo = p.replace(/^Tempo:\s*/, '');
+      else if(/^Meios:\s*/.test(p)) o.meios = p.replace(/^Meios:\s*/, '').split(';').map(t => t.trim()).filter(Boolean);
       else if(/^Problema:\s*/.test(p)) o.pnum = p.replace(/^Problema:\s*P?/, '');
       else o.obj += (o.obj ? ' | ' : '') + p;
     });
@@ -3527,11 +3533,12 @@ function pn2Serializar(){
   const vivos = _pn2Prob;
   const numDe = {}; vivos.forEach((p, i) => { numDe[p.uid] = 'P' + (i + 1); });
   const prob = vivos.map(p => { const f = pn2ProbFrase(p); return f ? numDe[p.uid] + ' [' + PN2_TIPOS[p.tipo].t + '] ' + f : ''; }).filter(Boolean).join('\n');
-  const obji = _pn2Obj.filter(o => (o.obj||'').trim() || (o.mod||'').trim() || (o.tempo||'').trim()).map(o =>
+  const obji = _pn2Obj.filter(o => (o.obj||'').trim() || (o.mod||'').trim() || (o.tempo||'').trim() || (o.meios||[]).length).map(o =>
     '- [' + (o.feito ? 'x' : ' ') + '] ' + (o.obj||'').trim()
     + (o.puid && numDe[o.puid] ? ' | Problema: ' + numDe[o.puid] : '')
     + ((o.mod||'').trim() ? ' | Modalidade: ' + o.mod.trim() : '')
     + ((o.tempo||'').trim() ? ' | Tempo: ' + o.tempo.trim() : '')
+    + ((o.meios||[]).length ? ' | Meios: ' + o.meios.map(t => t.replace(/[;|]/g, ',')).join('; ') : '')
     + (o.feito && o.quando ? ' (' + o.quando + ')' : '')
   ).join('\n');
   return {prob, obji};
@@ -3564,7 +3571,58 @@ function _pn2ObjLinhaHTML(o, i, dlObj){
     +   inp('obj', dlObj, 'Objetivo intermédio', 3)
     +   inp('mod', 'pn2-dl-mod', 'Modalidade de ação', 2)
     +   inp('tempo', 'pn2-dl-tempo', 'Tempo aprox.', 1)
-    + '</div></div>';
+    + '</div>'
+    + _pn2MeiosHTML(o, i)
+    + '</div>';
+}
+function _pn2MeiosHTML(o, i){
+  const sel = o.meios || [];
+  const chip = (t, on, acao) => '<button type="button" onclick="' + acao + '" style="border:1px solid ' + (on ? 'var(--gm)' : 'var(--border)') + ';background:' + (on ? 'var(--gm)' : '#fff') + ';color:' + (on ? '#fff' : 'var(--gray600)') + ';border-radius:14px;padding:3px 10px;font-size:11.5px;cursor:pointer;font-family:inherit;line-height:1.4">' + (on ? '<i class="fas fa-check" style="margin-right:4px;font-size:10px"></i>' : '') + _escHtml(t) + '</button>';
+  let h = '<div style="margin-top:6px;display:flex;align-items:center;gap:5px;flex-wrap:wrap">'
+    + '<button type="button" class="btn btn-ghost btn-sm" onclick="pn2MeiosAbrir(' + i + ')" style="font-size:11.5px;padding:2px 8px"><i class="fas fa-' + (o._meiosAbertos ? 'chevron-up' : 'toolbox') + '" style="margin-right:4px"></i>Meios' + (sel.length ? ' (' + sel.length + ')' : '') + '</button>';
+  // Selecionados (sempre visíveis; clicar remove)
+  h += sel.map((t, j) => chip(t + ' ×', true, 'pn2MeioRemover(' + i + ',' + j + ')')).join('');
+  h += '</div>';
+  if(o._meiosAbertos){
+    h += '<div style="border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;margin-top:6px;background:var(--gp)">';
+    Object.keys(PN2_MEIOS).forEach(cat => {
+      h += '<div style="font-size:10px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.05em;margin:4px 0 4px">' + cat + '</div>'
+        + '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">'
+        + PN2_MEIOS[cat].map(t => chip(t, sel.indexOf(t) > -1, 'pn2MeioAlternar(' + i + ',' + PN2_MEIOS_TODOS.indexOf(t) + ')')).join('')
+        + '</div>';
+    });
+    h += '<div style="display:flex;gap:6px;margin-top:4px">'
+      + '<input type="text" id="pn2-meio-outro-' + i + '" placeholder="Outro meio…" onkeydown="if(event.key===\'Enter\'){event.preventDefault();pn2MeioOutro(' + i + ');}" style="flex:1;font-size:12.5px">'
+      + '<button type="button" class="btn btn-outline btn-sm" onclick="pn2MeioOutro(' + i + ')"><i class="fas fa-plus"></i> Acrescentar</button>'
+      + '</div></div>';
+  }
+  return h;
+}
+function pn2MeiosAbrir(i){ const o = _pn2Obj[i]; if(!o) return; o._meiosAbertos = !o._meiosAbertos; pn2ProbRender(); }
+function pn2MeioAlternar(i, j){
+  const o = _pn2Obj[i], t = PN2_MEIOS_TODOS[j]; if(!o || !t) return;
+  o.meios = o.meios || [];
+  const k = o.meios.indexOf(t);
+  if(k > -1) o.meios.splice(k, 1); else o.meios.push(t);
+  pn2Sync(); pn2ProbRender();
+}
+function pn2MeioRemover(i, j){ const o = _pn2Obj[i]; if(!o || !o.meios) return; o.meios.splice(j, 1); pn2Sync(); pn2ProbRender(); }
+function pn2MeioOutro(i){
+  const o = _pn2Obj[i], el = document.getElementById('pn2-meio-outro-' + i); if(!o || !el) return;
+  const t = el.value.replace(/[;|]/g, ',').trim(); if(!t) return;
+  o.meios = o.meios || [];
+  if(o.meios.indexOf(t) === -1) o.meios.push(t);
+  pn2Sync(); pn2ProbRender();
+}
+// Resumo de todos os meios do plano (sem repetições), para a EN / Coordenador
+function pn2MeiosResumo(){
+  const box = document.getElementById('pn2-meios-resumo'); if(!box) return;
+  const cont = {};
+  _pn2Obj.forEach(o => (o.meios || []).forEach(t => { cont[t] = (cont[t] || 0) + 1; }));
+  const ks = Object.keys(cont);
+  box.innerHTML = !ks.length ? '' : '<div style="border:1px solid var(--border);border-left:3px solid var(--gl);border-radius:var(--r);padding:8px 12px;margin-top:10px;background:#fff">'
+    + '<div style="font-size:10.5px;font-weight:700;color:var(--gl);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px"><i class="fas fa-toolbox" style="margin-right:4px"></i>Meios necessários (todos os objetivos)</div>'
+    + '<div style="display:flex;gap:5px;flex-wrap:wrap">' + ks.map(t => '<span style="border:1px solid var(--border);border-radius:14px;padding:2px 9px;font-size:11.5px;color:var(--gn);background:var(--gp)">' + _escHtml(t) + (cont[t] > 1 ? ' <span style="color:var(--gray600)">×' + cont[t] + '</span>' : '') + '</span>').join('') + '</div></div>';
 }
 function pn2ProbRender(){
   const box = document.getElementById('pn2-prob-lista'); if(!box) return;
@@ -3607,6 +3665,7 @@ function pn2ProbRender(){
       + '</div>';
   }
   box.innerHTML = h;
+  pn2MeiosResumo();
 }
 // Campos com lista: ao clicar, mostra a lista completa (o valor atual fica como
 // sugestão); escolher outra opção substitui-o logo. Sem escolha, repõe o anterior.
@@ -3653,7 +3712,7 @@ function pn2ObjFeito(i, on){
 }
 function pn2ObjDel(i){
   const o = _pn2Obj[i]; if(!o) return;
-  if((o.obj||o.mod||o.tempo) && !confirm('Remover este objetivo intermédio?')) return;
+  if((o.obj||o.mod||o.tempo||(o.meios||[]).length) && !confirm('Remover este objetivo intermédio?')) return;
   _pn2Obj.splice(i, 1); pn2Sync(); pn2ProbRender();
 }
 function pn2Sel(campo, val){
@@ -13119,7 +13178,7 @@ function mobDevolverSari() {
   const homeI = document.getElementById('tab-iris'), elI = document.getElementById('iris-content');
   if (homeI && elI && !homeI.contains(elI)) homeI.appendChild(elI);
   // Plano de Negociação, Plano de Diálogo e Informações: mesmos formulários do desktop
-  [['tab-plano','plano-content'],['tab-pd','pd-content'],['tab-pn2','pn2-content'],['tab-pd2','pd2-content'],['tab-info','info-content'],['tab-hist','hist-content']].forEach(([t,c]) => {
+  [['tab-pd','pd-content'],['tab-pn2','pn2-content'],['tab-pd2','pd2-content'],['tab-info','info-content'],['tab-hist','hist-content']].forEach(([t,c]) => {
     const home = document.getElementById(t), el = document.getElementById(c);
     if (home && el && !home.contains(el)) home.appendChild(el);
   });
@@ -13172,7 +13231,7 @@ function mobMostrarSeletorFormularios() {
         <div style="font-size:15px;font-weight:600;color:var(--gn)">Risco e Cooperação</div>
         <div style="font-size:11px;color:var(--gray600);margin-top:4px">Avaliação de Risco</div>
       </button>
-      <button onclick="mobAbrirForm('plano')" style="padding:22px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+      <button onclick="mobAbrirForm('pn2')" style="padding:22px 10px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.08)">
         <i class="fas fa-clipboard-list" style="font-size:32px;color:var(--gm);display:block;margin-bottom:10px"></i>
         <div style="font-size:15px;font-weight:600;color:var(--gn)">Plano</div>
         <div style="font-size:11px;color:var(--gray600);margin-top:4px">Negociação</div>
@@ -13181,11 +13240,6 @@ function mobMostrarSeletorFormularios() {
         <i class="fas fa-comments" style="font-size:32px;color:var(--gold);display:block;margin-bottom:10px"></i>
         <div style="font-size:15px;font-weight:600;color:var(--gn)">Plano</div>
         <div style="font-size:11px;color:var(--gray600);margin-top:4px">Diálogo</div>
-      </button>
-      <button onclick="mobAbrirForm('pn2')" style="padding:22px 10px;background:#fff;border:1px dashed var(--gl);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.08)">
-        <i class="fas fa-flask" style="font-size:32px;color:var(--gm);display:block;margin-bottom:10px"></i>
-        <div style="font-size:15px;font-weight:600;color:var(--gn)">PN simplificado</div>
-        <div style="font-size:11px;color:var(--gray600);margin-top:4px">Para comparação</div>
       </button>
       <button onclick="mobAbrirForm('pd2')" style="padding:22px 10px;background:#fff;border:1px dashed var(--gl);border-radius:var(--rl);cursor:pointer;text-align:center;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.08)">
         <i class="fas fa-flask" style="font-size:32px;color:var(--gold);display:block;margin-bottom:10px"></i>
@@ -13212,6 +13266,7 @@ function mobMostrarSeletorFormularios() {
 }
 
 async function mobAbrirForm(form) {
+  if (form === 'plano') form = 'pn2'; // o PN antigo foi eliminado
   mobDevolverSari();
   // Use a fullscreen overlay — completely independent of tab system
   let overlay = document.getElementById('mob-form-fullscreen');
@@ -13226,7 +13281,7 @@ async function mobAbrirForm(form) {
   overlay.scrollTop = 0;
 
   // Header back button
-  const titles = {iris:'IRIS',sari:'Risco e Cooperação',plano:'Plano de Negociação',pd:'Plano de Diálogo',pn2:'PN simplificado',pd2:'PD simplificado',info:'Informações',hist:'Histórico',rnrv:'Registar Contacto'};
+  const titles = {iris:'IRIS',sari:'Risco e Cooperação',pd:'Plano de Diálogo',pn2:'Plano de Negociação',pd2:'PD simplificado',info:'Informações',hist:'Histórico',rnrv:'Registar Contacto'};
   document.getElementById('mob-header-title').textContent = titles[form]||'Formulário';
   document.getElementById('mob-header-sub').textContent = mobDetail?.record?.tipo||'';
   const backBtn = document.getElementById('mob-back-btn');
@@ -13270,13 +13325,6 @@ async function mobAbrirForm(form) {
     const sariEl = document.getElementById('sari-content');
     if (sariEl) { document.getElementById('mob-sari-wrap').appendChild(sariEl); await renderSARI(); }
 
-  } else if (form === 'plano') {
-    // Mesmo formulário do desktop (renderPlano/savePlano): todos os campos, consulta de apoio e gravação automática
-    currentDetail = { type, record:r, isTreino: mobDetail.isTreino };
-    overlay.innerHTML = `<div style="padding:.875rem"><div id="mob-plano-wrap" style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px"></div></div>`;
-    const planoEl = document.getElementById('plano-content');
-    if (planoEl) { document.getElementById('mob-plano-wrap').appendChild(planoEl); await renderPlano(); }
-
   } else if (form === 'pd') {
     // Mesmo formulário do desktop (renderPD/guardarPD)
     currentDetail = { type, record:r, isTreino: mobDetail.isTreino };
@@ -13285,7 +13333,7 @@ async function mobAbrirForm(form) {
     if (pdEl) { document.getElementById('mob-pd-wrap').appendChild(pdEl); renderPD(); }
 
   } else if (form === 'pn2' || form === 'pd2') {
-    // Versões simplificadas (comparação): mesmos formulários do desktop
+    // Plano de Negociação e PD simplificado: mesmos formulários do desktop
     currentDetail = { type, record:r, isTreino: mobDetail.isTreino };
     overlay.innerHTML = `<div style="padding:.875rem"><div id="mob-${form}-wrap" style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);padding:14px"></div></div>`;
     const el2 = document.getElementById(form + '-content');
