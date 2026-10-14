@@ -2054,6 +2054,8 @@ async function enCarregarEmpenhados(){
     (data||[]).forEach(id=>_enEmpenhados.add(typeof id==='string'?id:id.formandos_empenhados));
   }catch(e){ console.warn('formandos_empenhados', e); }
 }
+// Negociadores do CTer Curso, no treino, podem nomear formandos já escalados noutro exercício
+function enEscalaCurso(){ return !!(currentDetail && currentDetail.isTreino && currentProfile && currentProfile.cter === 'CTer Curso'); }
 let _enCterFiltro = '';  // CTer atualmente a ser consultado
 function enPodeUI(){ return !!(currentDetail && currentDetail.record && currentDetail.record.is_itp); }
 function enCtersDisponiveis(){
@@ -2105,7 +2107,8 @@ function _enPintaSelects(){
     const idsNesteCaso = EN_POSICOES.map(q=>_enWork[q.k]&&_enWork[q.k].id).filter(Boolean);
     doFiltro.forEach(u=>{
       // formando empenhado noutro exercício em curso -> não aparece
-      if(_enEmpenhados.has(u.id) && idsNesteCaso.indexOf(u.id)<0) return;
+      // (exceto quando quem escala é do CTer Curso: pode nomear formandos já escalados noutro exercício)
+      if(_enEmpenhados.has(u.id) && idsNesteCaso.indexOf(u.id)<0 && !enEscalaCurso()) return;
       const usadoNoutra = EN_POSICOES.some(q=>q.k!==p.k && _enWork[q.k] && _enWork[q.k].id===u.id);
       const sel2 = atual && atual.id===u.id;
       const suf = (_enCterFiltro==='__itp__' && u.cter) ? ' · '+u.cter : '';
@@ -2166,7 +2169,7 @@ function enAvaliar(){
           ? ('A mostrar negociadores de <strong>'+(r.cter||'—')+'</strong> e da <strong>UI/GIOE</strong> (âmbito do ITP). Troca de CTer para escalar de outra unidade — as escolhas mantêm-se.')
           : (_enCterFiltro ? ('A mostrar negociadores de <strong>'+_enCterFiltro+'</strong>. Troca de CTer para escalar de outra unidade — as escolhas mantêm-se.') : 'Escolhe um CTer para ver os negociadores.'))
       + (enPodeUI() ? ' <span style="color:var(--gm)">UI/GIOE disponível (ITP declarado).</span>' : ' <span style="color:var(--gray400)">UI/GIOE só após declaração de ITP.</span>')
-      + ((currentDetail && currentDetail.isTreino && _enEmpenhados.size) ? '<br><i class="fas fa-user-clock" style="margin-right:5px;color:var(--amber)"></i>'+_enEmpenhados.size+' formando(s) do CTer Curso ocultado(s) por estarem empenhados noutro exercício em curso.' : '')
+      + ((currentDetail && currentDetail.isTreino && _enEmpenhados.size && !enEscalaCurso()) ? '<br><i class="fas fa-user-clock" style="margin-right:5px;color:var(--amber)"></i>'+_enEmpenhados.size+' formando(s) do CTer Curso ocultado(s) por estarem empenhados noutro exercício em curso.' : '')
       + (ctrs.length>1 ? '<br><i class="fas fa-users" style="margin-right:5px;color:var(--amber)"></i>EN mista: '+ctrs.join(', ') : '');
   }
   const ac=enEl('en-acumulacao');
