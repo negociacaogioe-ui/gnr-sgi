@@ -2975,8 +2975,12 @@ async function renderQuadroCoordenador(){
   const qCor = k => (k === 'evitar' || k === 'exigencias') ? 'var(--red)' : k === 'acoes' ? 'var(--gl)' : 'var(--gn)';
   const qPreenchidos = QUADROS_CAB.filter(h => Array.isArray(q[h.k]) && q[h.k].length);
   const pnCampos = _pnCamposPreenchidos(plano);
+  const ctsAsc = cts.slice().reverse();
   box.innerHTML =
-    (qPreenchidos.length
+    (ctsAsc.length
+      ? '<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:10px">' + sgiEvoHTML('qc-evo-cv', ctsAsc, {h:230}) + '</div>'
+      : '')
+    + (qPreenchidos.length
       ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-bottom:10px">'
         + qPreenchidos.map(h => lista(h.t, q[h.k], qCor(h.k))).join('')
         + '</div>'
@@ -2991,6 +2995,7 @@ async function renderQuadroCoordenador(){
     + (!qPreenchidos.length && !pnCampos.length
       ? '<div style="font-size:12px;color:var(--gray400);font-style:italic">Sem informação registada nos quadros nem no Plano de Negociação.</div>'
       : '');
+  sgiEvoDesenhar('qc-evo-cv', ctsAsc);
 }
 // Campos do Plano de Negociação com conteúdo (Quadro do Coordenador e PDF de briefing)
 function _pnCamposPreenchidos(plano){
@@ -3245,6 +3250,7 @@ function renderPosto(){
     h+='<div class="form-section"><h3><i class="fas fa-headset" style="color:var(--red)"></i> Posto n.º 1 — contacto</h3>'
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Informação que lhe é prestada. Não preenche formulários durante o contacto.</p>'
       + _n1ContactosHTML(r)
+      + (eNC ? '' : '<div id="evo-posto" style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:12px"></div>')
       + _notasHTML(false)
       + _n1LivreHTML()
       +'</div>';
@@ -3259,6 +3265,7 @@ function renderPosto(){
   if(eN3){
     h+='<div class="form-section"><h3><i class="fas fa-table-columns" style="color:var(--gl)"></i> Posto n.º 3 — quadros</h3>'
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Receção e organização da informação. Clara, precisa, concisa e em maiúsculas (5.22).</p>'
+      + ((eN1 || eNC) ? '' : '<div id="evo-posto" style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:12px"></div>')
       + _entradaRapidaHTML()
       + _quadrosHTML(true)
       + (eN2?'':_pedidosHTML(false, true))
@@ -3282,6 +3289,7 @@ function renderPosto(){
   renderCabecalhoCoordenacao();
   if(eN1 || eN2) renderResumoPlanos();
   if(eNC) renderQuadroCoordenador();
+  if(document.getElementById('evo-posto')) sgiEvoCarregar('evo-posto');
   if(eN3) n3AlinhamentoCarregar();
   if(_rec.caso !== r.id) rececoesCarregar();
   rececoesMarcar();
@@ -6063,10 +6071,9 @@ async function renderRNRV(){
       <div class="stat-card"><div class="s-label">Risco atual</div><div class="s-num amber" id="rnrv-stat-risk">${rnrvContacts.length?({'baixo':'Baixo','medio':'Médio','elevado':'Elevado'}[rnrvContacts[rnrvContacts.length-1]?.suicide_risk]||'—'):'—'}</div></div>
     </div>
 
-    ${rnrvContacts.length>1?`
+    ${rnrvContacts.length?`
     <div class="chart-card" style="margin-bottom:1rem">
-      <div class="chart-title">Evolução da ativação e influência</div>
-      <canvas id="rnrv-chart" height="200"></canvas>
+      ${sgiEvoHTML('rnrv-chart', rnrvContacts, {h:280})}
     </div>`:''}
 
     ${rnrvContacts.length?`
@@ -6112,51 +6119,102 @@ function renderContactList(){
 }
 
 function renderRNRVChart(){
-  const ctx=document.getElementById('rnrv-chart');if(!ctx)return;
-  if(rnrvChart)rnrvChart.destroy();
-  if(!rnrvContacts.length)return;
-  const labels=rnrvContacts.map(c=>fmtDateTime(c.contact_datetime).slice(0,5));
-  rnrvChart=new Chart(ctx,{type:'line',data:{labels,datasets:[
-    {
-      label:'Ativação Emocional',
-      data:rnrvContacts.map(c=>c.emotional_activation),
-      borderColor:'#c0392b',
-      backgroundColor:'rgba(192,57,43,.15)',
-      borderWidth:3,
-      pointBackgroundColor:'#c0392b',
-      pointBorderColor:'#fff',
-      pointBorderWidth:2,
-      pointRadius:5,
-      pointHoverRadius:7,
-      tension:.3,
-      fill:true,
-      borderDash:[]
-    },
-    {
-      label:'Influência no Diálogo',
-      data:rnrvContacts.map(c=>c.influence_level),
-      borderColor:'#1e5c28',
-      backgroundColor:'rgba(30,92,40,.12)',
-      borderWidth:3,
-      pointBackgroundColor:'#1e5c28',
-      pointBorderColor:'#fff',
-      pointBorderWidth:2,
-      pointRadius:5,
-      pointHoverRadius:7,
-      tension:.3,
-      fill:true,
-      borderDash:[6,3]
+  sgiEvoDesenhar('rnrv-chart', rnrvContacts);
+}
+
+// ===== Evolução dos contactos: escalada / de-escalada =====
+// Gráfico de pontos (ativação emocional vs. influência exercida, por contacto).
+// Usado no separador Contactos e nas vistas do n.º 1, n.º 3 e Coordenador.
+const EVO_COR_ATIV = '#1f5f7a', EVO_COR_INF = '#e8833a';
+const _evoCharts = {};
+const _EVO_NA = ['','Calmo','Agitado','Muito agitado'], _EVO_NI = ['','Baixa','Média','Elevada'];
+function sgiEvoLeitura(cts){
+  cts = cts || [];
+  const n = cts.length;
+  if(!n) return { tit:'Sem contactos', cor:'var(--gray400)', txt:'Ainda não há contactos registados. O gráfico aparece com o 1.º contacto.' };
+  const a = cts.map(c => +c.emotional_activation || 0), i = cts.map(c => +c.influence_level || 0);
+  if(n === 1) return { tit:'1.º contacto', cor:'var(--gray600)', txt:'Ativação emocional ' + a[0] + ' (' + _EVO_NA[a[0]] + ') e influência exercida ' + i[0] + ' (' + _EVO_NI[i[0]] + '). A tendência aparece a partir do 2.º contacto.' };
+  const dA = a[n-1] - a[0], dI = i[n-1] - i[0];
+  const mov = (d, de, ate) => d < 0 ? 'desceu de ' + de + ' para ' + ate : d > 0 ? 'subiu de ' + de + ' para ' + ate : 'manteve-se em ' + ate;
+  const tit = dA > 0 ? 'Escalada' : dA < 0 ? 'De-escalada' : 'Estável';
+  const cor = dA > 0 ? 'var(--red)' : dA < 0 ? 'var(--gm)' : 'var(--gray600)';
+  let txt = 'Desde o 1.º contacto, a ativação emocional ' + mov(dA, a[0], a[n-1]) + ' e a influência exercida ' + mov(dI, i[0], i[n-1]) + '.';
+  if(dA < 0 && i.every(v => v === 1)) txt += ' <strong>Sem pressão:</strong> a ativação emocional desce, mas a influência exercida mantém-se baixa e constante.';
+  if(n > 2){
+    const ua = a[n-1] - a[n-2], ui = i[n-1] - i[n-2];
+    if(ua || ui) txt += ' No último contacto: ativação ' + (ua > 0 ? 'subiu' : ua < 0 ? 'desceu' : 'igual') + ', influência ' + (ui > 0 ? 'subiu' : ui < 0 ? 'desceu' : 'igual') + '.';
+  }
+  return { tit, cor, txt };
+}
+function sgiEvoHTML(canvasId, cts, opts){
+  opts = opts || {};
+  const L = sgiEvoLeitura(cts);
+  const ponto = (cor, t) => '<span style="display:inline-flex;align-items:center;gap:7px"><span style="width:13px;height:13px;border-radius:50%;background:' + cor + ';display:inline-block"></span>' + t + '</span>';
+  return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px">'
+    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+    + '<span style="font-size:14px;font-weight:700;color:var(--gn)"><i class="fas fa-chart-line" style="margin-right:6px;color:var(--gl)"></i>Escalada / de-escalada</span>'
+    + '<span style="font-size:10.5px;font-weight:700;color:#fff;background:' + L.cor + ';border-radius:20px;padding:2px 10px;text-transform:uppercase;letter-spacing:.05em">' + L.tit + '</span></div>'
+    + (opts.atualizar ? '<button class="btn btn-outline btn-sm" onclick="' + opts.atualizar + '"><i class="fas fa-rotate"></i> Atualizar</button>' : '')
+    + '</div>'
+    + '<div style="font-size:12.5px;color:var(--gray600);line-height:1.5;margin-bottom:10px">' + L.txt + '</div>'
+    + ((cts && cts.length)
+      ? '<div style="position:relative;height:' + (opts.h || 260) + 'px"><canvas id="' + canvasId + '"></canvas></div>'
+        + '<div style="display:flex;gap:22px;flex-wrap:wrap;font-size:12.5px;font-weight:600;color:var(--gray900);margin-top:8px;padding-left:4px">'
+        + ponto(EVO_COR_ATIV, 'Ativação emocional') + ponto(EVO_COR_INF, 'Influência exercida') + '</div>'
+      : '');
+}
+function sgiEvoDesenhar(canvasId, cts){
+  const cv = document.getElementById(canvasId);
+  if(_evoCharts[canvasId]){ try{ _evoCharts[canvasId].destroy(); }catch(e){} delete _evoCharts[canvasId]; }
+  if(!cv || !cts || !cts.length || typeof Chart === 'undefined') return null;
+  const tipos = {telefonico:'Telefónico', presencial:'Presencial', intercomunicador:'Intercomunicador', outro:'Outro'};
+  const hora = c => new Date(c.contact_datetime).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'});
+  // quando os dois valores coincidem no mesmo contacto, afasta ligeiramente os pontos para não se sobreporem
+  const desv = (c, s) => (+c.emotional_activation === +c.influence_level) ? s * 0.09 : 0;
+  const n = cts.length;
+  const ds = (rot, cor, campo, s) => ({
+    label: rot,
+    data: cts.map((c, k) => ({ x: k + 1 + desv(c, s), y: +c[campo] || 0 })),
+    backgroundColor: cor, borderColor: cor, pointRadius: 9, pointHoverRadius: 11, pointBorderWidth: 0, showLine: false
+  });
+  _evoCharts[canvasId] = new Chart(cv, {
+    type: 'scatter',
+    data: { datasets: [ ds('Ativação emocional', EVO_COR_ATIV, 'emotional_activation', -1), ds('Influência exercida', EVO_COR_INF, 'influence_level', 1) ] },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      layout: { padding: { top: 8, right: 12 } },
+      scales: {
+        x: { min: 0.5, max: Math.max(n, 5) + 0.5, grid: { display: false }, border: { color: '#444', width: 2 },
+             afterBuildTicks: ax => { ax.ticks = cts.map((c, k) => ({ value: k + 1 })); },
+             ticks: { stepSize: 1, font: { size: 10.5 }, color: '#666',
+                      callback: v => (Number.isInteger(v) && v >= 1 && v <= n) ? ['C' + v, hora(cts[v-1])] : '' } },
+        y: { min: 0.5, max: 3.5, grid: { color: 'rgba(0,0,0,.05)' }, border: { color: '#444', width: 2 },
+             afterBuildTicks: ax => { ax.ticks = [1, 2, 3].map(v => ({ value: v })); },
+             ticks: { stepSize: 1, font: { size: 11 }, color: '#666', callback: v => ({1:'Baixa', 2:'Média', 3:'Alta'}[v] || '') } }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: {
+          title: it => { const k = Math.round(it[0].raw.x) - 1, c = cts[k]; return c ? 'Contacto n.º ' + (k+1) + ' — ' + fmtDateTime(c.contact_datetime) + ' (' + (tipos[c.contact_type] || c.contact_type || '') + ')' : ''; },
+          label: it => { const v = it.raw.y; return ' ' + it.dataset.label + ': ' + v + ' (' + (it.datasetIndex === 0 ? _EVO_NA[v] : _EVO_NI[v]) + ')'; }
+        } }
+      }
     }
-  ]},options:{
-    scales:{
-      y:{min:0.5,max:3.5,ticks:{stepSize:1,callback:v=>({1:'Baixo',2:'Médio',3:'Alto'}[v]||''),font:{size:11}},grid:{color:'rgba(0,0,0,.06)'}},
-      x:{grid:{color:'rgba(0,0,0,.04)'},ticks:{font:{size:10},maxRotation:45}}
-    },
-    plugins:{
-      legend:{labels:{font:{size:12},usePointStyle:true,padding:20}},
-      tooltip:{callbacks:{label(ctx){const v=ctx.raw;const lb={1:'Baixo/Calmo',2:'Médio/Agitado',3:'Alto/M.Agitado'};return ' '+ctx.dataset.label+': '+v+' ('+( lb[v]||v)+')'}}}
-    }
-  }});
+  });
+  return _evoCharts[canvasId];
+}
+async function sgiEvoCarregar(hostId){
+  const host = document.getElementById(hostId);
+  if(!host || !currentDetail) return;
+  const { type, record:r } = currentDetail;
+  let cts = [];
+  try{
+    const { data } = await sb.from('rnrv_contactos').select('*').eq('parent_type', type === 'inc' ? 'incidente' : 'itp').eq('parent_id', r.id).order('contact_datetime', {ascending:true});
+    cts = data || [];
+  }catch(e){}
+  if(!document.getElementById(hostId)) return;
+  host.innerHTML = sgiEvoHTML(hostId + '-cv', cts, { h:230, atualizar:"sgiEvoCarregar('" + hostId + "')" });
+  sgiEvoDesenhar(hostId + '-cv', cts);
 }
 
 function updatePressureWarn(){
