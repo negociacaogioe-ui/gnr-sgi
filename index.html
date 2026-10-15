@@ -4065,8 +4065,8 @@ const PROP_MOD = {
   'contacto presencial (face a face)': 'falar com ele pessoalmente',
   'intercomunicador / megafone': 'falar com ele por intercomunicador ou megafone',
   'mensagens escritas (sms / aplicação)': 'trocar mensagens escritas com ele',
-  'recurso a âncora / intermediário': 'envolver uma pessoa da confiança dele',
-  'troca ou concessão': 'oferecer algo em troca',
+  'recurso a âncora / intermediário': 'envolver uma pessoa da confiança dele, só depois de avaliada pela equipa e apenas para conseguir este resultado',
+  'troca ou concessão': 'propor uma troca, concedida só em troca deste resultado',
   'ganhar tempo / protelar': 'ganhar tempo',
   'desescalada emocional (escuta ativa)': 'acalmá-lo, ouvindo-o',
   'articulação com a equipa tática': 'em coordenação com a equipa tática',
@@ -4137,18 +4137,12 @@ function propostaComandanteTexto(D){
   const armaBranca = !armaFogo && ((sari && sari.weapons === 'branca') || (ab && ab.armas_presentes === 'branca') || /arma branca|faca|navalha/.test(tudo));
   const disparou = (sari && sari.weapon_used === 'disparada') || (ab && ab.armas_utilizadas === 'disparos');
 
-  // --- 1. Situação ---
+  // --- 1. Ponto de situação — curto: o Comandante já conhece a ocorrência; só o que a equipa apurou e fundamenta a proposta ---
   const sit = [];
-  sit.push(_propFrase((r.tipo || 'Ocorrência') + (r.local && r.local !== 'Por definir' ? ' — ' + r.local : '')));
   const ameacas = _propLinhas(pn.posicao_adversario);
-  if(ameacas.length) sit.push('O que ' + V + ' diz que vai fazer: ' + ameacas.map(_propMin).join('; ') + '.');
-  const exig = qTxt('exigencias');
-  if(exig.length) sit.push('O que exige: ' + exig.map(x => _propMin(x).replace(/^exige\s+(que\s+)?/i, (m0, qq) => qq ? 'que ' : '')).join('; ') + '.');
-  if(armaFogo) sit.push('Tem arma de fogo' + (disparou ? ' e já efetuou disparos' : '') + '.');
-  else if(armaBranca) sit.push('Tem arma branca' + (ab && ab.descricao_armas ? ' (' + _propMin(ab.descricao_armas).replace(/\.$/, '') + ')' : '') + '.');
-  const vit = qTxt('vitimas');
-  if(vit.length) sit.push('Vítimas / pessoas em risco: ' + vit.map(_propMin).join('; ') + '.');
-  sec('1. Situação', sit);
+  const arma = armaFogo ? 'tem arma de fogo' + (disparou ? ' e já efetuou disparos' : '') : armaBranca ? 'tem arma branca' : '';
+  if(ameacas.length || arma) sit.push(_propFrase((ameacas.length ? ameacas.map(_propMin).join('; ') : '') + (ameacas.length && arma ? '; ' : '') + arma));
+  sec('1. Ponto de situação', sit);
 
   // --- 2. O que nos impede de resolver e o que ele realmente precisa ---
   const probs = _propLinhas(pn.identificacao_problema).map(l => {
@@ -4172,6 +4166,11 @@ function propostaComandanteTexto(D){
   else if(armaBranca) prop.push('- Falar com ele à distância (telefone ou porta fechada), mantendo uma distância de segurança por causa da arma branca.');
   porFazer.forEach((o, i) => {
     let mod = PROP_MOD[String(o.mod || '').trim().toLowerCase()] || _propMin(o.mod);
+    // Troca: diz o que se troca (meios indicados no passo, exceto os de comunicação) e que só é concedida contra este resultado
+    if(/troca|concess/i.test(o.mod || '')){
+      const oferta = (o.meios || []).filter(m => (PN2_MEIOS['Comunicação'] || []).indexOf(m) < 0 && (PN2_MEIOS['Apoio externo'] || []).indexOf(m) < 0 && m !== 'Sistema de entrega');
+      mod = 'propor uma troca' + (oferta.length ? ' (' + oferta.map(_propMin).join(', ') + ')' : '') + ', concedida só em troca deste resultado';
+    }
     let alerta = '';
     if(armaFogo && /presencial|face a face/i.test(o.mod || '')) alerta = ' (atenção: implica exposição a uma arma de fogo)';
     prop.push((i + 1) + '. ' + _propFrase(o.obj).replace(/\.$/, '')
@@ -4188,10 +4187,8 @@ function propostaComandanteTexto(D){
   // --- 4. O que pedimos ao Comandante ---
   const meios = [];
   porFazer.forEach(o => (o.meios || []).forEach(m => { if(meios.indexOf(m) < 0) meios.push(m); }));
-  const anc = qTxt('ancoras');
   const ped = [];
   if(meios.length) ped.push('- Meios necessários: ' + meios.join('; ') + '.');
-  if(anc.length) ped.push('- Autorizar o envolvimento de: ' + anc.map(_propMin).join('; ') + ' (pessoa(s) da confiança dele, a usar só depois de avaliada(s) pela equipa).');
   ped.push('- Manter a força afastada e sem ações visíveis enquanto a conversa estiver a progredir, salvo perigo iminente.');
   sec('4. O que pedimos', ped);
 
@@ -11149,9 +11146,9 @@ async function criarCasoExemploTreino() {
         identificacao_problema: 'P1 [Operacional] Ameaça matar a vítima se entrarmos\nP2 [Pessoal] Medo de perder o contacto com os filhos',
         'objetivos_intermédios': [
           '- [x] Estabelecer contacto direto com o visado | Problema: P1 | Modalidade: Contacto telefónico | Tempo: 15 min | Meios: Telefone de negociação; Telemóvel do visado (' + quando(45) + ')',
-          '- [ ] Obter compromisso de não agressão durante o contacto | Problema: P1 | Modalidade: Desescalada emocional (escuta ativa) | Tempo: 30 min | Meios: Telefone de negociação; Psicólogo',
-          '- [ ] Obter libertação da totalidade das vítimas ou reféns | Problema: P1 | Modalidade: Troca ou concessão | Tempo: 1 h | Meios: Equipa tática (GIOE); INEM / VMER',
-          '- [ ] Possibilidade de contacto futuro com os filhos, pelos meios legais | Problema: P2 | Modalidade: Recurso a âncora / intermediário | Tempo: 30 min | Meios: Familiar / pessoa de referência'
+          '- [ ] Obter compromisso de não agressão durante o contacto | Problema: P1 | Modalidade: Desescalada emocional (escuta ativa) | Tempo: 30 min | Meios: Telefone de negociação',
+          '- [ ] Obter libertação da totalidade das vítimas ou reféns | Problema: P1 | Modalidade: Troca ou concessão | Tempo: 1 h | Meios: Tabaco; Sistema de entrega; INEM / VMER',
+          '- [ ] Possibilidade de contacto futuro com os filhos, pelos meios legais | Problema: P2 | Modalidade: Contacto telefónico | Tempo: 15 min'
         ].join('\n')
       }))],
       ['IRIS', sb.from('iris').insert(Object.assign({}, base, {
