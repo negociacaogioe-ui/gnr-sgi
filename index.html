@@ -1515,11 +1515,13 @@ function _postoRealtime(nov, treino){
     const ant = currentDetail.record;
     const novasN = Array.isArray(nov.notas_n1) ? nov.notas_n1.slice((ant.notas_n1||[]).length) : [];
     const novosP = Array.isArray(nov.pedidos_n3) ? nov.pedidos_n3.slice((ant.pedidos_n3||[]).length) : [];
+    const novosC = Array.isArray(nov.envios_coord) ? nov.envios_coord.slice((ant.envios_coord||[]).length) : [];
     currentDetail.record = Object.assign({}, ant, nov);
     if(typeof mobDetail !== 'undefined' && mobDetail && mobDetail.record && mobDetail.record.id === nov.id) mobDetail.record = currentDetail.record;
     const f = enFuncoesAtuais();
     const urg = l => l.some(x => postitPri(x) === 'urgente' && x.s !== _sgiSessaoId);
-    if((f.indexOf('n1') > -1 && urg(novasN)) || (f.indexOf('n3') > -1 && urg(novosP))) alertaUrgente();
+    const urgC = p => f.indexOf(p) > -1 && urg(novosC.filter(x => (x.dest || []).indexOf(p) > -1));
+    if((f.indexOf('n1') > -1 && urg(novasN)) || (f.indexOf('n3') > -1 && urg(novosP)) || urgC('n3') || urgC('n4')) alertaUrgente();
     // Contactos / nomes alterados noutro aparelho: redesenha onde aparecem
     const CAMPOS_CONT = ['contacto_vitima','contacto_agressor','nome_vitima','nome_agressor','tipo','local','estado'];
     const contMudou = CAMPOS_CONT.some(k => k in nov && (nov[k] || '') !== (ant[k] || ''));
@@ -2421,10 +2423,10 @@ function postitPri(o){ return (o && POSTIT_PRI[o.pri] && o.pri) || (o && o.urgen
 function postitPriEscolher(alvo, k){
   _postitPriSel[alvo] = k;
   // o renderPosto refaz os campos: guarda o texto já escrito para não se perder
-  const v = {}; ['nota-in','ped-in'].forEach(id => { const e = document.getElementById(id); if(e) v[id] = e.value; });
+  const v = {}; ['nota-in','ped-in','coord-env-in'].forEach(id => { const e = document.getElementById(id); if(e) v[id] = e.value; });
   renderPosto();
   Object.keys(v).forEach(id => { const e = document.getElementById(id); if(e) e.value = v[id]; });
-  const f = document.getElementById(alvo === 'nota' ? 'nota-in' : 'ped-in'); if(f) f.focus();
+  const f = document.getElementById(alvo === 'nota' ? 'nota-in' : alvo === 'coord' ? 'coord-env-in' : 'ped-in'); if(f) f.focus();
 }
 function _postitPriSeletorHTML(alvo){
   return '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">' + ['','prioritario','urgente'].map(k => {
@@ -2896,6 +2898,84 @@ async function pedidoResponder(i){
   if(await _postoUpdate({pedidos_n3: ps})) renderPosto();
 }
 
+// ===== INFORMAÇÃO DO COORDENADOR → N.º 3 / N.º 4 (dirigida a um campo do quadro do n.º 3) =====
+// Fica em envios_coord. Chega como post-it; só o n.º 3 a insere no quadro (o n.º 4 toma conhecimento).
+let _coordEnv = {q: 'exigencias', n3: true, n4: false};
+_postitPriSel.coord = '';
+function _coordEnvCampo(k){ const c = QUADROS_CAB.find(x => x.k === k); return c ? c.t : k; }
+function coordEnvSet(campo, val){
+  _coordEnv[campo] = val;
+  if(campo === 'q'){ const i = document.getElementById('coord-env-in'); if(i) i.focus(); }
+}
+function _coordEnviarHTML(){
+  const es = Array.isArray(currentDetail.record.envios_coord) ? currentDetail.record.envios_coord : [];
+  let h = '<div style="background:#fff;border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:var(--r);padding:11px;margin-top:10px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px"><i class="fas fa-share-from-square" style="margin-right:5px"></i>Enviar informação ao n.º 3 / n.º 4</div>'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">'
+    + '<label style="font-size:11.5px;color:var(--gray600)">Campo do quadro</label>'
+    + '<select id="coord-env-q" onchange="coordEnvSet(\'q\', this.value)" style="font-size:12.5px;padding:5px 7px;width:auto;max-width:100%">'
+    + QUADROS_CAB.map(c => '<option value="' + c.k + '"' + (_coordEnv.q === c.k ? ' selected' : '') + '>' + c.t + '</option>').join('') + '</select>'
+    + '<label style="display:flex;align-items:center;gap:4px;font-size:12.5px;cursor:pointer"><input type="checkbox" onchange="coordEnvSet(\'n3\', this.checked)"' + (_coordEnv.n3 ? ' checked' : '') + ' style="width:auto;margin:0"> N.º 3</label>'
+    + '<label style="display:flex;align-items:center;gap:4px;font-size:12.5px;cursor:pointer"><input type="checkbox" onchange="coordEnvSet(\'n4\', this.checked)"' + (_coordEnv.n4 ? ' checked' : '') + ' style="width:auto;margin:0"> N.º 4</label>'
+    + '</div>'
+    + '<div style="display:flex;gap:5px"><input id="coord-env-in" placeholder="Informação a enviar..." onkeydown="if(event.key===\'Enter\')coordEnviar()" style="font-size:13px"><button class="btn btn-primary btn-sm" onclick="coordEnviar()"><i class="fas fa-paper-plane"></i></button></div>'
+    + _postitPriSeletorHTML('coord');
+  if(es.length){
+    h += '<div style="font-size:10.5px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.05em;margin:10px 0 5px">Enviadas</div>'
+      + es.slice().reverse().map(e => '<div style="font-size:12px;line-height:1.45;padding:4px 0;border-bottom:1px dashed var(--border)">'
+        + '<span style="font-weight:600;color:var(--gm)">' + _coordEnvCampo(e.q) + '</span> · ' + e.t
+        + '<div style="font-size:10.5px;color:var(--gray400);font-family:\'IBM Plex Mono\',monospace">→ ' + (e.dest || []).map(d => d === 'n3' ? 'N.º 3' : 'N.º 4').join(' + ') + ' · ' + fmtDateTime(e.ts)
+        + (e.ins ? ' · <span style="color:var(--gm)"><i class="fas fa-check"></i> inserida no quadro</span>' : ((e.dest || []).indexOf('n3') > -1 ? ' · <span style="color:var(--gold)">pendente no n.º 3</span>' : '')) + '</div></div>').join('');
+  }
+  return h + '</div>';
+}
+async function coordEnviar(){
+  const inp = document.getElementById('coord-env-in');
+  if(!inp || !inp.value.trim()) return;
+  const dest = []; if(_coordEnv.n3) dest.push('n3'); if(_coordEnv.n4) dest.push('n4');
+  if(!dest.length){ alert('Escolha o destinatário: n.º 3, n.º 4 ou os dois.'); return; }
+  const es = JSON.parse(JSON.stringify(currentDetail.record.envios_coord || []));
+  es.push({ t: inp.value.trim().toUpperCase(), q: _coordEnv.q, dest: dest, a: currentProfile.nome, ts: new Date().toISOString(), pri: _postitPriSel.coord || '', s: _sgiSessaoId, ins: null });
+  inp.value = '';
+  _postitPriSel.coord = '';
+  if(await _postoUpdate({envios_coord: es})) renderPosto();
+}
+// Post-its do Coordenador vistos pelo n.º 3 (pode inserir no quadro) ou pelo n.º 4 (só leitura)
+function _coordRecebidasHTML(pos){
+  const es = Array.isArray(currentDetail.record.envios_coord) ? currentDetail.record.envios_coord : [];
+  const minhas = es.map((e, i) => [e, i]).filter(([e]) => (e.dest || []).indexOf(pos) > -1).reverse();
+  if(!minhas.length) return '';
+  const pend = minhas.filter(([e]) => !e.ins).length;
+  return '<div style="background:#fff;border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:var(--r);padding:11px;margin-bottom:12px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px"><i class="fas fa-star" style="margin-right:5px;color:var(--gold)"></i>Informação do Coordenador'
+    + (pend && pos === 'n3' ? ' <span style="background:var(--gold);color:var(--gn);border-radius:10px;padding:1px 7px;font-size:10px">' + pend + ' por inserir</span>' : '') + '</div>'
+    + minhas.map(([e, i]) => {
+        const pk = postitPri(e), pc = POSTIT_PRI[pk];
+        return '<div style="background:' + (e.ins ? 'var(--gp)' : pc.fundo) + ';border:1px solid ' + (e.ins ? 'var(--gl)' : pc.borda) + ';border-left:4px solid ' + pc.borda + ';border-radius:6px;padding:8px 10px;margin-bottom:6px">'
+          + (pk ? '<div style="font-size:9.5px;font-weight:700;color:' + pc.txt + ';letter-spacing:.06em;margin-bottom:3px">' + pc.nome.toUpperCase() + '</div>' : '')
+          + '<div style="font-size:10.5px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">→ ' + _coordEnvCampo(e.q) + '</div>'
+          + '<div style="font-size:13.5px;line-height:1.5;color:var(--gray900);font-family:\'IBM Plex Mono\',monospace">' + e.t + '</div>'
+          + '<div style="font-size:10.5px;color:var(--gray400);margin-top:3px;font-family:\'IBM Plex Mono\',monospace">' + (e.a || '—') + ' · ' + fmtDateTime(e.ts)
+          + (e.ins ? ' · <span style="color:var(--gm)"><i class="fas fa-check"></i> inserida no quadro' + (e.ins.a ? ' por ' + e.ins.a : '') + '</span>' : (pos === 'n4' && (e.dest || []).indexOf('n3') > -1 ? ' · <span style="color:var(--gold)">pendente no n.º 3</span>' : '')) + '</div>'
+          + (pos === 'n3' && !e.ins ? '<button class="btn btn-primary btn-sm" onclick="coordInserirNoQuadro(' + i + ')" style="margin-top:6px;font-size:11.5px;padding:4px 10px"><i class="fas fa-arrow-down"></i> Inserir em «' + _coordEnvCampo(e.q) + '»</button>' : '')
+          + '</div>';
+      }).join('')
+    + '</div>';
+}
+async function coordInserirNoQuadro(i){
+  const es = JSON.parse(JSON.stringify(currentDetail.record.envios_coord || []));
+  const e = es[i]; if(!e || e.ins) return;
+  const q = JSON.parse(JSON.stringify(currentDetail.record.quadros || {}));
+  if(!Array.isArray(q[e.q])) q[e.q] = [];
+  const txt = String(e.t).toUpperCase();
+  q[e.q].push({ t: txt, a: currentProfile.nome, ts: new Date().toISOString(), coord: e.a || '' });
+  e.ins = { a: currentProfile.nome, ts: new Date().toISOString() };
+  if(await _postoUpdate({quadros: q, envios_coord: es})){
+    if(e.q === 'posicao') await _pnPosicaoSync(null, txt);
+    renderPosto();
+  }
+}
+
 // ===== ENTRADA RÁPIDA NOS QUADROS (n.º 3, durante o contacto) =====
 let _qRapidoDestino = 'exigencias';
 function _entradaRapidaHTML(){
@@ -2978,7 +3058,7 @@ async function renderQuadroCoordenador(){
   // IRIS, Risco/Cooperação, Contactos e Decorrido já estão nos cartões de cima (cabeçalho comum às posições)
   // Todos os quadros do n.º 3, mas só os que têm conteúdo
   const qCor = k => (k === 'evitar' || k === 'exigencias') ? 'var(--red)' : k === 'acoes' ? 'var(--gl)' : 'var(--gn)';
-  const qPreenchidos = QUADROS_CAB.filter(h => Array.isArray(q[h.k]) && q[h.k].length);
+  const qPreenchidos = document.getElementById('nc-quadros-n3') ? [] : QUADROS_CAB.filter(h => Array.isArray(q[h.k]) && q[h.k].length);
   const pnCampos = _pnCamposPreenchidos(plano);
   const ctsAsc = cts.slice().reverse();
   box.innerHTML =
@@ -3272,6 +3352,7 @@ function renderPosto(){
     h+='<div class="form-section"><h3><i class="fas fa-table-columns" style="color:var(--gl)"></i> Posto n.º 3 — quadros</h3>'
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Receção e organização da informação. Clara, precisa, concisa e em maiúsculas (5.22).</p>'
       + ((eN1 || eNC) ? '' : '<div id="evo-posto" style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:12px"></div>')
+      + (eNC ? '' : _coordRecebidasHTML('n3'))
       + _entradaRapidaHTML()
       + _quadrosHTML(true)
       + (eN2?'':_pedidosHTML(false, true))
@@ -3280,7 +3361,9 @@ function renderPosto(){
   if(eN4){
     h+='<div class="form-section"><h3><i class="fas fa-filter" style="color:var(--gl)"></i> Posto n.º 4 — gestão da informação e doutrina</h3>'
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Gere a informação a introduzir na CN e garante o cumprimento da doutrina, do PN e do PD (5.25-5.27).</p>'
-      +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="_postoIrTab(\'tab-info\')"><i class="fas fa-inbox"></i> Registos de informação</button>'+'<button class="btn btn-outline btn-sm" onclick="_postoIrTab(\'tab-pd\')"><i class="fas fa-comments"></i> Plano de Diálogo</button>'+'</div></div>';
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="_postoIrTab(\'tab-info\')"><i class="fas fa-inbox"></i> Registos de informação</button>'+'<button class="btn btn-outline btn-sm" onclick="_postoIrTab(\'tab-pd\')"><i class="fas fa-comments"></i> Plano de Diálogo</button>'+'</div>'
+      + (eNC ? '' : '<div style="margin-top:12px">' + _coordRecebidasHTML('n4') + '</div>')
+      +'</div>';
   }
   if(eNC){
     h+='<div class="form-section"><h3><i class="fas fa-star" style="color:var(--gold)"></i> Quadro do Coordenador</h3>'
@@ -3290,6 +3373,13 @@ function renderPosto(){
       +'<button class="btn btn-gold btn-sm" onclick="exportQuadroCoordenadorPDF()"><i class="fas fa-file-pdf"></i> PDF para briefing</button></div>'
       +'<div id="qc-content"><div style="padding:1.2rem;text-align:center;color:var(--gray400);font-size:13px"><i class="fas fa-spinner fa-spin"></i> A compor o quadro...</div></div>'
       +'</div>';
+    if(!eN3){
+      h+='<div class="form-section" id="nc-quadros-n3"><h3><i class="fas fa-table-columns" style="color:var(--gl)"></i> Quadros do n.º 3</h3>'
+        +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Só leitura. A informação a acrescentar segue para o n.º 3 (que a insere no campo indicado) e/ou para o n.º 4.</p>'
+        + _quadrosHTML(false, true)
+        + _coordEnviarHTML()
+        +'</div>';
+    }
   }
   el.innerHTML=h;
   renderCabecalhoCoordenacao();
