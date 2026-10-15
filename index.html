@@ -3382,7 +3382,8 @@ function renderPosto(){
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Resumo para briefar o Cmdt GI a qualquer momento, com a modalidade de ação proposta (4.85). Atualiza ao abrir o separador.</p>'
       +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'
       +'<button class="btn btn-outline btn-sm" onclick="renderQuadroCoordenador()"><i class="fas fa-rotate"></i> Atualizar</button>'
-      +'<button class="btn btn-gold btn-sm" onclick="exportQuadroCoordenadorPDF()"><i class="fas fa-file-pdf"></i> PDF para briefing</button></div>'
+      +'<button class="btn btn-gold btn-sm" onclick="exportQuadroCoordenadorPDF()"><i class="fas fa-file-pdf"></i> PDF para briefing</button>'
+      +'<button class="btn btn-primary btn-sm" onclick="propostaComandanteAbrir()" title="Texto da proposta em linguagem simples, sem termos técnicos"><i class="fas fa-user-tie"></i> Proposta ao Comandante</button></div>'
       +'<div id="qc-content"><div style="padding:1.2rem;text-align:center;color:var(--gray400);font-size:13px"><i class="fas fa-spinner fa-spin"></i> A compor o quadro...</div></div>'
       +'</div>';
     if(!eN3){
@@ -3495,6 +3496,10 @@ async function renderPN2(){
     +   pn2ObjDatalists()
     +   '<div id="pn2-meios-resumo"></div>'
     +   (v.meios && String(v.meios).trim() ? '<details style="margin-top:8px"><summary style="cursor:pointer;font-size:11.5px;color:var(--gray600)">Meios registados no plano anterior (só leitura)</summary>' + _txtRO(v.meios) + '</details>' : '')
+    + '</div>'
+    + '<div class="form-section" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+    +   '<span style="font-size:12px;color:var(--gray600);line-height:1.5;flex:1;min-width:200px"><i class="fas fa-user-tie" style="color:var(--gl);margin-right:5px"></i>Gera o texto da proposta a apresentar ao Comandante, em linguagem simples e sem termos técnicos, com base no PN e nos dados do caso.</span>'
+    +   '<button type="button" class="btn btn-primary btn-sm" onclick="propostaComandanteAbrir()"><i class="fas fa-file-lines"></i> Proposta ao Comandante</button>'
     + '</div>'
     + sgiBarraHTML('pn2','Guardar PN');
   sgiAutosaveLigar('pn2');
@@ -4052,6 +4057,220 @@ async function savePN2(){
   if(!pn) return;
   _sgiGuardou('Plano de Negociação guardado!');
 }
+// ===== Proposta ao Comandante — o PN em linguagem simples, sem termos técnicos =====
+// Composto só com os dados do caso (PN, IRIS, Aval. Risco/Coop., contactos, quadros, Anexo B). Nada é inventado:
+// o que não estiver preenchido não aparece. O texto fica editável antes de copiar.
+const PROP_MOD = {
+  'contacto telefónico': 'falar com ele por telefone',
+  'contacto presencial (face a face)': 'falar com ele pessoalmente',
+  'intercomunicador / megafone': 'falar com ele por intercomunicador ou megafone',
+  'mensagens escritas (sms / aplicação)': 'trocar mensagens escritas com ele',
+  'recurso a âncora / intermediário': 'envolver uma pessoa da confiança dele',
+  'troca ou concessão': 'oferecer algo em troca',
+  'ganhar tempo / protelar': 'ganhar tempo',
+  'desescalada emocional (escuta ativa)': 'acalmá-lo, ouvindo-o',
+  'articulação com a equipa tática': 'em coordenação com a equipa tática',
+  'articulação com meios de socorro': 'em coordenação com os meios de socorro'
+};
+// Nomes próprios do caso (para repor as maiúsculas nos textos dos quadros, que estão em MAIÚSCULAS)
+let _propNomes = [];
+function _propNorm(t){
+  t = String(t || '').trim().replace(/\s+/g, ' ');
+  if(t && t === t.toUpperCase() && /[A-ZÀ-Ý]/.test(t)){
+    t = t.toLowerCase();
+    _propNomes.forEach(n => { t = t.replace(new RegExp('(^|[^\\wÀ-ÿ])' + n.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\wÀ-ÿ])', 'g'), (m0, a) => a + n); });
+    // apelido do caso precedido de um nome não reconhecido (ex.: «sofia Martins» → «Sofia Martins»)
+    _propNomes.filter(n => n.indexOf(' ') < 0).forEach(n => { t = t.replace(new RegExp('(^|[\\s(«"])([a-zà-ÿ]{3,}) ' + n + '(?![\\wÀ-ÿ])', 'g'), (m0, a, w) => a + w.charAt(0).toUpperCase() + w.slice(1) + ' ' + n); });
+    ['GNR','PSP','INEM','VMER','GIOE','UEP','CTer','EN'].forEach(sg => { t = t.replace(new RegExp('(^|[^\\wÀ-ÿ])' + sg.toLowerCase() + '(?![\\wÀ-ÿ])', 'g'), (m0, a) => a + sg); });
+  }
+  return t;
+}
+function _propFrase(t){ t = _propNorm(t); if(!t) return ''; t = t.charAt(0).toUpperCase() + t.slice(1); return /[.!?]$/.test(t) ? t : t + '.'; }
+function _propMin(t){
+  t = _propNorm(t); if(!t) return '';
+  if(_propNomes.some(n => t.indexOf(n) === 0) || /^[A-ZÀ-Ý]{2}/.test(t)) return t;
+  return t.charAt(0).toLowerCase() + t.slice(1);
+}
+function _propLinhas(t){ return String(t || '').split('\n').map(l => l.replace(/^\s*[•\-*]\s*/, '').trim()).filter(Boolean); }
+function _propTempoMin(t){
+  t = String(t || '').toLowerCase();
+  const h = t.match(/(\d+)\s*h/), m = t.match(/(\d+)\s*min/);
+  if(/mais de 2 h/.test(t)) return 150;
+  return (h ? +h[1] * 60 : 0) + (m ? +m[1] : 0);
+}
+async function _propDados(){
+  const { type, record:r } = currentDetail;
+  const pt = type === 'inc' ? 'incidente' : 'itp';
+  const [a, b, c, d, e] = await Promise.all([
+    sb.from('plano_negociacao').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+    sb.from('iris').select('*').eq('parent_type',pt).eq('parent_id',r.id),
+    sb.from('sari').select('*').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle(),
+    sb.from('rnrv_contactos').select('*').eq('parent_type',pt).eq('parent_id',r.id).order('contact_datetime',{ascending:true}),
+    sb.from('info_anexob').select('armas_presentes,armas_utilizadas,descricao_armas').eq('parent_type',pt).eq('parent_id',r.id).maybeSingle()
+  ]);
+  const pn = Object.assign({}, a.data || {});
+  // O que está no formulário do PN (ainda que não guardado) prevalece sobre a BD
+  const fv = id => { const el = document.getElementById(id); return el ? el.value : null; };
+  [['pn2-sit','tipo_situacao'],['pn2-pos','posicao_adversario'],['pn2-int','interesses_adversario'],['pn2-align','alinhamento'],['pn2-prob','identificacao_problema'],['pn2-obji','objetivos_intermédios']]
+    .forEach(([id, k]) => { const v = fv(id); if(v !== null) pn[k] = v; });
+  // IRIS: a avaliação mais recente de cada visado
+  const ultIris = {};
+  irisOrdenar(b.data || []).forEach(x => { ultIris[irisVisadoNum(x)] = x; });
+  return { r, pn, iris: Object.values(ultIris), sari: c.data || null, cts: d.data || [], ab: e.data || null };
+}
+function propostaComandanteTexto(D){
+  const { r, pn, iris, sari, cts, ab } = D;
+  const q = r.quadros || {};
+  const qTxt = k => (Array.isArray(q[k]) ? q[k] : []).map(x => String(x.t || ''));
+  const V = (r.nome_agressor || '').trim() || 'o visado';
+  // nomes completos e cada nome isolado (≥ 3 letras), do mais longo para o mais curto
+  _propNomes = [];
+  [r.nome_agressor, r.nome_vitima].forEach(n => { n = String(n || '').trim(); if(!n) return; _propNomes.push(n); n.split(/\s+/).forEach(w => { if(w.length >= 3) _propNomes.push(w); }); });
+  _propNomes = Array.from(new Set(_propNomes)).sort((a, b) => b.length - a.length);
+  const P = [];
+  const sec = (tit, corpo) => { corpo = corpo.filter(Boolean); if(corpo.length) P.push(tit.toUpperCase() + '\n' + corpo.join('\n')); };
+
+  // --- Arma ---
+  const tudo = [pn.identificacao_problema, pn.posicao_adversario, qTxt('exigencias').join(' '), qTxt('agressores').join(' '), qTxt('outras').join(' '), ab && ab.descricao_armas].join(' ').toLowerCase();
+  const armaFogo = (sari && ['fogo-curta','cacadeira'].indexOf(sari.weapons) > -1) || (ab && ['fogo_curta','fogo_longa'].indexOf(ab.armas_presentes) > -1)
+    || /arma de fogo|pistola|caçadeira|cacadeira|espingarda|revólver|revolver|disparo/.test(tudo);
+  const armaBranca = !armaFogo && ((sari && sari.weapons === 'branca') || (ab && ab.armas_presentes === 'branca') || /arma branca|faca|navalha/.test(tudo));
+  const disparou = (sari && sari.weapon_used === 'disparada') || (ab && ab.armas_utilizadas === 'disparos');
+
+  // --- 1. Situação ---
+  const sit = [];
+  sit.push(_propFrase((r.tipo || 'Ocorrência') + (r.local && r.local !== 'Por definir' ? ' — ' + r.local : '')));
+  const ameacas = _propLinhas(pn.posicao_adversario);
+  if(ameacas.length) sit.push('O que ' + V + ' diz que vai fazer: ' + ameacas.map(_propMin).join('; ') + '.');
+  const exig = qTxt('exigencias');
+  if(exig.length) sit.push('O que exige: ' + exig.map(x => _propMin(x).replace(/^exige\s+(que\s+)?/i, (m0, qq) => qq ? 'que ' : '')).join('; ') + '.');
+  if(armaFogo) sit.push('Tem arma de fogo' + (disparou ? ' e já efetuou disparos' : '') + '.');
+  else if(armaBranca) sit.push('Tem arma branca' + (ab && ab.descricao_armas ? ' (' + _propMin(ab.descricao_armas).replace(/\.$/, '') + ')' : '') + '.');
+  const vit = qTxt('vitimas');
+  if(vit.length) sit.push('Vítimas / pessoas em risco: ' + vit.map(_propMin).join('; ') + '.');
+  sec('1. Situação', sit);
+
+  // --- 2. O que nos impede de resolver e o que ele realmente precisa ---
+  const probs = _propLinhas(pn.identificacao_problema).map(l => {
+    const m = l.match(/^P\d+\s*\[(Operacional|Pessoal)\]\s*(.*)$/i);
+    return m ? { pe: /pessoal/i.test(m[1]), t: m[2].trim() } : { pe: false, t: l };
+  });
+  const precisa = _propLinhas(pn.interesses_adversario);
+  const imp = [];
+  probs.filter(p => !p.pe).forEach(p => imp.push('- O que impede a resolução: ' + _propMin(p.t).replace(/\.$/, '') + '.'));
+  probs.filter(p => p.pe).forEach(p => imp.push('- O que o preocupa: ' + _propMin(p.t).replace(/\.$/, '') + '.'));
+  if(precisa.length) imp.push('- O que realmente precisa: ' + precisa.map(_propMin).join('; ') + '.');
+  if(pn.alinhamento === 'desalinhados') imp.push('- Aquilo com que ameaça não é o que realmente quer. Por isso há margem para chegar a uma solução sem que ele cumpra a ameaça.');
+  else if(pn.alinhamento === 'alinhados') imp.push('- Aquilo com que ameaça coincide com o que realmente quer. A margem para negociar é menor: é preciso encontrar outras saídas que lhe interessem.');
+  sec('2. O que está em causa', imp);
+
+  // --- 3. O que propomos ---
+  const objs = (typeof pn2ObjParse === 'function' ? pn2ObjParse(pn['objetivos_intermédios']) : []).filter(o => (o.obj || '').trim());
+  const feitos = objs.filter(o => o.feito), porFazer = objs.filter(o => !o.feito);
+  const prop = [];
+  if(armaFogo) prop.push('- Falar com ele por telemóvel/telefone, à distância, para que nenhum negociador fique exposto no terreno a uma arma de fogo.');
+  else if(armaBranca) prop.push('- Falar com ele à distância (telefone ou porta fechada), mantendo uma distância de segurança por causa da arma branca.');
+  porFazer.forEach((o, i) => {
+    let mod = PROP_MOD[String(o.mod || '').trim().toLowerCase()] || _propMin(o.mod);
+    let alerta = '';
+    if(armaFogo && /presencial|face a face/i.test(o.mod || '')) alerta = ' (atenção: implica exposição a uma arma de fogo)';
+    prop.push((i + 1) + '. ' + _propFrase(o.obj).replace(/\.$/, '')
+      + (mod ? ' — ' + mod + alerta : '')
+      + ((o.tempo || '').trim() ? '; tempo previsto: ' + o.tempo.trim() : '') + '.');
+  });
+  const tPrev = porFazer.reduce((s, o) => s + _propTempoMin(o.tempo), 0);
+  if(tPrev) prop.push('Tempo total estimado para estes passos: cerca de ' + (tPrev >= 60 ? Math.floor(tPrev / 60) + ' h' + (tPrev % 60 ? ' ' + (tPrev % 60) + ' min' : '') : tPrev + ' min') + '.');
+  if(feitos.length) prop.push('Já conseguido: ' + feitos.map(o => _propMin(o.obj).replace(/\.$/, '') + (o.quando ? ' (' + o.quando + ')' : '')).join('; ') + '.');
+  const evitar = qTxt('evitar');
+  if(evitar.length) prop.push('A evitar: ' + evitar.map(_propMin).join('; ') + '.');
+  sec('3. O que propomos', prop);
+
+  // --- 4. O que pedimos ao Comandante ---
+  const meios = [];
+  porFazer.forEach(o => (o.meios || []).forEach(m => { if(meios.indexOf(m) < 0) meios.push(m); }));
+  const anc = qTxt('ancoras');
+  const ped = [];
+  if(meios.length) ped.push('- Meios necessários: ' + meios.join('; ') + '.');
+  if(anc.length) ped.push('- Autorizar o envolvimento de: ' + anc.map(_propMin).join('; ') + ' (pessoa(s) da confiança dele, a usar só depois de avaliada(s) pela equipa).');
+  ped.push('- Manter a força afastada e sem ações visíveis enquanto a conversa estiver a progredir, salvo perigo iminente.');
+  sec('4. O que pedimos', ped);
+
+  // --- 5. Tende a resolver-se pela negociação? ---
+  let pts = 0; const a_favor = [], contra = [];
+  if(pn.tipo_situacao === 'crise'){ pts++; a_favor.push('A situação não foi planeada: resulta de um momento de descontrolo emocional. Quando a pessoa acalma, estas situações costumam resolver-se pela conversa.'); }
+  else if(pn.tipo_situacao === 'conflito'){ pts--; contra.push('A situação parece planeada, com objetivos definidos e preparação para o confronto. A conversa, só por si, tem menos probabilidade de resultar.'); }
+  if(pn.alinhamento === 'desalinhados'){ pts++; a_favor.push('O que ameaça fazer não é o que realmente quer, o que deixa espaço para propor alternativas.'); }
+  else if(pn.alinhamento === 'alinhados'){ pts--; contra.push('O que ameaça fazer coincide com o que quer, o que reduz o espaço para propor alternativas.'); }
+  if(sari && sari.negotiation_probability != null){
+    const np = +sari.negotiation_probability;
+    if(np >= 75){ pts += 2; a_favor.push('A avaliação de risco aponta para uma probabilidade alta de cooperação (' + np + ' %).'); }
+    else if(np >= 50){ pts++; a_favor.push('A avaliação de risco aponta para uma probabilidade moderada de cooperação (' + np + ' %).'); }
+    else if(np >= 25){ pts--; contra.push('A avaliação de risco feita no início aponta para uma probabilidade baixa de cooperação (' + np + ' %).'); }
+    else { pts -= 2; contra.push('A avaliação de risco aponta para uma probabilidade muito baixa de cooperação (' + np + ' %).'); }
+  }
+  if(sari && sari.risk_level >= 7) contra.push('O risco de violência é elevado (' + sari.risk_level + '/10).');
+  if(disparou){ pts--; contra.push('Já houve disparos.'); }
+  if(cts.length >= 2){
+    const p = cts[0], u = cts[cts.length - 1];
+    const de = (u.emotional_activation || 0) - (p.emotional_activation || 0), di = (u.influence_level || 0) - (p.influence_level || 0);
+    if(de < 0){ pts++; a_favor.push('Está mais calmo do que no primeiro contacto (' + cts.length + ' contactos registados).'); }
+    else if(de > 0){ pts--; contra.push('Está mais agitado do que no primeiro contacto.'); }
+    if(di > 0){ pts++; a_favor.push('Os negociadores estão a conseguir ter cada vez mais influência sobre ele.'); }
+    else if(di < 0){ pts--; contra.push('A influência dos negociadores sobre ele diminuiu.'); }
+  } else if(cts.length === 1) a_favor.push('Já foi estabelecido contacto.');
+  const ind = qTxt('indicadores');
+  if(ind.length >= 2){ pts++; a_favor.push('Sinais de progresso observados: ' + ind.map(_propMin).join('; ') + '.'); }
+  else if(ind.length === 1) a_favor.push('Sinal de progresso observado: ' + _propMin(ind[0]) + '.');
+  if(feitos.length){ pts++; a_favor.push(feitos.length === 1 ? 'Já foi conseguido 1 dos ' + objs.length + ' passos previstos.' : 'Já foram conseguidos ' + feitos.length + ' dos ' + objs.length + ' passos previstos.'); }
+  const irisEl = iris.filter(x => /elev/i.test(x.risk_level || ''));
+  if(irisEl.length) contra.push('O risco de suicídio é elevado: qualquer pressão ou ação visível pode precipitar o ato.');
+
+  let veredicto;
+  if(!a_favor.length && !contra.length) veredicto = 'Ainda não há dados suficientes para avaliar se a situação tende a resolver-se pela negociação.';
+  else if(pts >= 3) veredicto = 'A situação TENDE A RESOLVER-SE PELA NEGOCIAÇÃO.';
+  else if(pts >= 0) veredicto = 'A situação PODE RESOLVER-SE PELA NEGOCIAÇÃO, mas sem garantias: recomenda-se manter preparada uma alternativa.';
+  else veredicto = 'A situação NÃO TENDE A RESOLVER-SE SÓ PELA NEGOCIAÇÃO: recomenda-se preparar uma alternativa, mantendo a conversa enquanto for útil.';
+  sec('5. Avaliação', [veredicto,
+    a_favor.length ? 'A favor:\n' + a_favor.map(t => '- ' + t).join('\n') : '',
+    contra.length ? 'Contra / cuidados:\n' + contra.map(t => '- ' + t).join('\n') : '',
+    'Esta avaliação é um apoio à decisão do Comandante e não a substitui.']);
+
+  const d = new Date(), z = n => String(n).padStart(2, '0');
+  return 'PROPOSTA DA EQUIPA DE NEGOCIAÇÃO AO COMANDANTE\n' + z(d.getDate()) + '/' + z(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + z(d.getHours()) + ':' + z(d.getMinutes())
+    + (currentDetail.isTreino ? ' — TREINO' : '') + '\n\n' + P.join('\n\n');
+}
+async function propostaComandanteAbrir(){
+  if(!currentDetail) return;
+  let m = document.getElementById('modal-proposta-cmdt');
+  if(!m){
+    m = document.createElement('div');
+    m.id = 'modal-proposta-cmdt'; m.className = 'modal-overlay hidden';
+    m.innerHTML = '<div class="modal" style="max-width:760px;width:100%">'
+      + '<div class="modal-header"><span class="modal-title"><i class="fas fa-user-tie" style="margin-right:6px"></i>Proposta ao Comandante</span>'
+      + '<button class="modal-close" onclick="closeModal(\'modal-proposta-cmdt\')"><i class="fas fa-xmark"></i></button></div>'
+      + '<div class="modal-body">'
+      + '<p style="font-size:12px;color:var(--gray600);margin:0 0 8px;line-height:1.5">Texto gerado a partir do Plano de Negociação e dos dados do caso, sem termos técnicos. Pode ser revisto e ajustado antes de copiar. Não é guardado.</p>'
+      + '<textarea id="proposta-cmdt-txt" rows="22" style="width:100%;font-size:13px;line-height:1.55;font-family:\'IBM Plex Sans\',sans-serif"></textarea>'
+      + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">'
+      + '<button class="btn btn-outline btn-sm" onclick="propostaComandanteAbrir()"><i class="fas fa-rotate"></i> Gerar de novo</button>'
+      + '<button class="btn btn-primary btn-sm" id="proposta-cmdt-copiar" onclick="propostaComandanteCopiar()"><i class="fas fa-copy"></i> Copiar texto</button>'
+      + '</div></div></div>';
+    document.body.appendChild(m);
+  }
+  const ta = document.getElementById('proposta-cmdt-txt');
+  ta.value = 'A gerar…';
+  m.classList.remove('hidden');
+  try { ta.value = propostaComandanteTexto(await _propDados()); }
+  catch(e){ ta.value = 'Não foi possível gerar a proposta: ' + (e.message || e); }
+}
+async function propostaComandanteCopiar(){
+  const ta = document.getElementById('proposta-cmdt-txt'), b = document.getElementById('proposta-cmdt-copiar');
+  if(!ta) return;
+  try { await navigator.clipboard.writeText(ta.value); }
+  catch(e){ ta.select(); try { document.execCommand('copy'); } catch(_){} }
+  if(b){ const h = b.innerHTML; b.innerHTML = '<i class="fas fa-check"></i> Copiado'; setTimeout(() => { b.innerHTML = h; }, 1500); }
+}
+
 // ===== Plano de Diálogo — guia do contacto (o que fazer e o que não fazer) =====
 // Grava no mesmo plano_dialogo do registo, em chaves próprias (uma opção por linha);
 // não mexe em quadro_ref / problema / pos_int / solucoes do PD atual.
