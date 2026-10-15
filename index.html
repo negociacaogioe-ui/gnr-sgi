@@ -4122,13 +4122,13 @@ function propostaComandanteTexto(D){
   const { r, pn, iris, sari, cts, ab } = D;
   const q = r.quadros || {};
   const qTxt = k => (Array.isArray(q[k]) ? q[k] : []).map(x => String(x.t || ''));
-  const V = (r.nome_agressor || '').trim() || 'o visado';
   // nomes completos e cada nome isolado (≥ 3 letras), do mais longo para o mais curto
   _propNomes = [];
   [r.nome_agressor, r.nome_vitima].forEach(n => { n = String(n || '').trim(); if(!n) return; _propNomes.push(n); n.split(/\s+/).forEach(w => { if(w.length >= 3) _propNomes.push(w); }); });
   _propNomes = Array.from(new Set(_propNomes)).sort((a, b) => b.length - a.length);
   const P = [];
-  const sec = (tit, corpo) => { corpo = corpo.filter(Boolean); if(corpo.length) P.push(tit.toUpperCase() + '\n' + corpo.join('\n')); };
+  // Secções numeradas automaticamente (uma secção sem conteúdo não aparece e não conta)
+  const sec = (tit, corpo) => { corpo = corpo.filter(Boolean); if(corpo.length) P.push((P.length + 1) + '. ' + tit.replace(/^\d+\.\s*/, '').toUpperCase() + '\n' + corpo.join('\n')); };
 
   // --- Arma ---
   const tudo = [pn.identificacao_problema, pn.posicao_adversario, qTxt('exigencias').join(' '), qTxt('agressores').join(' '), qTxt('outras').join(' '), ab && ab.descricao_armas].join(' ').toLowerCase();
@@ -4137,104 +4137,87 @@ function propostaComandanteTexto(D){
   const armaBranca = !armaFogo && ((sari && sari.weapons === 'branca') || (ab && ab.armas_presentes === 'branca') || /arma branca|faca|navalha/.test(tudo));
   const disparou = (sari && sari.weapon_used === 'disparada') || (ab && ab.armas_utilizadas === 'disparos');
 
-  // --- 1. Ponto de situação — curto: o Comandante já conhece a ocorrência; só o que a equipa apurou e fundamenta a proposta ---
-  const sit = [];
-  const ameacas = _propLinhas(pn.posicao_adversario);
-  const arma = armaFogo ? 'tem arma de fogo' + (disparou ? ' e já efetuou disparos' : '') : armaBranca ? 'tem arma branca' : '';
-  if(ameacas.length || arma) sit.push(_propFrase((ameacas.length ? ameacas.map(_propMin).join('; ') : '') + (ameacas.length && arma ? '; ' : '') + arma));
-  sec('1. Ponto de situação', sit);
-
-  // --- 2. O que nos impede de resolver e o que ele realmente precisa ---
-  const probs = _propLinhas(pn.identificacao_problema).map(l => {
-    const m = l.match(/^P\d+\s*\[(Operacional|Pessoal)\]\s*(.*)$/i);
-    return m ? { pe: /pessoal/i.test(m[1]), t: m[2].trim() } : { pe: false, t: l };
-  });
-  const precisa = _propLinhas(pn.interesses_adversario);
-  const imp = [];
-  probs.filter(p => !p.pe).forEach(p => imp.push('- O que impede a resolução: ' + _propMin(p.t).replace(/\.$/, '') + '.'));
-  probs.filter(p => p.pe).forEach(p => imp.push('- O que o preocupa: ' + _propMin(p.t).replace(/\.$/, '') + '.'));
-  if(precisa.length) imp.push('- O que realmente precisa: ' + precisa.map(_propMin).join('; ') + '.');
-  if(pn.alinhamento === 'desalinhados') imp.push('- Aquilo com que ameaça não é o que realmente quer. Por isso há margem para chegar a uma solução sem que ele cumpra a ameaça.');
-  else if(pn.alinhamento === 'alinhados') imp.push('- Aquilo com que ameaça coincide com o que realmente quer. A margem para negociar é menor: é preciso encontrar outras saídas que lhe interessem.');
-  sec('2. O que está em causa', imp);
-
-  // --- 3. O que propomos ---
+  // Estrutura curta, pela ordem que interessa ao Comandante: 1) avaliação, 2) o que propomos, 3) o que pedimos.
+  // A situação não se descreve: o Comandante já a conhece (foi ele que chamou os negociadores).
   const objs = (typeof pn2ObjParse === 'function' ? pn2ObjParse(pn['objetivos_intermédios']) : []).filter(o => (o.obj || '').trim());
   const feitos = objs.filter(o => o.feito), porFazer = objs.filter(o => !o.feito);
+  const semPonto = t => _propMin(t).replace(/\.$/, '');
+
+  // --- 1. Avaliação: tende ou não a resolver-se pela negociação, e porquê ---
+  let pts = 0; const porque = [], cuidados = [];
+  if(pn.tipo_situacao === 'crise'){ pts++; porque.push('Situação não planeada, de descontrolo emocional: tende a resolver-se com a conversa.'); }
+  else if(pn.tipo_situacao === 'conflito'){ pts--; cuidados.push('Situação planeada: a conversa, por si só, tem menos probabilidade de resultar.'); }
+  const ameacas = _propLinhas(pn.posicao_adversario).map(semPonto);
+  const precisa = _propLinhas(pn.interesses_adversario).map(semPonto);
+  if(pn.alinhamento === 'desalinhados' || pn.alinhamento === 'alinhados'){
+    const comp = 'O comportamento que está a ter' + (ameacas.length ? ' (' + ameacas.join('; ') + ')' : '');
+    const intr = precisa.length ? (precisa.length > 1 ? 'os interesses' : 'o interesse') + ' de ' + precisa.join('; ') : 'os seus interesses';
+    if(pn.alinhamento === 'desalinhados'){ pts++; porque.push(comp + ' não joga com ' + intr + '.'); }
+    else { pts--; cuidados.push(comp + ' joga com ' + intr + '.'); }
+  }
+  if(cts.length >= 2){
+    const p = cts[0], u = cts[cts.length - 1];
+    const de = (u.emotional_activation || 0) - (p.emotional_activation || 0), di = (u.influence_level || 0) - (p.influence_level || 0);
+    if(de < 0) pts++; else if(de > 0) pts--;
+    if(di > 0) pts++; else if(di < 0) pts--;
+    if(de < 0 && di > 0) porque.push('Desde o primeiro contacto está mais calmo e mais recetivo.');
+    else if(de < 0) porque.push('Desde o primeiro contacto está mais calmo.');
+    else if(di > 0) porque.push('Desde o primeiro contacto está mais recetivo.');
+    if(de > 0) cuidados.push('Está mais agitado do que no primeiro contacto.');
+    if(di < 0) cuidados.push('Está menos recetivo do que no primeiro contacto.');
+  }
+  const ind = qTxt('indicadores');
+  if(ind.length >= 2) pts++;
+  if(ind.length) porque.push('Sinais de progresso: ' + ind.map(semPonto).join('; ') + '.');
+  if(feitos.length){ pts++; porque.push('Já conseguido: ' + feitos.map(o => semPonto(o.obj)).join('; ') + '.'); }
+  if(sari && sari.negotiation_probability != null){
+    const np = +sari.negotiation_probability;
+    if(np >= 75) pts += 2; else if(np >= 50) pts++; else if(np >= 25) pts--; else pts -= 2;
+    (np >= 50 ? porque : cuidados).push('Cooperação esperada: ' + np + ' %.');
+  }
+  if(sari && sari.risk_level >= 7) cuidados.push('Risco de violência elevado (' + sari.risk_level + '/10).');
+  if(disparou){ pts--; cuidados.push('Já houve disparos.'); }
+  if(iris.some(x => /elev/i.test(x.risk_level || ''))) cuidados.push('Risco de suicídio elevado: evitar pressão e ações visíveis.');
+
+  let veredicto;
+  if(!porque.length && !cuidados.length) veredicto = 'Ainda não há dados suficientes para avaliar se a situação se resolve pela negociação.';
+  else if(pts >= 3) veredicto = 'A situação TENDE A RESOLVER-SE PELA NEGOCIAÇÃO.';
+  else if(pts >= 0) veredicto = 'A situação PODE RESOLVER-SE PELA NEGOCIAÇÃO, sem garantias: manter uma alternativa preparada.';
+  else veredicto = 'A situação NÃO TENDE A RESOLVER-SE SÓ PELA NEGOCIAÇÃO: preparar uma alternativa, mantendo a conversa enquanto for útil.';
+  sec('Avaliação', [veredicto,
+    porque.length ? 'Porquê:\n' + porque.map(t => '- ' + t).join('\n') : '',
+    cuidados.length ? 'Cuidados:\n' + cuidados.map(t => '- ' + t).join('\n') : '']);
+
+  // --- 2. O que propomos ---
   const prop = [];
-  if(armaFogo) prop.push('- Falar com ele por telemóvel/telefone, à distância, para que nenhum negociador fique exposto no terreno a uma arma de fogo.');
-  else if(armaBranca) prop.push('- Falar com ele à distância (telefone ou porta fechada), mantendo uma distância de segurança por causa da arma branca.');
+  if(armaFogo) prop.push('- Falar com ele por telemóvel/telefone, à distância, para que nenhum negociador fique exposto no terreno a uma arma de fogo' + (disparou ? ' (já houve disparos)' : '') + '.');
+  else if(armaBranca) prop.push('- Falar com ele à distância, mantendo distância de segurança por causa da arma branca.');
   porFazer.forEach((o, i) => {
     let mod = PROP_MOD[String(o.mod || '').trim().toLowerCase()] || _propMin(o.mod);
-    // Troca: diz o que se troca (meios indicados no passo, exceto os de comunicação) e que só é concedida contra este resultado
+    // Troca: diz o que se troca (meios do passo, exceto comunicação, apoio externo e sistema de entrega) e que só é concedida contra este resultado
     if(/troca|concess/i.test(o.mod || '')){
       const oferta = (o.meios || []).filter(m => (PN2_MEIOS['Comunicação'] || []).indexOf(m) < 0 && (PN2_MEIOS['Apoio externo'] || []).indexOf(m) < 0 && m !== 'Sistema de entrega');
       mod = 'propor uma troca' + (oferta.length ? ' (' + oferta.map(_propMin).join(', ') + ')' : '') + ', concedida só em troca deste resultado';
     }
-    let alerta = '';
-    if(armaFogo && /presencial|face a face/i.test(o.mod || '')) alerta = ' (atenção: implica exposição a uma arma de fogo)';
-    prop.push((i + 1) + '. ' + _propFrase(o.obj).replace(/\.$/, '')
-      + (mod ? ' — ' + mod + alerta : '')
-      + ((o.tempo || '').trim() ? '; tempo previsto: ' + o.tempo.trim() : '') + '.');
+    const alerta = (armaFogo && /presencial|face a face/i.test(o.mod || '')) ? ' (atenção: expõe o negociador a uma arma de fogo)' : '';
+    prop.push((i + 1) + '. ' + _propFrase(o.obj).replace(/\.$/, '') + (mod ? ' — ' + mod + alerta : '') + ((o.tempo || '').trim() ? ' (' + o.tempo.trim() + ')' : '') + '.');
   });
-  const tPrev = porFazer.reduce((s, o) => s + _propTempoMin(o.tempo), 0);
-  if(tPrev) prop.push('Tempo total estimado para estes passos: cerca de ' + (tPrev >= 60 ? Math.floor(tPrev / 60) + ' h' + (tPrev % 60 ? ' ' + (tPrev % 60) + ' min' : '') : tPrev + ' min') + '.');
-  if(feitos.length) prop.push('Já conseguido: ' + feitos.map(o => _propMin(o.obj).replace(/\.$/, '') + (o.quando ? ' (' + o.quando + ')' : '')).join('; ') + '.');
-  const evitar = qTxt('evitar');
-  if(evitar.length) prop.push('A evitar: ' + evitar.map(_propMin).join('; ') + '.');
-  sec('3. O que propomos', prop);
+  const tPrev = porFazer.reduce((t, o) => t + _propTempoMin(o.tempo), 0);
+  if(tPrev) prop.push('Tempo estimado: cerca de ' + (tPrev >= 60 ? Math.floor(tPrev / 60) + ' h' + (tPrev % 60 ? ' ' + (tPrev % 60) + ' min' : '') : tPrev + ' min') + '.');
+  sec('O que propomos', prop);
 
-  // --- 4. O que pedimos ao Comandante ---
+  // --- 3. O que pedimos ao Comandante (só os meios que a equipa pôs no PN) ---
   const meios = [];
   porFazer.forEach(o => (o.meios || []).forEach(m => { if(meios.indexOf(m) < 0) meios.push(m); }));
   const ped = [];
-  if(meios.length) ped.push('- Meios necessários: ' + meios.join('; ') + '.');
-  ped.push('- Manter a força afastada e sem ações visíveis enquanto a conversa estiver a progredir, salvo perigo iminente.');
-  sec('4. O que pedimos', ped);
-
-  // --- 5. Tende a resolver-se pela negociação? ---
-  let pts = 0; const a_favor = [], contra = [];
-  if(pn.tipo_situacao === 'crise'){ pts++; a_favor.push('A situação não foi planeada: resulta de um momento de descontrolo emocional. Quando a pessoa acalma, estas situações costumam resolver-se pela conversa.'); }
-  else if(pn.tipo_situacao === 'conflito'){ pts--; contra.push('A situação parece planeada, com objetivos definidos e preparação para o confronto. A conversa, só por si, tem menos probabilidade de resultar.'); }
-  if(pn.alinhamento === 'desalinhados'){ pts++; a_favor.push('O que ameaça fazer não é o que realmente quer, o que deixa espaço para propor alternativas.'); }
-  else if(pn.alinhamento === 'alinhados'){ pts--; contra.push('O que ameaça fazer coincide com o que quer, o que reduz o espaço para propor alternativas.'); }
-  if(sari && sari.negotiation_probability != null){
-    const np = +sari.negotiation_probability;
-    if(np >= 75){ pts += 2; a_favor.push('A avaliação de risco aponta para uma probabilidade alta de cooperação (' + np + ' %).'); }
-    else if(np >= 50){ pts++; a_favor.push('A avaliação de risco aponta para uma probabilidade moderada de cooperação (' + np + ' %).'); }
-    else if(np >= 25){ pts--; contra.push('A avaliação de risco feita no início aponta para uma probabilidade baixa de cooperação (' + np + ' %).'); }
-    else { pts -= 2; contra.push('A avaliação de risco aponta para uma probabilidade muito baixa de cooperação (' + np + ' %).'); }
-  }
-  if(sari && sari.risk_level >= 7) contra.push('O risco de violência é elevado (' + sari.risk_level + '/10).');
-  if(disparou){ pts--; contra.push('Já houve disparos.'); }
-  if(cts.length >= 2){
-    const p = cts[0], u = cts[cts.length - 1];
-    const de = (u.emotional_activation || 0) - (p.emotional_activation || 0), di = (u.influence_level || 0) - (p.influence_level || 0);
-    if(de < 0){ pts++; a_favor.push('Está mais calmo do que no primeiro contacto (' + cts.length + ' contactos registados).'); }
-    else if(de > 0){ pts--; contra.push('Está mais agitado do que no primeiro contacto.'); }
-    if(di > 0){ pts++; a_favor.push('Os negociadores estão a conseguir ter cada vez mais influência sobre ele.'); }
-    else if(di < 0){ pts--; contra.push('A influência dos negociadores sobre ele diminuiu.'); }
-  } else if(cts.length === 1) a_favor.push('Já foi estabelecido contacto.');
-  const ind = qTxt('indicadores');
-  if(ind.length >= 2){ pts++; a_favor.push('Sinais de progresso observados: ' + ind.map(_propMin).join('; ') + '.'); }
-  else if(ind.length === 1) a_favor.push('Sinal de progresso observado: ' + _propMin(ind[0]) + '.');
-  if(feitos.length){ pts++; a_favor.push(feitos.length === 1 ? 'Já foi conseguido 1 dos ' + objs.length + ' passos previstos.' : 'Já foram conseguidos ' + feitos.length + ' dos ' + objs.length + ' passos previstos.'); }
-  const irisEl = iris.filter(x => /elev/i.test(x.risk_level || ''));
-  if(irisEl.length) contra.push('O risco de suicídio é elevado: qualquer pressão ou ação visível pode precipitar o ato.');
-
-  let veredicto;
-  if(!a_favor.length && !contra.length) veredicto = 'Ainda não há dados suficientes para avaliar se a situação tende a resolver-se pela negociação.';
-  else if(pts >= 3) veredicto = 'A situação TENDE A RESOLVER-SE PELA NEGOCIAÇÃO.';
-  else if(pts >= 0) veredicto = 'A situação PODE RESOLVER-SE PELA NEGOCIAÇÃO, mas sem garantias: recomenda-se manter preparada uma alternativa.';
-  else veredicto = 'A situação NÃO TENDE A RESOLVER-SE SÓ PELA NEGOCIAÇÃO: recomenda-se preparar uma alternativa, mantendo a conversa enquanto for útil.';
-  sec('5. Avaliação', [veredicto,
-    a_favor.length ? 'A favor:\n' + a_favor.map(t => '- ' + t).join('\n') : '',
-    contra.length ? 'Contra / cuidados:\n' + contra.map(t => '- ' + t).join('\n') : '',
-    'Esta avaliação é um apoio à decisão do Comandante e não a substitui.']);
+  if(meios.length) ped.push('- Meios: ' + meios.join('; ') + '.');
+  ped.push('- Manter a força afastada e sem ações visíveis enquanto a conversa progride, salvo perigo iminente.');
+  sec('O que pedimos', ped);
 
   const d = new Date(), z = n => String(n).padStart(2, '0');
   return 'PROPOSTA DA EQUIPA DE NEGOCIAÇÃO AO COMANDANTE\n' + z(d.getDate()) + '/' + z(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + z(d.getHours()) + ':' + z(d.getMinutes())
-    + (currentDetail.isTreino ? ' — TREINO' : '') + '\n\n' + P.join('\n\n');
+    + (currentDetail.isTreino ? ' — TREINO' : '') + '\n\n' + P.join('\n\n')
+    + '\n\nApoio à decisão; não substitui a decisão do Comandante.';
 }
 async function propostaComandanteAbrir(){
   if(!currentDetail) return;
