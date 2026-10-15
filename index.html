@@ -805,6 +805,7 @@ body.is-mobile .filter-bar input,body.is-mobile .filter-bar select{flex:1 1 45%;
         <div class="page-sub" style="color:var(--amber)"><i class="fas fa-exclamation-triangle"></i> Ambiente de treino — os registos aqui criados NÃO aparecem no dashboard real</div>
       </div>
       <div style="display:flex;gap:8px">
+        <button class="btn btn-gold" id="btn-treino-exemplo" style="display:none" onclick="criarCasoExemploTreino()" title="Cria um caso de treino com todos os campos e formulários preenchidos (só admin)"><i class="fas fa-wand-magic-sparkles"></i> Caso de Exemplo</button>
         <button class="btn btn-primary" onclick="openTreinoModal('inc')"><i class="fas fa-plus"></i> Abrir Novo Incidente Treino</button>
       </div>
     </div>
@@ -10585,6 +10586,7 @@ async function renderTreino() {
   document.getElementById('t-curso').textContent = all.filter(x => x.estado === 'Em curso').length;
   document.getElementById('t-res').textContent = all.filter(x => x.estado === 'Resolvido').length;
   ['btn-limpar-treino', 'mob-btn-limpar-treino'].forEach(id => { const b = document.getElementById(id); if (b) b.style.display = sgiEAluno() ? 'none' : ''; });
+  treinoExemploBtnVisivel();
   renderTreinoTable();
   if (isMobile && document.getElementById('mob-treino-list')) mobRenderTreinoCards();
 }
@@ -10834,7 +10836,170 @@ async function limparTreino() {
   renderTreino();
 }
 
+// ===== Caso de exemplo (só admin) — cria um caso de treino com todos os campos e formulários preenchidos =====
+function treinoExemploBtnVisivel() {
+  const admin = currentProfile?.role === 'admin';
+  ['btn-treino-exemplo', 'mob-btn-treino-exemplo'].forEach(id => { const b = document.getElementById(id); if (b) b.style.display = admin ? '' : 'none'; });
+}
+async function criarCasoExemploTreino() {
+  if (currentProfile?.role !== 'admin') return;
+  if (!confirm('Criar um caso de treino de exemplo com todos os campos e formulários preenchidos?')) return;
+  const btns = ['btn-treino-exemplo', 'mob-btn-treino-exemplo'].map(id => document.getElementById(id)).filter(Boolean);
+  btns.forEach(b => { b.disabled = true; b.dataset.html = b.innerHTML; b.innerHTML = '<span class="spinner"></span> A criar…'; });
+  const fim = () => btns.forEach(b => { b.disabled = false; if (b.dataset.html) b.innerHTML = b.dataset.html; });
+  try {
+    const eu = currentProfile.nome || currentUser.email;
+    const agora = Date.now();
+    const ts = min => new Date(agora - min * 60000).toISOString();
+    const pz = n => String(n).padStart(2, '0');
+    const quando = min => { const d = new Date(agora - min * 60000); return pz(d.getDate()) + '/' + pz(d.getMonth() + 1) + ' ' + pz(d.getHours()) + ':' + pz(d.getMinutes()); };
+    const V = 'Rui Martins', VIT = 'Ana Martins';
+    const negNome = String(eu).split(' ')[0];
+
+    // EN: o admin como Coordenador + até 4 negociadores operacionais (nunca formandos do CTer Curso, para não os ocupar noutros exercícios)
+    const eq = {};
+    const elegiveis = (allNegociadores || []).filter(u => u.id !== currentUser.id && u.nivel_acesso !== 'formacao' && u.cter !== 'CTer Curso');
+    ['n1', 'n2', 'n3', 'n4'].forEach((k, i) => { const u = elegiveis[i]; if (u) eq[k] = { id: u.id, nome: u.nome || '', posto: u.posto || '', cter: u.cter || '' }; });
+    eq.nc = { id: currentUser.id, nome: currentProfile.nome || '', posto: currentProfile.posto || '', cter: currentProfile.cter || '' };
+    const conf = enConformidade(eq, false);
+    eq.conformidade = conf.estado;
+    eq.isolado = enIsolado(eq);
+    const participantes = Array.from(new Set([currentUser.id].concat(enPreenchidos(eq).map(k => eq[k].id))));
+
+    const q = (t, min) => ({ t: t.toUpperCase(), a: eu, ts: ts(min) });
+    const quadros = {
+      exigencias: [q('Exige falar com a ex-companheira a sós', 70), q('Exige que a GNR se afaste da porta', 55)],
+      agressores: [q(V + ', 41 anos, ex-companheiro da vítima', 72), q('Alcoolizado, discurso acelerado', 60)],
+      vitimas: [q(VIT + ', 38 anos, sem ferimentos visíveis', 71)],
+      ancoras: [q('Irmã do visado (Sofia Martins) — boa relação, a caminho do local', 50)],
+      familiares: [q('Dois filhos menores, em casa da avó materna', 65), q('Mãe do visado contactável por telefone', 45)],
+      posicao: [q('Ameaça matar a ex-companheira se a GNR entrar', 68), q('Ameaça matar-se se ela não voltar para casa', 52)],
+      acoes: [q('Mantida distância de segurança à porta', 58), q('Linha telefónica dedicada estabelecida', 40)],
+      evitar: [q('Mencionar a queixa anterior por violência doméstica', 62), q('Falar em prisão', 48)],
+      indicadores: [q('Indivíduo disponível para ouvir', 30), q('Linguagem menos agressiva', 20)],
+      outras: [q('Vizinho do 3.º andar ouviu gritos por volta das 18h00', 66)]
+    };
+    const notas_n1 = [
+      { t: 'Ele baixou o tom quando falaste nos filhos — explora o que precisa para os voltar a ver.', a: eu, ts: ts(35), pri: 'prioritario', urgente: false, s: _sgiSessaoId, p: 'n2' },
+      { t: 'Não prometas que ela vem ao telefone.', a: eu, ts: ts(25), pri: 'urgente', urgente: true, s: _sgiSessaoId, p: 'n2' },
+      { t: 'Usa o nome dele mais vezes.', a: eu, ts: ts(15), pri: '', urgente: false, s: _sgiSessaoId, p: 'n2' }
+    ];
+    const pedidos_n3 = [
+      { t: 'Há armas de fogo registadas em nome do visado?', a: eu, ts: ts(50), resp: 'Não há registo de armas de fogo.', respA: eu, respTs: ts(44), pri: 'prioritario', s: _sgiSessaoId, p: 'n2' },
+      { t: 'A irmã já chegou ao local?', a: eu, ts: ts(12), resp: null, pri: '', s: _sgiSessaoId, p: 'n2' }
+    ];
+    const envios_coord = [
+      { t: 'Cmdt GI autoriza a presença da irmã no posto de comando', q: 'ancoras', dest: ['n3', 'n4'], a: eu, ts: ts(38), pri: 'prioritario', s: _sgiSessaoId, ins: null },
+      { t: 'Equipa tática em posição na traseira do prédio', q: 'outras', dest: ['n4'], a: eu, ts: ts(28), pri: '', s: _sgiSessaoId, ins: null }
+    ];
+    const plano_dialogo = {
+      foco: 'Obter compromisso de não agressão durante o contacto',
+      tratamento: 'Pelo nome próprio',
+      apresentacao: 'Nome próprio, da GNR',
+      abertura: 'Rui, sou o ' + negNome + ', da GNR. Gostava de perceber o que é que precisa agora para isto acabar sem ninguém magoado. Como é que está?',
+      fazer: ['Escuta ativa', 'Rotulagem emocional', 'Paráfrase', 'Pausas e silêncio', 'Tratar pelo nome'].join('\n'),
+      perguntas: ['Como é que está agora?', 'O que é que precisa neste momento?', 'Porque é que isso é tão importante para si?', 'O que é que precisa para isto acabar bem?'].join('\n'),
+      seguros: ['Os filhos'].join('\n'),
+      evitar: ['Pormenores do que aconteceu', 'A relação com a vítima', 'Prisão / consequências legais'].join('\n'),
+      substituir: ['rendição → sair', 'exigência → o que precisa', 'acalme-se → estou a ver que isto é muito difícil'].join('\n'),
+      respostas: ['Se entrarem, mato-a → Ninguém vai entrar enquanto estivermos a falar.', 'Quero falar com ela → Percebo que isso é muito importante para si. Porque é que precisa de falar com ela?', 'Vou-me matar → Isso preocupa-me muito. Fale-me do que está a sentir agora.'].join('\n'),
+      terminar: ['Deixar a linha aberta', 'Combinar como se volta a falar', 'Resumir o que ficou combinado'].join('\n')
+    };
+
+    // 1) Caso de treino
+    const caso = {
+      tipo: 'Violência Doméstica', local: 'Rua das Flores, n.º 12, 2.º Esq. — Santarém', cter: 'CTer Curso',
+      data_hora: ts(90), gravidade: '', gravidade_criterios: [], estado: 'Em curso',
+      descricao: '[EXEMPLO] Ex-companheiro barricado na residência com a ex-companheira. Ameaça matá-la se a GNR entrar e ameaça matar-se se ela não voltar para casa. Alcoolizado. Arma branca (faca de cozinha). Dois filhos menores fora do local.',
+      contacto_vitima: '912 345 678', contacto_agressor: '913 456 789', nome_vitima: VIT, nome_agressor: V,
+      autor_id: currentUser.id, autor_nome: currentProfile.nome, participantes,
+      equipa: eq, quadros, notas_n1, pedidos_n3, envios_coord, plano_dialogo,
+      escrita_n1: 'Rui atendeu à 3.ª tentativa. Muito agitado no início; acalmou quando se falou nos filhos.\nCombinado voltar a ligar dentro de 10 minutos.'
+    };
+    const { data: novo, error: e1 } = await sb.from('treino_incidentes').insert(caso).select('*').single();
+    if (e1 || !novo) throw new Error('Caso: ' + (e1 ? e1.message : 'sem resposta'));
+    const base = { parent_type: 'incidente', parent_id: novo.id, autor_id: currentUser.id, autor_nome: currentProfile.nome };
+
+    // 2) Formulários
+    const tarefas = [
+      ['Plano de Negociação', sb.from('plano_negociacao').insert(Object.assign({}, base, {
+        tipo_situacao: 'crise',
+        posicao_adversario: '• AMEAÇA MATAR A EX-COMPANHEIRA SE A GNR ENTRAR\n• AMEAÇA MATAR-SE SE ELA NÃO VOLTAR PARA CASA',
+        interesses_adversario: 'Não perder o contacto com os filhos\nSentir-se ouvido e respeitado\nNão ser humilhado à frente dos vizinhos',
+        alinhamento: 'desalinhados',
+        identificacao_problema: 'P1 [Operacional] Ameaça matar a vítima se entrarmos\nP2 [Pessoal] Medo de perder o contacto com os filhos',
+        'objetivos_intermédios': [
+          '- [x] Estabelecer contacto direto com o visado | Problema: P1 | Modalidade: Contacto telefónico | Tempo: 15 min | Meios: Telefone de negociação; Telemóvel do visado (' + quando(45) + ')',
+          '- [ ] Obter compromisso de não agressão durante o contacto | Problema: P1 | Modalidade: Desescalada emocional (escuta ativa) | Tempo: 30 min | Meios: Telefone de negociação; Psicólogo',
+          '- [ ] Obter libertação da totalidade das vítimas ou reféns | Problema: P1 | Modalidade: Troca ou concessão | Tempo: 1 h | Meios: Equipa tática (GIOE); INEM / VMER',
+          '- [ ] Possibilidade de contacto futuro com os filhos, pelos meios legais | Problema: P2 | Modalidade: Recurso a âncora / intermediário | Tempo: 30 min | Meios: Familiar / pessoa de referência'
+        ].join('\n')
+      }))],
+      ['IRIS', sb.from('iris').insert(Object.assign({}, base, {
+        patient_name: V, assessment_date: new Date(agora).toISOString().slice(0, 10),
+        gender: 'male', age_group: 'under45', religiosity: 'no',
+        isolation: true, recent_loss: true, physical_illness: false, substance_abuse: true,
+        psychiatric_illness: false, psychiatric_history: false, family_suicide: false,
+        suicide_history: true, suicide_plan: false, score: 11, risk_level: 'Elevado', visado_num: 1
+      }))],
+      // Valores de calcSARI para estas respostas: cooperação 40 % · risco 8/10
+      ['Aval. Risco/Coop.', sb.from('sari').insert(Object.assign({}, base, {
+        age_group: '36-45', mental_state: 'Muito Agitado', criminal_history: 'violencia-domestica', threat_history: 'repetidas',
+        situation_type: 'violencia-domestica', weapons: 'branca', weapon_used: 'nao', hostages: 'sim', sequestro_victims: 'nao',
+        communication: 'hostil', violence_history: 'repetido', substance_use: 'alcool', duration: '1-3h',
+        additional_info: 'Queixa anterior por violência doméstica há 6 meses. Visado alcoolizado.',
+        negotiation_probability: 40, risk_level: 8
+      }))],
+      ['Contactos', sb.from('rnrv_contactos').insert([
+        { min: 75, dur: 4, risk: 'elevado', emo: 3, inf: 1, notes: 'Primeiro contacto. Grita e desliga ao fim de 4 minutos.' },
+        { min: 50, dur: 12, risk: 'medio', emo: 2, inf: 2, notes: 'Aceita falar. Pede para falar com a ex-companheira. Referiu os filhos.' },
+        { min: 20, dur: 18, risk: 'baixo', emo: 1, inf: 3, notes: 'Mais calmo. Aceita a presença da irmã. Combinado voltar a ligar em 10 minutos.' }
+      ].map(c => Object.assign({}, base, { contact_datetime: ts(c.min), duration_min: c.dur, contact_type: 'telefonico', suicide_risk: c.risk, notes: c.notes, emotional_activation: c.emo, influence_level: c.inf })))],
+      ['Informações', sb.from('info_registos').insert([
+        { min: 80, cat: 'judicial', fonte: 'SIIOP', fiab: 'confirmada', imp: 'desfavoravel', t: 'Queixa anterior por violência doméstica contra a mesma vítima (há 6 meses). Medida de afastamento em vigor.' },
+        { min: 60, cat: 'familiar', fonte: 'Irmã do visado', fiab: 'provavel', imp: 'favoravel', t: 'O visado tem muito boa relação com a irmã e com os filhos. Perdeu o emprego há 2 meses.' },
+        { min: 40, cat: 'tatica', fonte: 'Equipa tática', fiab: 'confirmada', imp: 'neutro', t: 'Apartamento com uma única entrada. Janela da sala visível do prédio em frente.' }
+      ].map(i => Object.assign({}, base, { data_hora: ts(i.min), categoria: i.cat, fonte: i.fonte, fiabilidade: i.fiab, texto: i.t, impacto: i.imp })))],
+      ['Guião Anexo B', sb.from('info_anexob').insert(Object.assign({}, base, {
+        nome: V, alcunha: 'Ruca', data_nascimento: null, idade: 41, genero: 'masculino', nacionalidade: 'Portuguesa',
+        documento: 'Cartão de Cidadão', nif: '', descricao_fisica: 'Cerca de 1,80 m, magro, cabelo curto castanho, barba. Camisola cinzenta.',
+        ferimentos: 'nenhum', cuidados_medicos: 'nao', doencas: 'Nenhuma conhecida', medicacao: 'Desconhecida',
+        doencas_mentais: ['Depressão'], historico_psiquiatrico: 'Acompanhamento em consulta de psiquiatria no último ano.',
+        tentativas_suicidio: 'Uma tentativa há 3 anos (ingestão de medicamentos).',
+        tipo_residencia: 'apartamento', acesso: 'dificil', visibilidade: 'reduzida', num_pisos: 4,
+        comunicacoes: ['Telemóvel', 'Janela / Voz direta'], pessoas_presentes: ['Reféns'],
+        descricao_outras_pessoas: VIT + ', ex-companheira, 38 anos.',
+        armas_presentes: 'branca', armas_utilizadas: 'ameacas', descricao_armas: 'Faca de cozinha com lâmina de cerca de 20 cm.',
+        substancias: ['Álcool'], descricao_situacao: 'Barricado no apartamento com a ex-companheira desde cerca das 18h00.',
+        motivo: 'Separação recente; a ex-companheira saiu de casa com os filhos.', outros_dados: 'Perdeu o emprego há 2 meses.',
+        historico_criminal: 'Queixa por violência doméstica (há 6 meses).', relacoes: 'Boa relação com a irmã (Sofia) e com os filhos.',
+        fatores_stress: 'Separação, desemprego, afastamento dos filhos.', exigencias: 'Falar com a ex-companheira a sós; que a GNR se afaste.',
+        resp_nome: currentProfile.nome || '', resp_posto: currentProfile.posto || '', resp_unidade: currentProfile.cter || '',
+        resp_data: new Date(agora).toISOString().slice(0, 10)
+      }))],
+      ['Histórico', sb.from('historico').insert([
+        { acao: 'criado (caso de exemplo)' },
+        { acao: 'EN escalada — ' + EN_POSICOES.filter(p => eq[p.k]).map(p => p.nome + ': ' + enNomeUtil(eq[p.k])).join('; ') }
+      ].map(h => ({ tabela: 'treino_incidentes', registo_id: novo.id, acao: h.acao, autor_id: currentUser.id, autor_nome: currentProfile.nome })))]
+    ];
+    const res = await Promise.all(tarefas.map(t => t[1]));
+    const falhas = res.map((r, i) => r.error ? tarefas[i][0] + ': ' + r.error.message : null).filter(Boolean);
+    await renderTreino();
+    fim();
+    const semEN = 4 - ['n1', 'n2', 'n3', 'n4'].filter(k => eq[k]).length;
+    alert('Caso de exemplo criado.'
+      + (semEN > 0 ? '\n\nNota: só havia ' + (4 - semEN) + ' negociador(es) operacional(is) disponível(is) para a EN, além de si (Coordenador).' : '')
+      + (falhas.length ? '\n\nAlguns formulários não foram preenchidos:\n- ' + falhas.join('\n- ') : ''));
+    if (typeof isMobile !== 'undefined' && isMobile && typeof mobOpenDetail === 'function') mobOpenDetail('inc', novo.id, true);
+    else openTreinoRecord('inc', novo);
+  } catch (e) {
+    fim();
+    alert('Erro ao criar o caso de exemplo: ' + (e.message || e));
+  }
+}
+
 function mobRenderTreino() {
+  treinoExemploBtnVisivel();
   loadTreino().then(() => { if (!treinoTab) treinoTab = 'todos'; mobSwitchTreinoTab(treinoTab); });
 }
 
@@ -13325,6 +13490,7 @@ setImages();
     </div>
     <div style="margin-bottom:12px">
       <button class="btn btn-primary" style="width:100%;padding:14px;font-size:15px;font-weight:600" onclick="openTreinoModal('inc')"><i class="fas fa-plus"></i> Abrir Novo Incidente</button>
+      <button class="btn btn-gold" id="mob-btn-treino-exemplo" style="display:none;width:100%;padding:12px;font-size:14px;font-weight:600;margin-top:8px" onclick="criarCasoExemploTreino()"><i class="fas fa-wand-magic-sparkles"></i> Caso de Exemplo</button>
     </div>
     <div style="display:flex;gap:6px;margin-bottom:12px;align-items:center">
       <button class="btn btn-primary btn-sm" id="mob-treino-tab-todos" onclick="mobSwitchTreinoTab('todos')">Todos</button>
