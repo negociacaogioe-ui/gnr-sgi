@@ -2925,7 +2925,7 @@ function _coordEnviarHTML(){
       + es.slice().reverse().map(e => '<div style="font-size:12px;line-height:1.45;padding:4px 0;border-bottom:1px dashed var(--border)">'
         + '<span style="font-weight:600;color:var(--gm)">' + _coordEnvCampo(e.q) + '</span> · ' + e.t
         + '<div style="font-size:10.5px;color:var(--gray400);font-family:\'IBM Plex Mono\',monospace">→ ' + (e.dest || []).map(d => d === 'n3' ? 'N.º 3' : 'N.º 4').join(' + ') + ' · ' + fmtDateTime(e.ts)
-        + (e.ins ? ' · <span style="color:var(--gm)"><i class="fas fa-check"></i> inserida no quadro</span>' : ((e.dest || []).indexOf('n3') > -1 ? ' · <span style="color:var(--gold)">pendente no n.º 3</span>' : '')) + '</div></div>').join('');
+        + (e.ins ? ' · <span style="color:var(--gm)"><i class="fas fa-check"></i> inserida no quadro</span>' : e.del3 ? ' · <span style="color:var(--red)">apagada pelo n.º 3 sem inserir</span>' : ((e.dest || []).indexOf('n3') > -1 ? ' · <span style="color:var(--gold)">pendente no n.º 3</span>' : '')) + '</div></div>').join('');
   }
   return h + '</div>';
 }
@@ -2943,7 +2943,7 @@ async function coordEnviar(){
 // Post-its do Coordenador vistos pelo n.º 3 (pode inserir no quadro) ou pelo n.º 4 (só leitura)
 function _coordRecebidasHTML(pos){
   const es = Array.isArray(currentDetail.record.envios_coord) ? currentDetail.record.envios_coord : [];
-  const minhas = es.map((e, i) => [e, i]).filter(([e]) => (e.dest || []).indexOf(pos) > -1).reverse();
+  const minhas = es.map((e, i) => [e, i]).filter(([e]) => (e.dest || []).indexOf(pos) > -1 && !(pos === 'n3' && e.del3)).reverse();
   if(!minhas.length) return '';
   const pend = minhas.filter(([e]) => !e.ins).length;
   return '<div style="background:#fff;border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:var(--r);padding:11px;margin-bottom:12px">'
@@ -2956,11 +2956,22 @@ function _coordRecebidasHTML(pos){
           + '<div style="font-size:10.5px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">→ ' + _coordEnvCampo(e.q) + '</div>'
           + '<div style="font-size:13.5px;line-height:1.5;color:var(--gray900);font-family:\'IBM Plex Mono\',monospace">' + e.t + '</div>'
           + '<div style="font-size:10.5px;color:var(--gray400);margin-top:3px;font-family:\'IBM Plex Mono\',monospace">' + (e.a || '—') + ' · ' + fmtDateTime(e.ts)
-          + (e.ins ? ' · <span style="color:var(--gm)"><i class="fas fa-check"></i> inserida no quadro' + (e.ins.a ? ' por ' + e.ins.a : '') + '</span>' : (pos === 'n4' && (e.dest || []).indexOf('n3') > -1 ? ' · <span style="color:var(--gold)">pendente no n.º 3</span>' : '')) + '</div>'
-          + (pos === 'n3' && !e.ins ? '<button class="btn btn-primary btn-sm" onclick="coordInserirNoQuadro(' + i + ')" style="margin-top:6px;font-size:11.5px;padding:4px 10px"><i class="fas fa-arrow-down"></i> Inserir em «' + _coordEnvCampo(e.q) + '»</button>' : '')
+          + (e.ins ? ' · <span style="color:var(--gm)"><i class="fas fa-check"></i> inserida no quadro' + (e.ins.a ? ' por ' + e.ins.a : '') + '</span>' : (pos === 'n4' && (e.dest || []).indexOf('n3') > -1 ? (e.del3 ? ' · <span style="color:var(--red)">apagada pelo n.º 3 sem inserir</span>' : ' · <span style="color:var(--gold)">pendente no n.º 3</span>') : '')) + '</div>'
+          + (pos === 'n3' ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">'
+              + (!e.ins ? '<button class="btn btn-primary btn-sm" onclick="coordInserirNoQuadro(' + i + ')" style="font-size:11.5px;padding:4px 10px"><i class="fas fa-arrow-down"></i> Inserir em «' + _coordEnvCampo(e.q) + '»</button>' : '')
+              + '<button class="btn btn-outline btn-sm" onclick="coordApagarN3(' + i + ')" style="font-size:11.5px;padding:4px 10px"><i class="fas fa-trash-can"></i> Apagar</button>'
+              + '</div>' : '')
           + '</div>';
       }).join('')
     + '</div>';
+}
+// Apagar no n.º 3: a caixa sai do ecrã do n.º 3; o envio fica registado (Coordenador e n.º 4 continuam a vê-lo)
+async function coordApagarN3(i){
+  const es = JSON.parse(JSON.stringify(currentDetail.record.envios_coord || []));
+  const e = es[i]; if(!e || e.del3) return;
+  if(!e.ins && !confirm('Apagar esta informação do Coordenador sem a inserir no quadro?')) return;
+  e.del3 = { a: currentProfile.nome, ts: new Date().toISOString() };
+  if(await _postoUpdate({envios_coord: es})) renderPosto();
 }
 async function coordInserirNoQuadro(i){
   const es = JSON.parse(JSON.stringify(currentDetail.record.envios_coord || []));
