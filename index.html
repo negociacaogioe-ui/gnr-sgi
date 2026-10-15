@@ -4214,10 +4214,8 @@ function propostaComandanteTexto(D){
   ped.push('- Manter a força afastada e sem ações visíveis enquanto a conversa progride, salvo perigo iminente.');
   sec('O que pedimos', ped);
 
-  const d = new Date(), z = n => String(n).padStart(2, '0');
-  return 'PROPOSTA DA EQUIPA DE NEGOCIAÇÃO AO COMANDANTE\n' + z(d.getDate()) + '/' + z(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + z(d.getHours()) + ':' + z(d.getMinutes())
-    + (currentDetail.isTreino ? ' — TREINO' : '') + '\n\n' + P.join('\n\n')
-    + '\n\nApoio à decisão; não substitui a decisão do Comandante.';
+  // Só os três pontos, sem cabeçalho nem rodapé
+  return P.join('\n\n');
 }
 async function propostaComandanteAbrir(){
   if(!currentDetail) return;
