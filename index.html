@@ -4092,12 +4092,6 @@ function _propMin(t){
   return t.charAt(0).toLowerCase() + t.slice(1);
 }
 function _propLinhas(t){ return String(t || '').split('\n').map(l => l.replace(/^\s*[•\-*]\s*/, '').trim()).filter(Boolean); }
-function _propTempoMin(t){
-  t = String(t || '').toLowerCase();
-  const h = t.match(/(\d+)\s*h/), m = t.match(/(\d+)\s*min/);
-  if(/mais de 2 h/.test(t)) return 150;
-  return (h ? +h[1] * 60 : 0) + (m ? +m[1] : 0);
-}
 async function _propDados(){
   const { type, record:r } = currentDetail;
   const pt = type === 'inc' ? 'incidente' : 'itp';
@@ -4200,10 +4194,8 @@ function propostaComandanteTexto(D){
       mod = 'propor uma troca' + (oferta.length ? ' (' + oferta.map(_propMin).join(', ') + ')' : '') + ', concedida só em troca deste resultado';
     }
     const alerta = (armaFogo && /presencial|face a face/i.test(o.mod || '')) ? ' (atenção: expõe o negociador a uma arma de fogo)' : '';
-    prop.push((i + 1) + '. ' + _propFrase(o.obj).replace(/\.$/, '') + (mod ? ' — ' + mod + alerta : '') + ((o.tempo || '').trim() ? ' (' + o.tempo.trim() + ')' : '') + '.');
+    prop.push((i + 1) + '. ' + _propFrase(o.obj).replace(/\.$/, '') + (mod ? ' — ' + mod + alerta : '') + '.'); // sem tempos: não vincular a equipa a uma janela de tempo
   });
-  const tPrev = porFazer.reduce((t, o) => t + _propTempoMin(o.tempo), 0);
-  if(tPrev) prop.push('Tempo estimado: cerca de ' + (tPrev >= 60 ? Math.floor(tPrev / 60) + ' h' + (tPrev % 60 ? ' ' + (tPrev % 60) + ' min' : '') : tPrev + ' min') + '.');
   sec('O que propomos', prop);
 
   // --- 3. O que pedimos ao Comandante (só os meios que a equipa pôs no PN) ---
