@@ -4112,7 +4112,7 @@ async function _propDados(){
   irisOrdenar(b.data || []).forEach(x => { ultIris[irisVisadoNum(x)] = x; });
   return { r, pn, iris: Object.values(ultIris), sari: c.data || null, cts: d.data || [], ab: e.data || null };
 }
-function propostaComandanteTexto(D){
+function propostaComandanteEstrutura(D){
   const { r, pn, iris, sari, cts, ab } = D;
   const q = r.quadros || {};
   const qTxt = k => (Array.isArray(q[k]) ? q[k] : []).map(x => String(x.t || ''));
@@ -4120,9 +4120,10 @@ function propostaComandanteTexto(D){
   _propNomes = [];
   [r.nome_agressor, r.nome_vitima].forEach(n => { n = String(n || '').trim(); if(!n) return; _propNomes.push(n); n.split(/\s+/).forEach(w => { if(w.length >= 3) _propNomes.push(w); }); });
   _propNomes = Array.from(new Set(_propNomes)).sort((a, b) => b.length - a.length);
+  // Estrutura: secções → grupos → itens (cada item pode ser desmarcado para a versão final).
+  // Grupo: {rot: rótulo opcional, b: marcador ('- ' | 'n' = numerado | '' ), em: 'linha' junta os itens numa só linha}
   const P = [];
-  // Secções numeradas automaticamente (uma secção sem conteúdo não aparece e não conta)
-  const sec = (tit, corpo) => { corpo = corpo.filter(Boolean); if(corpo.length) P.push((P.length + 1) + '. ' + tit.replace(/^\d+\.\s*/, '').toUpperCase() + '\n' + corpo.join('\n')); };
+  const sec = (tit, grupos) => { grupos = grupos.filter(g => g && g.itens && g.itens.filter(Boolean).length).map(g => Object.assign({}, g, {itens: g.itens.filter(Boolean)})); if(grupos.length) P.push({tit, grupos}); };
 
   // --- Arma ---
   const tudo = [pn.identificacao_problema, pn.posicao_adversario, qTxt('exigencias').join(' '), qTxt('agressores').join(' '), qTxt('outras').join(' '), ab && ab.descricao_armas].join(' ').toLowerCase();
@@ -4178,14 +4179,12 @@ function propostaComandanteTexto(D){
   else if(pts >= 3) veredicto = 'A situação TENDE A RESOLVER-SE PELA NEGOCIAÇÃO.';
   else if(pts >= 0) veredicto = 'A situação PODE RESOLVER-SE PELA NEGOCIAÇÃO, sem garantias: manter uma alternativa preparada.';
   else veredicto = 'A situação NÃO TENDE A RESOLVER-SE SÓ PELA NEGOCIAÇÃO: preparar uma alternativa, mantendo a conversa enquanto for útil.';
-  sec('Avaliação', [veredicto,
-    porque.length ? 'Porquê:\n' + porque.map(t => '- ' + t).join('\n') : '',
-    cuidados.length ? 'Cuidados:\n' + cuidados.map(t => '- ' + t).join('\n') : '']);
+  sec('Avaliação', [{b:'', itens:[veredicto]}, {rot:'Porquê:', b:'- ', itens:porque}, {rot:'Cuidados:', b:'- ', itens:cuidados}]);
 
   // --- 2. O que propomos ---
-  const prop = [];
-  if(armaFogo) prop.push('- Falar com ele por telemóvel/telefone, à distância, para que nenhum negociador fique exposto no terreno a uma arma de fogo' + (disparou ? ' (já houve disparos)' : '') + '.');
-  else if(armaBranca) prop.push('- Falar com ele à distância, mantendo distância de segurança por causa da arma branca.');
+  const prop = [], passos = [];
+  if(armaFogo) prop.push('Falar com ele por telemóvel/telefone, à distância, para que nenhum negociador fique exposto no terreno a uma arma de fogo' + (disparou ? ' (já houve disparos)' : '') + '.');
+  else if(armaBranca) prop.push('Falar com ele à distância, mantendo distância de segurança por causa da arma branca.');
   porFazer.forEach((o, i) => {
     let mod = PROP_MOD[String(o.mod || '').trim().toLowerCase()] || _propMin(o.mod);
     // Troca: diz o que se troca (meios do passo, exceto comunicação, apoio externo e sistema de entrega) e que só é concedida contra este resultado
@@ -4194,21 +4193,36 @@ function propostaComandanteTexto(D){
       mod = 'propor uma troca' + (oferta.length ? ' (' + oferta.map(_propMin).join(', ') + ')' : '') + ', concedida só em troca deste resultado';
     }
     const alerta = (armaFogo && /presencial|face a face/i.test(o.mod || '')) ? ' (atenção: expõe o negociador a uma arma de fogo)' : '';
-    prop.push((i + 1) + '. ' + _propFrase(o.obj).replace(/\.$/, '') + (mod ? ' — ' + mod + alerta : '') + '.'); // sem tempos: não vincular a equipa a uma janela de tempo
+    passos.push(_propFrase(o.obj).replace(/\.$/, '') + (mod ? ' — ' + mod + alerta : '') + '.'); // sem tempos: não vincular a equipa a uma janela de tempo
   });
-  sec('O que propomos', prop);
+  sec('O que propomos', [{b:'- ', itens:prop}, {b:'n', itens:passos}]);
 
   // --- 3. O que pedimos ao Comandante (só os meios que a equipa pôs no PN) ---
   const meios = [];
   porFazer.forEach(o => (o.meios || []).forEach(m => { if(meios.indexOf(m) < 0) meios.push(m); }));
-  const ped = [];
-  if(meios.length) ped.push('- Meios: ' + meios.join('; ') + '.');
-  ped.push('- Manter a força afastada e sem ações visíveis enquanto a conversa progride, salvo perigo iminente.');
-  sec('O que pedimos', ped);
-
-  // Só os três pontos, sem cabeçalho nem rodapé
-  return P.join('\n\n');
+  sec('O que pedimos', [{rot:'Meios:', b:'- ', em:'linha', itens:meios},
+    {b:'- ', itens:['Manter a força afastada e sem ações visíveis enquanto a conversa progride, salvo perigo iminente.']}]);
+  return P;
 }
+// Compõe o texto final só com os itens marcados (sel[s][g][i] === false → excluído). Renumera secções e passos.
+function propostaComandanteCompor(P, sel){
+  sel = sel || {};
+  const on = (s, g, i) => !(sel[s] && sel[s][g] && sel[s][g][i] === false);
+  const out = [];
+  P.forEach((sc, si) => {
+    const linhas = [];
+    sc.grupos.forEach((g, gi) => {
+      const its = g.itens.filter((t, ii) => on(si, gi, ii));
+      if(!its.length) return;
+      if(g.em === 'linha'){ linhas.push(g.b + (g.rot ? g.rot + ' ' : '') + its.join('; ') + '.'); return; }
+      if(g.rot) linhas.push(g.rot);
+      its.forEach((t, k) => linhas.push((g.b === 'n' ? (k + 1) + '. ' : g.b) + t));
+    });
+    if(linhas.length) out.push((out.length + 1) + '. ' + sc.tit.toUpperCase() + '\n' + linhas.join('\n'));
+  });
+  return out.join('\n\n');
+}
+function propostaComandanteTexto(D){ return propostaComandanteCompor(propostaComandanteEstrutura(D)); }
 async function propostaComandanteAbrir(){
   if(!currentDetail) return;
   let m = document.getElementById('modal-proposta-cmdt');
@@ -4219,19 +4233,51 @@ async function propostaComandanteAbrir(){
       + '<div class="modal-header"><span class="modal-title"><i class="fas fa-user-tie" style="margin-right:6px"></i>Proposta ao Comandante</span>'
       + '<button class="modal-close" onclick="closeModal(\'modal-proposta-cmdt\')"><i class="fas fa-xmark"></i></button></div>'
       + '<div class="modal-body">'
-      + '<p style="font-size:12px;color:var(--gray600);margin:0 0 8px;line-height:1.5">Texto gerado a partir do Plano de Negociação e dos dados do caso, sem termos técnicos. Pode ser revisto e ajustado antes de copiar. Não é guardado.</p>'
-      + '<textarea id="proposta-cmdt-txt" rows="22" style="width:100%;font-size:13px;line-height:1.55;font-family:\'IBM Plex Sans\',sans-serif"></textarea>'
+      + '<p style="font-size:12px;color:var(--gray600);margin:0 0 8px;line-height:1.5">Gerado a partir do Plano de Negociação e dos dados do caso, sem termos técnicos. Desmarque os pontos que não quer apresentar; a versão final atualiza-se e pode ainda ser ajustada à mão antes de copiar. Não é guardado.</p>'
+      + '<div id="proposta-cmdt-sel" style="border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;max-height:300px;overflow:auto;margin-bottom:10px;background:var(--gp)"></div>'
+      + '<div style="font-size:10.5px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Versão final</div>'
+      + '<textarea id="proposta-cmdt-txt" rows="14" oninput="_propEditado=true" style="width:100%;font-size:13px;line-height:1.55;font-family:\'IBM Plex Sans\',sans-serif"></textarea>'
       + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">'
       + '<button class="btn btn-outline btn-sm" onclick="propostaComandanteAbrir()"><i class="fas fa-rotate"></i> Gerar de novo</button>'
       + '<button class="btn btn-primary btn-sm" id="proposta-cmdt-copiar" onclick="propostaComandanteCopiar()"><i class="fas fa-copy"></i> Copiar texto</button>'
       + '</div></div></div>';
     document.body.appendChild(m);
   }
-  const ta = document.getElementById('proposta-cmdt-txt');
-  ta.value = 'A gerar…';
+  const ta = document.getElementById('proposta-cmdt-txt'), box = document.getElementById('proposta-cmdt-sel');
+  ta.value = 'A gerar…'; box.innerHTML = '';
   m.classList.remove('hidden');
-  try { ta.value = propostaComandanteTexto(await _propDados()); }
+  try {
+    _propP = propostaComandanteEstrutura(await _propDados());
+    _propSel = {}; _propEditado = false;
+    _propSelRender();
+    ta.value = propostaComandanteCompor(_propP, _propSel);
+  }
   catch(e){ ta.value = 'Não foi possível gerar a proposta: ' + (e.message || e); }
+}
+let _propP = [], _propSel = {}, _propEditado = false;
+function _propSelRender(){
+  const box = document.getElementById('proposta-cmdt-sel'); if(!box) return;
+  if(!_propP.length){ box.innerHTML = '<div style="font-size:12px;color:var(--gray400);font-style:italic">Sem dados para a proposta.</div>'; return; }
+  box.innerHTML = _propP.map((sc, si) =>
+    '<div style="margin-bottom:8px"><div style="font-size:10.5px;font-weight:700;color:var(--gn);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">' + _escHtml(sc.tit) + '</div>'
+    + sc.grupos.map((g, gi) =>
+        (g.rot ? '<div style="font-size:11px;font-weight:600;color:var(--gray600);margin:4px 0 2px">' + _escHtml(g.rot) + '</div>' : '')
+        + g.itens.map((t, ii) => {
+            const on = !(_propSel[si] && _propSel[si][gi] && _propSel[si][gi][ii] === false);
+            return '<label style="display:flex;align-items:flex-start;gap:7px;font-size:12.5px;line-height:1.45;padding:2px 0;cursor:pointer;font-weight:400;color:' + (on ? 'var(--gray900)' : 'var(--gray400)') + '">'
+              + '<input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="propostaComandanteMarcar(' + si + ',' + gi + ',' + ii + ',this.checked)" style="width:auto;margin:3px 0 0;flex-shrink:0">'
+              + '<span' + (on ? '' : ' style="text-decoration:line-through"') + '>' + _escHtml(t) + '</span></label>';
+          }).join('')
+      ).join('')
+    + '</div>').join('');
+}
+function propostaComandanteMarcar(si, gi, ii, on){
+  if(_propEditado && !confirm('A versão final foi alterada à mão. Ao mudar a seleção, essas alterações perdem-se. Continuar?')){ _propSelRender(); return; }
+  _propSel[si] = _propSel[si] || {}; _propSel[si][gi] = _propSel[si][gi] || {};
+  _propSel[si][gi][ii] = !!on;
+  _propEditado = false;
+  _propSelRender();
+  const ta = document.getElementById('proposta-cmdt-txt'); if(ta) ta.value = propostaComandanteCompor(_propP, _propSel);
 }
 async function propostaComandanteCopiar(){
   const ta = document.getElementById('proposta-cmdt-txt'), b = document.getElementById('proposta-cmdt-copiar');
