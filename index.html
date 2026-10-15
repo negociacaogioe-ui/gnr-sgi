@@ -2505,7 +2505,7 @@ async function notasLimpar(){
   if(await _postoUpdate({notas_n1:[]})) renderPosto();
 }
 // ---- Render dos quadros ----
-// compacto = versão reduzida só de leitura (posto n.º 2). A última linha de cada quadro fica realçada a amarelo claro.
+// compacto = versão reduzida só de leitura (posto n.º 2). Mais recente em cima; a última informação inserida fica realçada a amarelo claro.
 function _quadrosHTML(editavel, compacto){
   const r=currentDetail.record; const q=r.quadros||{};
   const _mobQ = (typeof isMobile!=='undefined' && isMobile);
@@ -2516,7 +2516,7 @@ function _quadrosHTML(editavel, compacto){
     const cor = h.k==='evitar' ? 'var(--red)' : h.k==='acoes' ? 'var(--gl)' : 'var(--gn)';
     return '<div style="background:#fff;border:1px solid var(--border);border-top:3px solid '+cor+';border-radius:var(--r);padding:'+(compacto?'7px 8px':'10px')+'">'
       + '<div style="font-size:'+(compacto?'9.5px':'11px')+';font-weight:700;color:'+cor+';text-transform:uppercase;letter-spacing:.05em;margin-bottom:'+(compacto?'4px':'7px')+'">'+h.t+'</div>'
-      + (itens.length ? itens.map((it,i)=>'<div id="'+(compacto?'qc2':'q')+'-row-'+h.k+'-'+i+'" style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start;font-size:'+fs+';line-height:1.45;padding:'+(compacto?'3px 0':'5px 0')+';border-bottom:1px dashed var(--border)'+(i===itens.length-1?';background:#fff6c2;border-left:3px solid #f2d65c;padding-left:6px;padding-right:4px;border-radius:3px':'')+'"'+(i===itens.length-1?' title="Última informação inserida"':'')+'><span style="font-family:\'IBM Plex Mono\',monospace;flex:1'+(editavel?';cursor:text" title="Clique para corrigir" onclick="quadroEditar(\''+h.k+'\','+i+')':'')+'">'+it.t+'</span>'+(editavel?'<button onclick="quadroEditar(\''+h.k+'\','+i+')" style="border:none;background:none;color:var(--gray400);cursor:pointer;padding:0 2px" title="Corrigir"><i class="fas fa-pen" style="font-size:10px"></i></button><button onclick="quadroDel(\''+h.k+'\','+i+')" style="border:none;background:none;color:var(--gray400);cursor:pointer;padding:0 2px" title="Remover"><i class="fas fa-xmark"></i></button>':'')+'</div>').join('')
+      + (itens.length ? itens.map((it,i)=>[it,i]).reverse().map(([it,i])=>'<div id="'+(compacto?'qc2':'q')+'-row-'+h.k+'-'+i+'" style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start;font-size:'+fs+';line-height:1.45;padding:'+(compacto?'3px 0':'5px 0')+';border-bottom:1px dashed var(--border)'+(i===itens.length-1?';background:#fff6c2;border-left:3px solid #f2d65c;padding-left:6px;padding-right:4px;border-radius:3px':'')+'"'+(i===itens.length-1?' title="Última informação inserida"':'')+'><span style="font-family:\'IBM Plex Mono\',monospace;flex:1'+(editavel?';cursor:text" title="Clique para corrigir" onclick="quadroEditar(\''+h.k+'\','+i+')':'')+'">'+it.t+'</span>'+(editavel?'<button onclick="quadroEditar(\''+h.k+'\','+i+')" style="border:none;background:none;color:var(--gray400);cursor:pointer;padding:0 2px" title="Corrigir"><i class="fas fa-pen" style="font-size:10px"></i></button><button onclick="quadroDel(\''+h.k+'\','+i+')" style="border:none;background:none;color:var(--gray400);cursor:pointer;padding:0 2px" title="Remover"><i class="fas fa-xmark"></i></button>':'')+'</div>').join('')
                      : '<div style="font-size:12px;color:var(--gray400);font-style:italic">—</div>')
       + (editavel && h.k==='posicao' ? '<div id="n3-align"></div>' : '')
       + (editavel && h.k==='indicadores' ? '<button type="button" class="btn btn-ghost btn-sm" onclick="indicadoresAbrir()" style="font-size:11px;padding:3px 9px;margin-bottom:6px"><i class="fas fa-list-check"></i> Ver opções</button><div id="ind-painel" class="hidden" style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:9px;margin-bottom:7px"></div>' : '')
@@ -2965,7 +2965,7 @@ async function renderQuadroCoordenador(){
   const lista = (titulo, itens, cor) =>
     '<div style="background:#fff;border:1px solid var(--border);border-top:3px solid ' + cor + ';border-radius:var(--r);padding:11px 13px">'
     + '<div style="font-size:10px;font-weight:700;color:' + cor + ';text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">' + titulo + '</div>'
-    + (itens.length ? itens.map((x, i) => '<div style="font-size:12.5px;line-height:1.5;color:var(--gray900);font-family:\'IBM Plex Mono\',monospace;padding:2px 0' + (i === itens.length - 1 ? ';background:#fff6c2;border-left:3px solid #f2d65c;padding-left:6px;border-radius:3px' : '') + '">• ' + (x.t||x) + '</div>').join('')
+    + (itens.length ? itens.map((x, i) => [x, i]).reverse().map(([x, i]) => '<div style="font-size:12.5px;line-height:1.5;color:var(--gray900);font-family:\'IBM Plex Mono\',monospace;padding:2px 0' + (i === itens.length - 1 ? ';background:#fff6c2;border-left:3px solid #f2d65c;padding-left:6px;border-radius:3px' : '') + '">• ' + (x.t||x) + '</div>').join('')
                     : '<div style="font-size:12px;color:var(--gray400);font-style:italic">—</div>')
     + '</div>';
 
