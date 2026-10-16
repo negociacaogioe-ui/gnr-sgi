@@ -3348,6 +3348,7 @@ function renderPosto(){
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Informação que lhe é prestada. Não preenche formulários durante o contacto.</p>'
       + _n1ContactosHTML(r)
       + _notasHTML(false)
+      + _quadroN1HTML(r)
       // Quadros do n.º 3 em versão reduzida (só leitura, como o n.º 2), por baixo dos post-its
       + ((eN2 || eN3) ? '' : '<div style="margin:12px 0"><div style="font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px"><i class="fas fa-table-columns" style="margin-right:5px"></i>Quadros do n.º 3 · só leitura</div>' + _quadrosHTML(false, true) + '</div>')
       + _n1LivreHTML()
@@ -3500,7 +3501,10 @@ async function renderPN2(){
     + '</div>'
     + '<div class="form-section" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
     +   '<span style="font-size:12px;color:var(--gray600);line-height:1.5;flex:1;min-width:200px"><i class="fas fa-user-tie" style="color:var(--gl);margin-right:5px"></i>Gera o texto da proposta a apresentar ao Comandante, em linguagem simples e sem termos técnicos, com base no PN e nos dados do caso.</span>'
-    +   '<button type="button" class="btn btn-primary btn-sm" onclick="propostaComandanteAbrir()"><i class="fas fa-file-lines"></i> Proposta ao Comandante</button>'
+    +   '<span style="display:flex;gap:6px;flex-wrap:wrap">'
+    +     '<button type="button" class="btn btn-outline btn-sm" onclick="quadroN1Abrir()" title="Escolher o que o n.º 1 vê do PN e enviar-lhe"><i class="fas fa-headset"></i> Quadro para o n.º 1</button>'
+    +     '<button type="button" class="btn btn-primary btn-sm" onclick="propostaComandanteAbrir()"><i class="fas fa-file-lines"></i> Proposta ao Comandante</button>'
+    +   '</span>'
     + '</div>'
     + sgiBarraHTML('pn2','Guardar PN');
   sgiAutosaveLigar('pn2');
@@ -4306,6 +4310,170 @@ async function propostaComandanteCopiar(){
   try { await navigator.clipboard.writeText(ta.value); }
   catch(e){ ta.select(); try { document.execCommand('copy'); } catch(_){} }
   if(b){ const h = b.innerHTML; b.innerHTML = '<i class="fas fa-check"></i> Copiado'; setTimeout(() => { b.innerHTML = h; }, 1500); }
+}
+
+// ===== Quadro do PN para o n.º 1 =====
+// A equipa compõe, a partir do PN (e dos quadros do n.º 3), um quadro simples que orienta a linha de raciocínio do n.º 1:
+// onde estamos, os passos por ordem, o que ele precisa, a informação que ajuda a ultrapassar o impasse e o que não abordar.
+// Passo 1: seleção dos pontos; passo 2: pré-visualização e «Enviar ao n.º 1». Fica gravado em plano_dialogo.quadro_n1.
+const _QN1_AJUDA = [
+  // pessoas de confiança só quando o próprio passo as prevê
+  {re:/âncora|ancora|intermedi|confiança/i, k:['ancoras','familiares']},
+  {re:/filho|famíl|famil/i, k:['familiares']},
+  {re:/não agress|nao agress|acalm|desescal|escuta|estabil|comunica|contacto/i, k:['acoes','indicadores']},
+  {re:/libert|troca|concess|exig|refén|refen|vítima|vitima/i, k:['exigencias','vitimas']},
+  {re:/arma|entrega|neutraliz/i, k:['outras','acoes']},
+  {re:/saída|saida|rendi|entregar-se|dignidade/i, k:['acoes']},
+  {re:/médic|medic|ferid|saúde|saude/i, k:['vitimas','outras']}
+];
+function _qn1Raiz(w){ return w.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').slice(0, 5); }
+function _qn1Palavras(t){ return String(t || '').split(/[^A-Za-zÀ-ÿ]+/).filter(w => w.length >= 5).map(_qn1Raiz); }
+function quadroN1Estrutura(D){
+  const { r, pn } = D;
+  const q = r.quadros || {};
+  const qItens = k => (Array.isArray(q[k]) ? q[k] : []).map(x => String(x.t || '')).filter(Boolean);
+  _propNomes = [];
+  [r.nome_agressor, r.nome_vitima].forEach(n => { n = String(n || '').trim(); if(!n) return; _propNomes.push(n); n.split(/\s+/).forEach(w => { if(w.length >= 3) _propNomes.push(w); }); });
+  _propNomes = Array.from(new Set(_propNomes)).sort((a, b) => b.length - a.length);
+  const semPonto = t => _propFrase(t).replace(/\.$/, '');
+  const objs = (typeof pn2ObjParse === 'function' ? pn2ObjParse(pn['objetivos_intermédios']) : []).filter(o => (o.obj || '').trim());
+  const feitos = objs.filter(o => o.feito), porFazer = objs.filter(o => !o.feito);
+  const P = [];
+  const sec = (tit, grupos) => { grupos = grupos.filter(g => g && g.itens && g.itens.filter(Boolean).length).map(g => Object.assign({}, g, {itens: g.itens.filter(Boolean)})); if(grupos.length) P.push({tit, grupos}); };
+
+  sec('Onde estamos', [
+    {rot:'Objetivo atual:', b:'', itens: porFazer.length ? [semPonto(porFazer[0].obj)] : []},
+    {rot:'Já alcançado:', b:'✓ ', itens: feitos.map(o => semPonto(o.obj) + (o.quando ? ' (' + o.quando + ')' : ''))}
+  ]);
+  sec('Linha de raciocínio', [{b:'n', itens: porFazer.map(o => semPonto(o.obj) + ((o.mod || '').trim() ? ' — ' + o.mod.trim() : ''))}]);
+  sec('O que ele precisa', [{b:'- ', itens: _propLinhas(pn.interesses_adversario).map(semPonto)}]);
+
+  // Informação do n.º 3 que ajuda a ultrapassar o impasse: ligada ao objetivo a que ajuda (por tema ou por palavras em comum)
+  const cab = k => ((typeof QUADROS_CAB !== 'undefined' ? QUADROS_CAB.find(x => x.k === k) : null) || {}).t || k;
+  const fontes = ['ancoras','familiares','acoes','indicadores','exigencias','vitimas','outras'];
+  const ajuda = [], resto = [];
+  fontes.forEach(k => qItens(k).forEach(t => {
+    const pal = _qn1Palavras(t);
+    const alvo = porFazer.find(o => {
+      const txt = (o.obj || '') + ' ' + (o.mod || '');
+      if(_QN1_AJUDA.some(m => m.re.test(txt) && m.k.indexOf(k) > -1)) return true;
+      const po = _qn1Palavras(txt);
+      return pal.some(w => po.indexOf(w) > -1);
+    });
+    const linha = semPonto(t) + ' [' + cab(k) + ']';
+    if(alvo) ajuda.push(linha + ' → ajuda em: ' + _propMin(alvo.obj).replace(/\.$/, ''));
+    else if(k === 'ancoras' || k === 'familiares' || k === 'acoes') resto.push(linha);
+  }));
+  sec('Informação que ajuda a ultrapassar o impasse', [{b:'- ', itens: ajuda}, {rot:'Outra informação útil:', b:'- ', itens: resto}]);
+
+  const pd = r.plano_dialogo || {};
+  const evitar = qItens('evitar').map(semPonto).concat(_propLinhas(pd.evitar).map(semPonto));
+  const evU = []; evitar.forEach(t => { if(!evU.some(x => x.toLowerCase() === t.toLowerCase())) evU.push(t); });
+  sec('Não abordar', [{b:'✗ ', itens: evU.concat(['Perguntar, por iniciativa própria, o que aconteceu ou pelo passado'])}]);
+  return P;
+}
+function _qn1Filtrar(P, sel){
+  const on = (s, g, i) => !(sel[s] && sel[s][g] && sel[s][g][i] === false);
+  return P.map((sc, si) => ({tit: sc.tit, grupos: sc.grupos.map((g, gi) => Object.assign({}, g, {itens: g.itens.filter((t, ii) => on(si, gi, ii))})).filter(g => g.itens.length)})).filter(sc => sc.grupos.length);
+}
+function _qn1CorpoHTML(P){
+  const cor = t => /não abordar/i.test(t) ? 'var(--red)' : /impasse/i.test(t) ? 'var(--gm)' : 'var(--gn)';
+  return P.map(sc => '<div style="background:#fff;border:1px solid var(--border);border-left:3px solid ' + cor(sc.tit) + ';border-radius:var(--r);padding:8px 11px;margin-bottom:7px">'
+    + '<div style="font-size:10.5px;font-weight:700;color:' + cor(sc.tit) + ';text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">' + _escHtml(sc.tit) + '</div>'
+    + sc.grupos.map(g => (g.rot ? '<div style="font-size:11px;font-weight:600;color:var(--gray600);margin:3px 0 1px">' + _escHtml(g.rot) + '</div>' : '')
+        + g.itens.map((t, k) => {
+            const m = String(t).match(/^(.*?)( → ajuda em: .*)$/);
+            const corpo = m ? _escHtml(m[1]) + '<span style="color:var(--gm);font-weight:600">' + _escHtml(m[2]) + '</span>' : _escHtml(t);
+            return '<div style="font-size:12.5px;line-height:1.5;padding:1px 0' + (sc.tit === 'Onde estamos' && g.rot === 'Objetivo atual:' ? ';font-weight:700;color:var(--gn)' : '') + '">' + (g.b === 'n' ? (k + 1) + '. ' : g.b) + corpo + '</div>';
+          }).join('')).join('')
+    + '</div>').join('');
+}
+function _quadroN1HTML(r){
+  const qn = (r && r.plano_dialogo && r.plano_dialogo.quadro_n1) || null;
+  const tit = '<div style="font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px"><i class="fas fa-route" style="margin-right:5px"></i>Plano de Negociação — quadro do n.º 1'
+    + (qn && qn.ts ? ' <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--gray400)">· enviado ' + fmtDateTime(qn.ts) + (qn.a ? ' por ' + _escHtml(qn.a) : '') + '</span>' : '') + '</div>';
+  if(!qn || !Array.isArray(qn.P) || !qn.P.length)
+    return '<div style="margin:12px 0">' + tit + '<div style="font-size:12px;color:var(--gray400);font-style:italic">A equipa ainda não enviou o quadro do PN.</div></div>';
+  return '<div style="margin:12px 0">' + tit + _qn1CorpoHTML(qn.P) + '</div>';
+}
+let _qn1 = {P: [], sel: {}};
+async function quadroN1Abrir(){
+  if(!currentDetail) return;
+  let m = document.getElementById('modal-quadro-n1');
+  if(!m){
+    m = document.createElement('div');
+    m.id = 'modal-quadro-n1'; m.className = 'modal-overlay hidden';
+    m.innerHTML = '<div class="modal" style="max-width:760px;width:100%">'
+      + '<div class="modal-header"><span class="modal-title"><i class="fas fa-headset" style="margin-right:6px"></i>Quadro do PN para o n.º 1</span>'
+      + '<button class="modal-close" onclick="closeModal(\'modal-quadro-n1\')"><i class="fas fa-xmark"></i></button></div>'
+      + '<div class="modal-body">'
+      + '<div id="qn1-passo1">'
+      +   '<p style="font-size:12px;color:var(--gray600);margin:0 0 8px;line-height:1.5">Composto a partir do PN e dos quadros do n.º 3. Desmarque o que o n.º 1 não precisa de ver e carregue em «Pré-visualizar».</p>'
+      +   '<div id="qn1-sel" style="border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;max-height:420px;overflow:auto;background:var(--gp)"></div>'
+      +   '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">'
+      +     '<button class="btn btn-outline btn-sm" onclick="quadroN1Abrir()"><i class="fas fa-rotate"></i> Gerar de novo</button>'
+      +     '<button class="btn btn-primary btn-sm" onclick="quadroN1Passo(2)">Pré-visualizar <i class="fas fa-arrow-right"></i></button>'
+      +   '</div>'
+      + '</div>'
+      + '<div id="qn1-passo2" class="hidden">'
+      +   '<div style="font-size:12px;color:var(--gray600);margin:0 0 8px">É isto que o n.º 1 vai ver no posto dele.</div>'
+      +   '<div id="qn1-prev" style="background:var(--gp);border:1px solid var(--border);border-radius:var(--r);padding:10px;max-height:460px;overflow:auto"></div>'
+      +   '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">'
+      +     '<button class="btn btn-outline btn-sm" onclick="quadroN1Passo(1)"><i class="fas fa-arrow-left"></i> Voltar à seleção</button>'
+      +     '<button class="btn btn-primary btn-sm" id="qn1-enviar" onclick="quadroN1Enviar()"><i class="fas fa-paper-plane"></i> Enviar ao n.º 1</button>'
+      +   '</div>'
+      + '</div>'
+      + '</div></div>';
+    document.body.appendChild(m);
+  }
+  const box = document.getElementById('qn1-sel');
+  box.innerHTML = '<div style="font-size:12px;color:var(--gray400)">A gerar…</div>';
+  _qn1 = {P: [], sel: {}};
+  quadroN1Passo(1);
+  m.classList.remove('hidden');
+  try { _qn1.P = quadroN1Estrutura(await _propDados()); _qn1SelRender(); }
+  catch(e){ box.innerHTML = '<div style="font-size:12px;color:var(--red)">Não foi possível compor o quadro: ' + _escHtml(e.message || e) + '</div>'; }
+}
+function _qn1SelRender(){
+  const box = document.getElementById('qn1-sel'); if(!box) return;
+  if(!_qn1.P.length){ box.innerHTML = '<div style="font-size:12px;color:var(--gray400);font-style:italic">O PN ainda não tem dados para o quadro.</div>'; return; }
+  box.innerHTML = _qn1.P.map((sc, si) =>
+    '<div style="margin-bottom:8px"><div style="font-size:10.5px;font-weight:700;color:var(--gn);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">' + _escHtml(sc.tit) + '</div>'
+    + sc.grupos.map((g, gi) => (g.rot ? '<div style="font-size:11px;font-weight:600;color:var(--gray600);margin:4px 0 2px">' + _escHtml(g.rot) + '</div>' : '')
+        + g.itens.map((t, ii) => {
+            const on = !(_qn1.sel[si] && _qn1.sel[si][gi] && _qn1.sel[si][gi][ii] === false);
+            return '<label style="display:flex;align-items:flex-start;gap:7px;font-size:12.5px;line-height:1.45;padding:2px 0;cursor:pointer;font-weight:400;color:' + (on ? 'var(--gray900)' : 'var(--gray400)') + '">'
+              + '<input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="quadroN1Marcar(' + si + ',' + gi + ',' + ii + ',this.checked)" style="width:auto;margin:3px 0 0;flex-shrink:0">'
+              + '<span' + (on ? '' : ' style="text-decoration:line-through"') + '>' + _escHtml(t) + '</span></label>';
+          }).join('')).join('')
+    + '</div>').join('');
+}
+function quadroN1Marcar(si, gi, ii, on){
+  _qn1.sel[si] = _qn1.sel[si] || {}; _qn1.sel[si][gi] = _qn1.sel[si][gi] || {};
+  _qn1.sel[si][gi][ii] = !!on;
+  _qn1SelRender();
+}
+function quadroN1Passo(n){
+  const p1 = document.getElementById('qn1-passo1'), p2 = document.getElementById('qn1-passo2');
+  if(!p1 || !p2) return;
+  if(n === 2){ const f = _qn1Filtrar(_qn1.P, _qn1.sel); document.getElementById('qn1-prev').innerHTML = f.length ? _qn1CorpoHTML(f) : '<div style="font-size:12px;color:var(--gray400);font-style:italic">Nada selecionado.</div>'; }
+  p1.classList.toggle('hidden', n !== 1);
+  p2.classList.toggle('hidden', n !== 2);
+}
+async function quadroN1Enviar(){
+  if(!currentDetail) return;
+  const f = _qn1Filtrar(_qn1.P, _qn1.sel);
+  if(!f.length){ alert('Nada selecionado para enviar.'); return; }
+  const b = document.getElementById('qn1-enviar'); if(b) b.disabled = true;
+  const pd = Object.assign({}, currentDetail.record.plano_dialogo || {});
+  pd.quadro_n1 = { P: f, a: currentProfile.nome || '', ts: new Date().toISOString() };
+  const ok = await _postoUpdate({plano_dialogo: pd});
+  if(b) b.disabled = false;
+  if(!ok) return;
+  closeModal('modal-quadro-n1');
+  try { await sb.from('historico').insert({tabela:_postoTbl(), registo_id:currentDetail.record.id, acao:'Quadro do PN enviado ao n.º 1', autor_id:currentUser.id, autor_nome:currentProfile.nome}); } catch(e){}
+  if(document.getElementById('posto-content') && typeof renderPosto === 'function') renderPosto();
+  alert('Quadro enviado ao n.º 1.');
 }
 
 // ===== Plano de Diálogo — guia do contacto (o que fazer e o que não fazer) =====
