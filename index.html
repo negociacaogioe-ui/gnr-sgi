@@ -4195,13 +4195,13 @@ function propostaComandanteEstrutura(D){
     const alerta = (armaFogo && /presencial|face a face/i.test(o.mod || '')) ? ' (atenção: expõe o negociador a uma arma de fogo)' : '';
     passos.push(_propFrase(o.obj).replace(/\.$/, '') + (mod ? ' — ' + mod + alerta : '') + '.'); // sem tempos: não vincular a equipa a uma janela de tempo
   });
-  sec('O que propomos', [{b:'- ', itens:prop}, {b:'n', itens:passos}]);
-
-  // --- 3. O que pedimos ao Comandante (só os meios que a equipa pôs no PN) ---
+  // Um só campo «O que propomos», dividido em ações e meios para as pôr em prática (só os meios que a equipa pôs no PN)
   const meios = [];
   porFazer.forEach(o => (o.meios || []).forEach(m => { if(meios.indexOf(m) < 0) meios.push(m); }));
-  sec('O que pedimos', [{rot:'Meios:', b:'- ', em:'linha', itens:meios},
-    {b:'- ', itens:['Manter a força afastada e sem ações visíveis enquanto a conversa progride, salvo perigo iminente.']}]);
+  sec('O que propomos', [
+    {rot:'Ações:', b:'n', itens: prop.concat(passos, ['Manter a força afastada e sem ações visíveis enquanto a conversa progride, salvo perigo iminente.'])},
+    {rot:'Meios para as pôr em prática:', b:'- ', itens: meios}
+  ]);
   return P;
 }
 // Compõe o texto final só com os itens marcados (sel[s][g][i] === false → excluído). Renumera secções e passos.
