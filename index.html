@@ -4140,7 +4140,7 @@ function propostaComandanteEstrutura(D){
 
   // --- 1. Avaliação: tende ou não a resolver-se pela negociação, e porquê ---
   let pts = 0; const porque = [], cuidados = [];
-  if(pn.tipo_situacao === 'crise'){ pts++; porque.push('Situação não planeada, de descontrolo emocional: tende a resolver-se com a conversa.'); }
+  if(pn.tipo_situacao === 'crise'){ pts++; porque.push('Situação de descontrolo emocional: tende a estabilizar.'); }
   else if(pn.tipo_situacao === 'conflito'){ pts--; cuidados.push('Situação planeada: a conversa, por si só, tem menos probabilidade de resultar.'); }
   const ameacas = _propLinhas(pn.posicao_adversario).map(semPonto);
   const precisa = _propLinhas(pn.interesses_adversario).map(semPonto);
