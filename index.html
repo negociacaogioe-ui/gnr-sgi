@@ -3363,6 +3363,7 @@ function renderPosto(){
   if(eN2){
     h+='<div class="form-section"><h3><i class="fas fa-user-group" style="color:var(--gl)"></i> Posto n.º 2 — apoio e blindagem</h3>'
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Organiza o fluxo de informação a passar ao n.º 1 (5.19) e pede ao n.º 3 o que faltar.</p>'
+      + _n2ContactosHTML(r)
       + (eN3 ? '' : '<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px"><i class="fas fa-table-columns" style="margin-right:5px"></i>Quadros do n.º 3 · só leitura</div>' + _quadrosHTML(false, true) + '</div>')
       + _notasHTML(true)
       + _pedidosHTML(true, eN3)
@@ -3447,19 +3448,45 @@ async function guardarPD(){
 }
 
 // ===== N.º 1: contactos existentes da vítima e do agressor (só consulta) =====
-function _n1ContactosHTML(r){
+// O n.º 1 não vê os números por defeito; o n.º 2 pode torná-los visíveis (coluna tel_n1: {v:true, a:true}).
+function _telN1(r){ const t = (r && r.tel_n1) || {}; return { v: !!t.v, a: !!t.a }; }
+async function telN1Alternar(k){
+  if(!currentDetail || !currentDetail.record) return;
+  const t = Object.assign({}, _telN1(currentDetail.record)); t[k] = !t[k];
+  if(await _postoUpdate({tel_n1: t})) renderPosto();
+}
+// N.º 2: vê os números e decide se o n.º 1 os vê
+function _n2ContactosHTML(r){
   r = r || {};
-  const bloco = (rot, nome, num, cor, fundo, ic) => '<div style="flex:1;min-width:180px;background:' + fundo + ';border-radius:var(--r);padding:9px 11px">'
+  const t = _telN1(r);
+  const bloco = (k, rot, nome, num, cor, fundo, ic) => '<div style="flex:1;min-width:180px;background:' + fundo + ';border-radius:var(--r);padding:9px 11px">'
     + '<div style="font-size:10px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px"><i class="fas ' + ic + '" style="color:' + cor + ';margin-right:5px"></i>' + rot + '</div>'
     + (nome ? '<div style="font-size:13px;font-weight:600;color:' + cor + ';margin-bottom:3px;word-break:break-word">' + _escHtml(nome) + '</div>' : '')
     + (num ? '<a href="tel:' + _escHtml(String(num).replace(/\s/g,'')) + '" style="font-family:\'IBM Plex Mono\',monospace;font-size:13px;color:' + cor + ';text-decoration:none;font-weight:600"><i class="fas fa-phone" style="margin-right:6px"></i>' + _escHtml(num) + '</a>'
+           + '<div style="margin-top:7px"><button type="button" class="btn ' + (t[k] ? 'btn-primary' : 'btn-outline') + ' btn-sm" onclick="telN1Alternar(\'' + k + '\')" style="font-size:11.5px;padding:4px 10px;margin:0"><i class="fas fa-' + (t[k] ? 'eye' : 'eye-slash') + '"></i> ' + (t[k] ? 'Visível ao n.º 1 — ocultar' : 'Oculto ao n.º 1 — mostrar') + '</button></div>'
+           : '<span style="font-size:12px;color:var(--gray400);font-style:italic">Sem contacto registado</span>')
+    + '</div>';
+  return '<div style="margin-bottom:12px">'
+    + '<div style="font-size:10.5px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Contactos existentes · o n.º 1 só vê o número se o tornar visível</div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + bloco('v', 'Vítima', r.nome_vitima, r.contacto_vitima, 'var(--gm)', 'var(--gp)', 'fa-user')
+    + bloco('a', 'Visado', r.nome_agressor, r.contacto_agressor, 'var(--red)', 'var(--redl)', 'fa-user-slash')
+    + '</div></div>';
+}
+function _n1ContactosHTML(r){
+  r = r || {};
+  const t = _telN1(r);
+  const bloco = (rot, nome, num, cor, fundo, ic, ver) => '<div style="flex:1;min-width:180px;background:' + fundo + ';border-radius:var(--r);padding:9px 11px">'
+    + '<div style="font-size:10px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px"><i class="fas ' + ic + '" style="color:' + cor + ';margin-right:5px"></i>' + rot + '</div>'
+    + (nome ? '<div style="font-size:13px;font-weight:600;color:' + cor + ';margin-bottom:3px;word-break:break-word">' + _escHtml(nome) + '</div>' : '')
+    + (num && !ver ? '' : num ? '<a href="tel:' + _escHtml(String(num).replace(/\s/g,'')) + '" style="font-family:\'IBM Plex Mono\',monospace;font-size:13px;color:' + cor + ';text-decoration:none;font-weight:600"><i class="fas fa-phone" style="margin-right:6px"></i>' + _escHtml(num) + '</a>'
            : '<span style="font-size:12px;color:var(--gray400);font-style:italic">Sem contacto registado</span>')
     + '</div>';
   return '<div style="margin-bottom:12px">'
     + '<div style="font-size:10.5px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Contactos existentes</div>'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
-    + bloco('Vítima', r.nome_vitima, r.contacto_vitima, 'var(--gm)', 'var(--gp)', 'fa-user')
-    + bloco('Visado', r.nome_agressor, r.contacto_agressor, 'var(--red)', 'var(--redl)', 'fa-user-slash')
+    + bloco('Vítima', r.nome_vitima, r.contacto_vitima, 'var(--gm)', 'var(--gp)', 'fa-user', t.v)
+    + bloco('Visado', r.nome_agressor, r.contacto_agressor, 'var(--red)', 'var(--redl)', 'fa-user-slash', t.a)
     + '</div></div>';
 }
 
