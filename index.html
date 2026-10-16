@@ -4234,26 +4234,49 @@ async function propostaComandanteAbrir(){
       + '<div class="modal-header"><span class="modal-title"><i class="fas fa-user-tie" style="margin-right:6px"></i>Proposta ao Comandante</span>'
       + '<button class="modal-close" onclick="closeModal(\'modal-proposta-cmdt\')"><i class="fas fa-xmark"></i></button></div>'
       + '<div class="modal-body">'
-      + '<p style="font-size:12px;color:var(--gray600);margin:0 0 8px;line-height:1.5">Gerado a partir do Plano de Negociação e dos dados do caso, sem termos técnicos. Desmarque os pontos que não quer apresentar; a versão final atualiza-se e pode ainda ser ajustada à mão antes de copiar. Não é guardado.</p>'
-      + '<div id="proposta-cmdt-sel" style="border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;max-height:300px;overflow:auto;margin-bottom:10px;background:var(--gp)"></div>'
-      + '<div style="font-size:10.5px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Versão final</div>'
-      + '<textarea id="proposta-cmdt-txt" rows="14" oninput="_propEditado=true" style="width:100%;font-size:13px;line-height:1.55;font-family:\'IBM Plex Sans\',sans-serif"></textarea>'
-      + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">'
-      + '<button class="btn btn-outline btn-sm" onclick="propostaComandanteAbrir()"><i class="fas fa-rotate"></i> Gerar de novo</button>'
-      + '<button class="btn btn-primary btn-sm" id="proposta-cmdt-copiar" onclick="propostaComandanteCopiar()"><i class="fas fa-copy"></i> Copiar texto</button>'
-      + '</div></div></div>';
+      // Passo 1 — seleção dos pontos
+      + '<div id="proposta-cmdt-passo1">'
+      +   '<p style="font-size:12px;color:var(--gray600);margin:0 0 8px;line-height:1.5">Gerado a partir do Plano de Negociação e dos dados do caso, sem termos técnicos. Desmarque os pontos que não quer apresentar e carregue em «Texto final». Não é guardado.</p>'
+      +   '<div id="proposta-cmdt-sel" style="border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;max-height:420px;overflow:auto;background:var(--gp)"></div>'
+      +   '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">'
+      +     '<button class="btn btn-outline btn-sm" onclick="propostaComandanteAbrir()"><i class="fas fa-rotate"></i> Gerar de novo</button>'
+      +     '<button class="btn btn-primary btn-sm" onclick="propostaComandantePasso(2)">Texto final <i class="fas fa-arrow-right"></i></button>'
+      +   '</div>'
+      + '</div>'
+      // Passo 2 — só o texto final, pronto a copiar
+      + '<div id="proposta-cmdt-passo2" class="hidden">'
+      +   '<textarea id="proposta-cmdt-txt" rows="18" oninput="_propEditado=true" style="width:100%;font-size:13px;line-height:1.55;font-family:\'IBM Plex Sans\',sans-serif"></textarea>'
+      +   '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">'
+      +     '<button class="btn btn-outline btn-sm" onclick="propostaComandantePasso(1)"><i class="fas fa-arrow-left"></i> Voltar à seleção</button>'
+      +     '<button class="btn btn-primary btn-sm" id="proposta-cmdt-copiar" onclick="propostaComandanteCopiar()"><i class="fas fa-copy"></i> Copiar texto</button>'
+      +   '</div>'
+      + '</div>'
+      + '</div></div>';
     document.body.appendChild(m);
   }
   const ta = document.getElementById('proposta-cmdt-txt'), box = document.getElementById('proposta-cmdt-sel');
-  ta.value = 'A gerar…'; box.innerHTML = '';
+  ta.value = ''; box.innerHTML = '<div style="font-size:12px;color:var(--gray400)">A gerar…</div>';
+  _propP = []; _propSel = {}; _propEditado = false;
+  propostaComandantePasso(1, true);
   m.classList.remove('hidden');
   try {
     _propP = propostaComandanteEstrutura(await _propDados());
-    _propSel = {}; _propEditado = false;
     _propSelRender();
-    ta.value = propostaComandanteCompor(_propP, _propSel);
   }
-  catch(e){ ta.value = 'Não foi possível gerar a proposta: ' + (e.message || e); }
+  catch(e){ box.innerHTML = '<div style="font-size:12px;color:var(--red)">Não foi possível gerar a proposta: ' + _escHtml(e.message || e) + '</div>'; }
+}
+// Passo 1 = seleção dos pontos; passo 2 = só o texto final
+function propostaComandantePasso(n, semConfirmar){
+  const p1 = document.getElementById('proposta-cmdt-passo1'), p2 = document.getElementById('proposta-cmdt-passo2'), ta = document.getElementById('proposta-cmdt-txt');
+  if(!p1 || !p2) return;
+  if(n === 2){
+    const novo = propostaComandanteCompor(_propP, _propSel);
+    if(_propEditado && ta.value !== novo && !semConfirmar){
+      if(confirm('O texto final foi alterado à mão. Refazer a partir da seleção (perde essas alterações)?\n\nCancelar mantém o texto alterado.')){ ta.value = novo; _propEditado = false; }
+    } else { ta.value = novo; _propEditado = false; }
+  }
+  p1.classList.toggle('hidden', n !== 1);
+  p2.classList.toggle('hidden', n !== 2);
 }
 let _propP = [], _propSel = {}, _propEditado = false;
 function _propSelRender(){
@@ -4273,12 +4296,9 @@ function _propSelRender(){
     + '</div>').join('');
 }
 function propostaComandanteMarcar(si, gi, ii, on){
-  if(_propEditado && !confirm('A versão final foi alterada à mão. Ao mudar a seleção, essas alterações perdem-se. Continuar?')){ _propSelRender(); return; }
   _propSel[si] = _propSel[si] || {}; _propSel[si][gi] = _propSel[si][gi] || {};
   _propSel[si][gi][ii] = !!on;
-  _propEditado = false;
   _propSelRender();
-  const ta = document.getElementById('proposta-cmdt-txt'); if(ta) ta.value = propostaComandanteCompor(_propP, _propSel);
 }
 async function propostaComandanteCopiar(){
   const ta = document.getElementById('proposta-cmdt-txt'), b = document.getElementById('proposta-cmdt-copiar');
