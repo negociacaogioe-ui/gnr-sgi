@@ -4499,7 +4499,6 @@ const PD2_REGRAS_NAO = [
   'Introduzir temas pessoais (filhos, família, trabalho…) que o visado não tenha trazido',
   'Mentir',
   'Prometer o que não se controla',
-  'Dizer «não» de forma direta',
   'Contrariar ou discutir',
   'Minimizar («não é assim tão grave»)',
   'Usar «mas» (anula o que vem antes)',
@@ -4693,19 +4692,14 @@ function pd2CartaoHTML(pd){
   if(pd.foco) h += tit('bullseye', 'Foco deste contacto') + '<div style="font-size:13px;font-weight:600;color:var(--gn)">' + _escHtml(pd.foco) + '</div>';
   const trat = [pd.tratamento ? 'Tratar por: <strong>' + _escHtml(pd.tratamento) + '</strong>' : '', pd.apresentacao ? 'Apresentar-se como: <strong>' + _escHtml(pd.apresentacao) + '</strong>' : ''].filter(Boolean).join(' · ');
   if(trat) h += '<div style="font-size:12px;color:var(--gray600);margin-top:5px">' + trat + '</div>';
-  if(pd.abertura) h += tit('door-open', 'Abertura') + '<div style="font-size:12.5px;font-style:italic;line-height:1.5">«' + _escHtml(pd.abertura) + '»</div>';
-  const fz = L('fazer'), pg = L('perguntas'), sg = L('seguros');
-  const colF = (fz.length ? tit('circle-check', 'Fazer', 'var(--gm)') + lista(fz, fazerFmt) : '')
-    + (pg.length ? tit('circle-question', 'Perguntas úteis', 'var(--gm)') + lista(pg) : '')
-    + (sg.length ? tit('comments', 'Temas trazidos pelo visado', 'var(--gm)') + lista(sg) : '');
+  const pg = L('perguntas');
+  const colF = pg.length ? tit('circle-question', 'Perguntas úteis', 'var(--gm)') + lista(pg) : '';
   const colN = tit('ban', 'Não fazer', 'var(--red)') + lista(PD2_REGRAS_NAO)
     + '<div style="font-size:11.5px;color:var(--gray600);margin-top:4px;line-height:1.45">' + PD2_NOTA_PASSADO + '</div>'
     + (L('evitar').length ? tit('triangle-exclamation', 'Temas a evitar neste caso', 'var(--red)') + lista(L('evitar')) : '');
   h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-top:6px">'
-    + '<div style="border-left:3px solid var(--gm);padding-left:9px">' + (colF || tit('circle-check', 'Fazer', 'var(--gm)') + '<div style="font-size:12px;color:var(--gray400);font-style:italic">Por preencher</div>') + '</div>'
+    + '<div style="border-left:3px solid var(--gm);padding-left:9px">' + (colF || tit('circle-question', 'Perguntas úteis', 'var(--gm)') + '<div style="font-size:12px;color:var(--gray400);font-style:italic">Por preencher</div>') + '</div>'
     + '<div style="border-left:3px solid var(--red);padding-left:9px">' + colN + '</div></div>';
-  if(L('substituir').length) h += tit('right-left', 'Palavras a substituir') + lista(L('substituir'), seta);
-  if(L('respostas').length) h += tit('reply', 'Respostas preparadas') + lista(L('respostas'), seta);
   if(L('terminar').length) h += tit('flag-checkered', 'Terminar o contacto') + lista(L('terminar'));
   return h;
 }
@@ -4759,27 +4753,18 @@ async function renderPD2(){
         '<div class="form-grid"><div class="field"><label>Tratar o visado por</label><input type="text" id="pd2-tratamento" list="pd2-dl-trat" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(pd.tratamento || '') + '" placeholder="Ex.: pelo nome próprio"></div>'
         + '<div class="field"><label>O negociador apresenta-se como</label><input type="text" id="pd2-apresentacao" list="pd2-dl-apres" onfocus="pn2DlFoco(this)" onblur="pn2DlSai(this)" value="' + _escHtml(pd.apresentacao || '') + '" placeholder="Ex.: nome próprio"></div></div>'
         + linhasDL('pd2-dl-trat', PD2_TRATAMENTO) + linhasDL('pd2-dl-apres', PD2_APRESENTACAO))
-    + sec(3, 'door-open', 'Frase de abertura', 'Começa pelo nome e conduz, de forma suave, ao foco deste contacto, convidando à conversa. Sempre na terceira pessoa. Clique numa frase para a usar e ajuste-a.',
-        '<div id="pd2-abertura-sug" style="display:flex;flex-direction:column;gap:5px;margin-bottom:6px"></div>'
-        + '<textarea id="pd2-abertura" rows="2" placeholder="Frase de abertura a usar">' + _escHtml(pd.abertura || '') + '</textarea>')
-    + sec(4, 'circle-check', 'Fazer — técnicas a usar', 'Marque as técnicas a privilegiar neste contacto.', grupo('fazer'), '')
-    + sec(5, 'circle-question', 'Perguntas úteis', 'Perguntas sobre o presente e o futuro (o «porquê» é útil para explorar interesses). Nunca, por iniciativa própria, sobre o que aconteceu ou sobre o passado que o fez chegar aqui.', grupo('perguntas'))
-    + sec(6, 'comments', 'Temas trazidos pelo visado', 'Não sabemos à partida se filhos, família, trabalho, etc. são temas seguros, por isso não os abordamos por iniciativa própria. Registe aqui só os temas que o próprio visado trouxe para a conversa, para a equipa saber que pode voltar a eles.', grupo('seguros'))
-    + sec(7, 'ban', 'Não fazer — zona vermelha', '',
+    + sec(3, 'circle-question', 'Perguntas úteis', 'Perguntas sobre o presente e o futuro (o «porquê» é útil para explorar interesses). Nunca, por iniciativa própria, sobre o que aconteceu ou sobre o passado que o fez chegar aqui.', grupo('perguntas'))
+    + sec(4, 'ban', 'Não fazer — zona vermelha', '',
         '<div style="background:#fff;border:1px solid var(--border);border-left:3px solid var(--red);border-radius:var(--r);padding:8px 12px;margin-bottom:10px">'
         + '<div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Regras fixas — sempre</div>'
         + '<ul style="margin:0;padding-left:17px;font-size:12.5px;line-height:1.6">' + PD2_REGRAS_NAO.map(t => '<li>' + _escHtml(t) + '</li>').join('') + '</ul>'
         + '<div style="font-size:11.5px;color:var(--gray600);margin-top:5px;line-height:1.45"><i class="fas fa-circle-info" style="margin-right:4px"></i>' + PD2_NOTA_PASSADO + ' Ex.: evitar «O que é que ela lhe fez?»; usar «Isso deixou-o muito magoado. O que é que precisa agora para isto acabar bem?»</div></div>'
         + '<div style="font-size:11px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Temas a evitar neste caso</div>'
         + grupo('evitar', 'var(--red)'), 'red')
-    + sec(8, 'right-left', 'Palavras a substituir', 'Palavras que podem escalar a tensão e o que dizer em vez delas.', hid('substituir') + '<div id="pd2-g-substituir"></div>')
-    + sec(9, 'reply', 'Respostas preparadas', 'O que responder ao que é previsível ouvir.' + (_pd2Extra.respostas.length ? ' As ameaças registadas na posição do PN aparecem primeiro nas sugestões.' : ''), hid('respostas') + '<div id="pd2-g-respostas"></div>')
-    + sec(10, 'flag-checkered', 'Como terminar o contacto', '', grupo('terminar'))
+    + sec(5, 'flag-checkered', 'Como terminar o contacto', '', grupo('terminar'))
     + '<div class="form-section"><details ontoggle="if(this.open)pd2PreVer()"><summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--gn)"><i class="fas fa-id-card" style="margin-right:6px"></i>Pré-visualizar o cartão do n.º 1</summary><div id="pd2-preview" style="margin-top:8px"></div></details></div>'
     + sgiBarraHTML('pd2','Guardar PD');
-  ['fazer','perguntas','seguros','evitar','terminar'].forEach(k => _pd2Redesenhar(k));
-  pd2AberturaSug();
-  ['substituir','respostas'].forEach(k => { _pd2Rows[k] = _pd2RowsLer(k); _pd2RowsRedesenhar(k); });
+  ['perguntas','evitar','terminar'].forEach(k => _pd2Redesenhar(k));
   sgiAutosaveLigar('pd2');
 }
 async function guardarPD2(){
