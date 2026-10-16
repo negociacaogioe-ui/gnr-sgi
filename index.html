@@ -3347,8 +3347,9 @@ function renderPosto(){
     h+='<div class="form-section"><h3><i class="fas fa-headset" style="color:var(--red)"></i> Posto n.º 1 — contacto</h3>'
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Informação que lhe é prestada. Não preenche formulários durante o contacto.</p>'
       + _n1ContactosHTML(r)
-      + (eNC ? '' : '<div id="evo-posto" style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:12px"></div>')
       + _notasHTML(false)
+      // Quadros do n.º 3 em versão reduzida (só leitura, como o n.º 2), por baixo dos post-its
+      + ((eN2 || eN3) ? '' : '<div style="margin:12px 0"><div style="font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px"><i class="fas fa-table-columns" style="margin-right:5px"></i>Quadros do n.º 3 · só leitura</div>' + _quadrosHTML(false, true) + '</div>')
       + _n1LivreHTML()
       +'</div>';
   }
@@ -3363,7 +3364,7 @@ function renderPosto(){
   if(eN3){
     h+='<div class="form-section"><h3><i class="fas fa-table-columns" style="color:var(--gl)"></i> Posto n.º 3 — quadros</h3>'
       +'<p style="font-size:12px;color:var(--gray600);margin:-2px 0 10px">Receção e organização da informação. Clara, precisa, concisa e em maiúsculas (5.22).</p>'
-      + ((eN1 || eNC) ? '' : '<div id="evo-posto" style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:12px"></div>')
+      + (eNC ? '' : '<div id="evo-posto" style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:12px"></div>')
       + (eNC ? '' : _coordRecebidasHTML('n3'))
       + _entradaRapidaHTML()
       + _quadrosHTML(true)
