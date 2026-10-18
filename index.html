@@ -9308,7 +9308,9 @@ async function ftResultados(id){
       <thead><tr><th>Aluno</th><th>CTer</th><th>Submetido</th><th style="text-align:center">Certas</th><th style="text-align:center">Pontos</th><th style="text-align:center">Nota (0–20)</th><th></th></tr></thead>
       <tbody>${linhas}</tbody></table></div></div>
       <div style="font-size:11.5px;color:var(--gray400);margin-top:6px">A nota só é visível ao administrador. Clica numa linha para ver as perguntas certas/erradas.</div>`
-    : '<div style="padding:1.5rem;background:var(--gray100);border-radius:var(--rl);color:var(--gray600);font-size:13px">Ainda ninguém submeteu este teste.</div>');
+    : '<div style="padding:1.5rem;background:var(--gray100);border-radius:var(--rl);color:var(--gray600);font-size:13px">Ainda ninguém submeteu este teste.</div>') +
+    '<div id="ft-papel"></div>';
+  ftpSecao(id);
 }
 
 async function ftAnular(respId, testeId){
@@ -9317,6 +9319,273 @@ async function ftAnular(respId, testeId){
   if(error){ alert('Erro: '+error.message); return; }
   _ft.nResp[testeId] = Math.max(0,(_ft.nResp[testeId]||1)-1);
   ftResultados(testeId);
+}
+
+// ---------- Admin: provas em papel — folhas de resposta numeradas por aluno + leitura automática do PDF digitalizado ----------
+// Tabela formacao_prova_papel (só admin). A folha tem 4 marcas nos cantos, o nome e um código de 8 quadrados (7 bits + paridade)
+// que identificam o aluno; o leitor localiza as marcas, lê o código e os círculos pintados e compara com a chave do teste.
+const FTP = { cantos:[[13,13],[197,13],[13,284],[197,284]], marca:6, bitsX:132, bitsY:30, bitL:5, bitP:7, y0:58, ncol:4, colW:46, x0:14, r:2.7, passoOp:7.6 };
+let _ftp = { teste:null, linhas:[], lidas:[], alunos:[], pf:{}, edicao:null, aberta:null, estado:'' };
+function ftpGrelha(n){ const rows = Math.ceil(n/FTP.ncol); return { rows, h: Math.min(8.6, (274-FTP.y0)/rows) }; }
+function ftpPos(i, k, n){ const g = ftpGrelha(n), col = Math.floor(i/g.rows), lin = i%g.rows;
+  return { x: FTP.x0 + col*FTP.colW + 13 + k*FTP.passoOp, y: FTP.y0 + lin*g.h + g.h/2, nx: FTP.x0 + col*FTP.colW + 8, col, lin, h:g.h }; }
+function ftpEhVF(q){ return (q.opcoes||[]).length===2 && q.opcoes[0]===FT_VF[0] && q.opcoes[1]===FT_VF[1]; }
+function ftpRotulo(q, k){ return ftpEhVF(q) ? 'VF'[k] : 'ABCD'[k]; }
+function ftpBits(cod){ const b=[]; for(let i=0;i<7;i++) b.push((cod>>i)&1); b.push(b.reduce((a,x)=>a^x,0)); return b; }
+function ftpNome(uid){ const p=_ftp.pf[uid]; return p ? ((p.posto?p.posto+' ':'')+(p.nome||'')).trim() : '—'; }
+function ftpFmt(v){ return v==null||isNaN(v) ? '—' : Number(v).toFixed(2).replace('.',','); }
+
+async function ftpCarregar(testeId){
+  const { data, error } = await sb.from('formacao_prova_papel').select('*').eq('teste_id', testeId);
+  if(error) throw error;
+  _ftp.linhas = data || [];
+  const { data:ed } = await sb.from('aval_edicoes').select('id,nome').eq('ativa', true).maybeSingle();
+  _ftp.edicao = ed || null; _ftp.alunos = [];
+  if(ed){ const { data:al } = await sb.from('aval_alunos').select('aluno_id,removido').eq('edicao_id', ed.id); _ftp.alunos = (al||[]).filter(a=>!a.removido).map(a=>a.aluno_id); }
+  const ids = [...new Set([..._ftp.alunos, ..._ftp.linhas.map(l=>l.aluno_id)])];
+  _ftp.pf = {};
+  if(ids.length){ const { data:pf } = await sb.from('profiles').select('id,nome,posto').in('id', ids); (pf||[]).forEach(p=>_ftp.pf[p.id]=p); }
+  _ftp.alunos.sort((a,b)=>(_ftp.pf[a]?.nome||'').localeCompare(_ftp.pf[b]?.nome||'','pt'));
+}
+async function ftpSecao(testeId){
+  const box = document.getElementById('ft-papel'); if(!box) return;
+  _ftp.teste = _ft.testes.find(x=>x.id===testeId); _ftp.lidas = []; _ftp.aberta = null; _ftp.estado = '';
+  box.innerHTML = '<div style="padding:1rem;color:var(--gray400)"><span class="spinner"></span></div>';
+  try{
+    await ftpCarregar(testeId);
+    const { data } = await sb.from('formacao_testes_chave').select('chave').eq('teste_id', testeId).maybeSingle();
+    _ftp.chave = data?.chave || {};
+  }catch(e){
+    box.innerHTML = `<div class="alert alert-error" style="margin-top:1rem">Prova em papel indisponível: ${_ppEsc(e.message||e)}<br><span style="font-size:12px">Confirma que o SQL das provas em papel (formacao_prova_papel) já foi corrido no Supabase.</span></div>`;
+    return;
+  }
+  ftpRender();
+}
+function ftpCorrigir(qs, resp){
+  let certas=0, pontos=0, total=0;
+  qs.forEach(q=>{ const k=_ftp.chave[q.id]||{}, p=Number(k.p)||0; total+=p; if(resp[q.id]!=null && String(resp[q.id])===String(k.c)){ certas++; pontos+=p; } });
+  return { certas, pontos, total, nota: total ? Math.round(pontos/total*20*100)/100 : null };
+}
+function ftpRender(){
+  const box = document.getElementById('ft-papel'); if(!box) return;
+  const t = _ftp.teste, qs = ftPerguntas(t);
+  const invalido = qs.some(q=>(q.opcoes||[]).length>4) ? 'Há perguntas com mais de 4 opções — a folha de respostas só suporta até 4 (A–D).' : (qs.length>100 ? 'A folha de respostas suporta até 100 perguntas.' : (!qs.length ? 'O teste não tem perguntas.' : ''));
+  const gravadas = _ftp.linhas.filter(l=>l.lida_em).sort((a,b)=>ftpNome(a.aluno_id).localeCompare(ftpNome(b.aluno_id),'pt'));
+  const porLer = _ftp.linhas.filter(l=>!l.lida_em).length;
+  let rev = '';
+  if(_ftp.lidas.length){
+    const opAl = (sel) => `<option value="">— escolher aluno —</option>${[...new Set([..._ftp.alunos, ..._ftp.linhas.map(l=>l.aluno_id)])].map(id=>`<option value="${id}" ${id===sel?'selected':''}>${_ppEsc(ftpNome(id))}</option>`).join('')}`;
+    rev = `<div style="font-weight:700;color:var(--gn);margin:1rem 0 .5rem">Folhas lidas — confirma antes de gravar</div>
+      <div class="table-wrap"><table><thead><tr><th>Pág.</th><th>Código</th><th>Aluno</th><th style="text-align:center">Certas</th><th style="text-align:center">Nota</th><th>Para confirmar</th><th></th></tr></thead><tbody>
+      ${_ftp.lidas.map((L,i)=>{
+        if(L.erro) return `<tr><td>${L.pagina}</td><td colspan="6" style="color:var(--red);font-size:12.5px">${_ppEsc(L.erro)}</td></tr>`;
+        const c = ftpCorrigir(qs, L.respostas);
+        const dupl = L.alunoId && _ftp.lidas.filter(x=>x.alunoId===L.alunoId).length>1;
+        return `<tr style="${_ftp.aberta===i?'background:var(--gp)':''}"><td>${L.pagina}</td>
+          <td style="font-family:'IBM Plex Mono',monospace">${L.codigo??'?'}${L.codigoOk?'':' <span style="color:var(--red)" title="Código ilegível ou inválido">⚠</span>'}</td>
+          <td><select onchange="_ftp.lidas[${i}].alunoId=this.value||null;ftpRender()" style="font-size:12.5px;width:auto;${!L.alunoId||dupl?'border-color:var(--red)':''}">${opAl(L.alunoId)}</select>${dupl?'<div style="font-size:11px;color:var(--red)">Aluno repetido noutra página</div>':''}</td>
+          <td style="text-align:center">${c.certas}/${qs.length}</td>
+          <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;color:${c.nota!=null&&c.nota<10?'var(--red)':'var(--gn)'}">${ftpFmt(c.nota)}</td>
+          <td style="font-size:12px;color:${L.duvidas.length?'var(--amber)':'var(--gray400)'}">${L.duvidas.length?'Perguntas '+L.duvidas.map(d=>d+1).join(', '):'—'}</td>
+          <td><button class="btn btn-outline btn-sm" style="margin:0" onclick="_ftp.aberta=${_ftp.aberta===i?'null':i};ftpRender()"><i class="fas fa-${_ftp.aberta===i?'chevron-up':'eye'}"></i> ${_ftp.aberta===i?'Fechar':'Ver / corrigir'}</button></td></tr>
+          ${_ftp.aberta===i ? `<tr><td colspan="7" style="background:var(--gray50)">${ftpDetalhe(i)}</td></tr>` : ''}`;
+      }).join('')}</tbody></table></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
+        <button class="btn btn-primary" onclick="ftpGravar()"><i class="fas fa-save"></i> Gravar notas</button>
+        <button class="btn btn-outline" onclick="_ftp.lidas=[];_ftp.aberta=null;ftpRender()">Descartar leitura</button>
+        <span style="font-size:12px;color:var(--gray600)">As perguntas «para confirmar» têm mais de uma opção pintada, rasuras ou marcas fracas — confirma-as em «Ver / corrigir».</span></div>`;
+  }
+  box.innerHTML = `<div class="form-section" style="margin-top:1.25rem"><h3><i class="fas fa-print" style="color:#854f0b"></i> Prova em papel</h3>
+    <div style="font-size:12.5px;color:var(--gray600);line-height:1.55;margin-bottom:10px">1. Gera as folhas de resposta: uma por aluno, com o nome e o código impressos. 2. Os alunos respondem no papel (o caderno de perguntas imprime-se à parte). 3. Digitaliza as folhas (300 dpi, página inteira, sem cortar os cantos) para um só PDF e carrega-o aqui: o SGI identifica cada aluno pelo código, lê as respostas e calcula a nota. 4. Confirma e grava. A nota só é visível ao administrador.</div>
+    ${invalido ? `<div class="alert alert-error" style="margin:0 0 10px">${invalido}</div>` : ''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-outline" ${invalido||!_ftp.alunos.length?'disabled':''} onclick="ftpGerar()"><i class="fas fa-file-pdf"></i> Gerar folhas de resposta (${_ftp.alunos.length} aluno${_ftp.alunos.length===1?'':'s'}${_ftp.edicao?' — '+_ppEsc(_ftp.edicao.nome):''})</button>
+      <label class="btn btn-primary" style="margin:0;${invalido?'opacity:.5;pointer-events:none':''}"><i class="fas fa-upload"></i> Carregar folhas digitalizadas (PDF)
+        <input type="file" accept="application/pdf" style="display:none" onchange="if(this.files[0]) ftpLer(this.files[0]); this.value=''"></label>
+      <span id="ftp-estado" style="font-size:12.5px;color:var(--gray600)">${_ppEsc(_ftp.estado||'')}</span>
+    </div>
+    ${!_ftp.alunos.length ? '<div style="font-size:12px;color:var(--gray600);margin-top:6px">Sem alunos na edição ativa da Avaliação de Formandos.</div>' : ''}
+    ${rev}
+    <div style="font-weight:700;color:var(--gn);margin:1.25rem 0 .5rem">Notas gravadas (${gravadas.length})${porLer?` <span style="font-weight:400;font-size:12px;color:var(--gray600)">· ${porLer} folha(s) gerada(s) ainda por ler</span>`:''}</div>
+    ${gravadas.length ? `<div class="table-wrap"><table><thead><tr><th>Aluno</th><th>Código</th><th style="text-align:center">Certas</th><th style="text-align:center">Nota (0–20)</th><th>Lida em</th></tr></thead><tbody>
+      ${gravadas.map(l=>`<tr><td>${_ppEsc(ftpNome(l.aluno_id))}</td><td style="font-family:'IBM Plex Mono',monospace">${l.codigo}</td><td style="text-align:center">${l.certas}/${qs.length}</td>
+        <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;color:${Number(l.nota)<10?'var(--red)':'var(--gn)'}">${ftpFmt(l.nota)}</td>
+        <td style="font-size:12px;white-space:nowrap">${new Date(l.lida_em).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</td></tr>`).join('')}
+      </tbody></table></div>` : '<div style="font-size:13px;color:var(--gray400)">Ainda sem notas gravadas.</div>'}
+  </div>`;
+}
+function ftpDetalhe(i){
+  const L = _ftp.lidas[i], qs = ftPerguntas(_ftp.teste);
+  const cel = qs.map((q,j)=>{
+    const r = L.respostas[q.id], k = _ftp.chave[q.id]||{}, duv = L.duvidas.includes(j);
+    const certo = r!=null && String(r)===String(k.c);
+    const opts = ['<option value="">—</option>'].concat((q.opcoes||[]).map((o,kk)=>`<option value="${kk}" ${String(r)===String(kk)?'selected':''}>${ftpRotulo(q,kk)}</option>`)).join('');
+    return `<div title="${_escAttr(q.texto)}" style="display:flex;align-items:center;gap:4px;padding:3px 5px;border-radius:4px;background:${duv?'var(--amberl)':(certo?'var(--gp)':'var(--redl)')}">
+      <span style="font-size:11.5px;font-weight:700;min-width:20px;text-align:right">${j+1}</span>
+      <select onchange="ftpMudar(${i},'${q.id}',${j},this.value)" style="font-size:12px;padding:1px 2px;width:auto">${opts}</select>
+      <span style="font-size:10.5px;color:var(--gray600)">(${ftpRotulo(q, Number(k.c))})</span></div>`;
+  }).join('');
+  return `<div style="display:grid;grid-template-columns:minmax(260px,1fr) minmax(280px,1.2fr);gap:12px;align-items:start">
+    <img src="${L.img}" alt="Página ${L.pagina}" style="width:100%;border:1px solid var(--border);border-radius:var(--r);background:#fff">
+    <div><div style="font-size:12px;color:var(--gray600);margin-bottom:6px">Resposta lida em cada pergunta (entre parênteses, a certa). Verde = certa, vermelho = errada ou em branco, laranja = para confirmar. Corrige o que for preciso.</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:4px">${cel}</div></div></div>`;
+}
+function ftpMudar(i, qid, j, v){
+  const L=_ftp.lidas[i];
+  if(v==='') delete L.respostas[qid]; else L.respostas[qid]=Number(v);
+  L.duvidas = L.duvidas.filter(d=>d!==j);
+  ftpRender();
+}
+
+// Gera o PDF com uma folha por aluno (códigos guardados na base de dados)
+async function ftpGerar(){
+  const t=_ftp.teste, qs=ftPerguntas(t);
+  const usados = new Set(_ftp.linhas.map(l=>l.codigo)); let prox = 1;
+  const novos = [];
+  for(const uid of _ftp.alunos){
+    if(_ftp.linhas.some(l=>l.aluno_id===uid)) continue;
+    while(usados.has(prox)) prox++;
+    if(prox>127){ alert('Limite de 127 códigos atingido.'); return; }
+    usados.add(prox); novos.push({ teste_id:t.id, aluno_id:uid, codigo:prox });
+  }
+  if(novos.length){
+    const { data, error } = await sb.from('formacao_prova_papel').insert(novos).select();
+    if(error){ alert('Erro ao atribuir os códigos: '+error.message); return; }
+    _ftp.linhas = _ftp.linhas.concat(data||[]);
+  }
+  const { jsPDF } = window.jspdf; const doc = new jsPDF({ unit:'mm', format:'a4' });
+  _ftp.alunos.forEach((uid, idx)=>{
+    const lin = _ftp.linhas.find(l=>l.aluno_id===uid); if(!lin) return;
+    if(idx>0) doc.addPage();
+    doc.setFillColor(0,0,0);
+    FTP.cantos.forEach(([cx,cy])=>doc.rect(cx-FTP.marca/2, cy-FTP.marca/2, FTP.marca, FTP.marca, 'F'));
+    doc.setTextColor(31,77,46); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+    doc.text((t.titulo||'Teste')+' — Folha de respostas', 22, 15);
+    doc.setTextColor(0,0,0); doc.setFontSize(12); doc.text(ftpNome(uid), 22, 23);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(90,90,90);
+    doc.text('Código da folha: '+lin.codigo+'  (identifica o aluno — não escrever nem riscar os quadrados)', 22, 29);
+    // código: 7 bits + paridade
+    ftpBits(lin.codigo).forEach((b,i)=>{ const x=FTP.bitsX+i*FTP.bitP; doc.setDrawColor(0,0,0); doc.setLineWidth(0.3);
+      if(b){ doc.setFillColor(0,0,0); doc.rect(x, FTP.bitsY, FTP.bitL, FTP.bitL, 'F'); } else doc.rect(x, FTP.bitsY, FTP.bitL, FTP.bitL, 'S'); });
+    doc.setFontSize(9); doc.setTextColor(0,0,0);
+    doc.text('Escreva o seu nome (maiúsculas): ______________________________________________', 22, 42);
+    doc.setFontSize(8.5); doc.setTextColor(90,90,90);
+    doc.text('Pinte completamente um círculo por pergunta (caneta azul ou preta). Para anular, faça um X sobre o círculo e pinte o certo.', 22, 49);
+    qs.forEach((q,i)=>{
+      const p0 = ftpPos(i, 0, qs.length);
+      if(p0.lin%2===0){ doc.setFillColor(241,244,242); doc.rect(FTP.x0+p0.col*FTP.colW, p0.y-p0.h/2, FTP.colW-3, p0.h, 'F'); }
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0); doc.text(String(i+1), p0.nx, p0.y+1.2, { align:'right' });
+      (q.opcoes||[]).forEach((o,k)=>{ const p=ftpPos(i,k,qs.length);
+        doc.setDrawColor(0,0,0); doc.setLineWidth(0.3); doc.setFillColor(255,255,255); doc.circle(p.x, p.y, FTP.r, 'FD');
+        doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(175,175,175); doc.text(ftpRotulo(q,k), p.x, p.y+0.9, { align:'center' }); });
+    });
+    doc.setFontSize(7); doc.setTextColor(140,140,140);
+    doc.text('Não dobre nem amarrote esta folha. Digitalizar a 300 dpi, página inteira.', 22, 288);
+  });
+  doc.save('folhas_resposta_'+(t.codigo||'teste')+'.pdf');
+  ftpRender();
+}
+
+// Lê o PDF digitalizado: uma folha por página
+async function ftpLer(file){
+  const t=_ftp.teste, qs=ftPerguntas(t);
+  const est = m => { _ftp.estado = m; const e=document.getElementById('ftp-estado'); if(e) e.textContent = m; };
+  try{
+    est('A abrir o PDF…');
+    const pdfjs = await _libPdf();
+    const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+    const lidas = [];
+    for(let p=1; p<=pdf.numPages; p++){
+      est('A ler a página '+p+' de '+pdf.numPages+'…');
+      const page = await pdf.getPage(p);
+      const vp0 = page.getViewport({ scale:1 }), escala = 1400/vp0.width;
+      const vp = page.getViewport({ scale:escala });
+      const cv = document.createElement('canvas'); cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+      const ctx = cv.getContext('2d', { willReadFrequently:true }); ctx.fillStyle='#fff'; ctx.fillRect(0,0,cv.width,cv.height);
+      await page.render({ canvasContext:ctx, viewport:vp }).promise;
+      const r = ftpAnalisar(ctx.getImageData(0,0,cv.width,cv.height), qs);
+      r.pagina = p; r.img = cv.toDataURL('image/jpeg', 0.6);
+      if(!r.erro){ const lin = _ftp.linhas.find(l=>l.codigo===r.codigo); r.alunoId = (r.codigoOk && lin) ? lin.aluno_id : null; }
+      lidas.push(r);
+    }
+    _ftp.lidas = lidas; _ftp.aberta = null;
+    est(lidas.length+' página(s) lida(s).');
+  }catch(e){ console.error(e); est('Erro ao ler o PDF: '+(e.message||e)); }
+  ftpRender();
+}
+function ftpAnalisar(img, qs){
+  const W=img.width, H=img.height, d=img.data, pxmm = W/210;
+  const cinza = (x,y)=>{ const i=(y*W+x)*4; return 0.299*d[i]+0.587*d[i+1]+0.114*d[i+2]; };
+  // 1) marcas dos cantos: procura, numa janela larga à volta da posição esperada, o quadrado com maior densidade de
+  //    pixels escuros (o texto nunca é tão denso como a marca sólida) e afina pelo centróide
+  const marca = (mx,my)=>{
+    const j = 24*pxmm, cxe = mx*pxmm, cye = my*(H/297);
+    const x0=Math.max(0,Math.round(cxe-j)), x1=Math.min(W-1,Math.round(cxe+j)), y0=Math.max(0,Math.round(cye-j)), y1=Math.min(H-1,Math.round(cye+j));
+    const w=x1-x0+1, h=y1-y0+1, I=new Int32Array((w+1)*(h+1));
+    for(let y=0;y<h;y++){ let lin=0; for(let x=0;x<w;x++){ lin += cinza(x0+x,y0+y)<110 ? 1 : 0; I[(y+1)*(w+1)+(x+1)] = I[y*(w+1)+(x+1)] + lin; } }
+    const L = Math.max(3, Math.round(FTP.marca*pxmm*0.8)), area = L*L;
+    let best=0, bx=0, by=0;
+    for(let y=0;y+L<=h;y+=2) for(let x=0;x+L<=w;x+=2){
+      const s=I[(y+L)*(w+1)+(x+L)]-I[y*(w+1)+(x+L)]-I[(y+L)*(w+1)+x]+I[y*(w+1)+x];
+      if(s>best || (s===best && Math.hypot(x0+x-cxe,y0+y-cye) < Math.hypot(x0+bx-cxe,y0+by-cye))){ best=s; bx=x; by=y; }
+    }
+    if(best < 0.75*area) return null;
+    let sx=0, sy=0, n=0; const m=Math.round(L*0.6);
+    for(let y=Math.max(0,by-m); y<Math.min(h,by+L+m); y++) for(let x=Math.max(0,bx-m); x<Math.min(w,bx+L+m); x++) if(cinza(x0+x,y0+y)<110){ sx+=x0+x; sy+=y0+y; n++; }
+    return n ? { x:sx/n, y:sy/n } : null;
+  };
+  const [TL,TR,BL] = [marca(13,13), marca(197,13), marca(13,284)];
+  if(!TL||!TR||!BL) return { erro:'Não foi possível localizar as marcas dos cantos (página cortada, em branco ou de outro documento?).', respostas:{}, duvidas:[] };
+  const ux = { x:(TR.x-TL.x)/184, y:(TR.y-TL.y)/184 }, vy = { x:(BL.x-TL.x)/271, y:(BL.y-TL.y)/271 };
+  const P = (x,y)=>({ x: TL.x + ux.x*(x-13) + vy.x*(y-13), y: TL.y + ux.y*(x-13) + vy.y*(y-13) });
+  const escala = Math.hypot(ux.x, ux.y);
+  const preenchimento = (xmm, ymm, rmm)=>{
+    const c = P(xmm,ymm), r = rmm*escala; let n=0, esc=0;
+    for(let y=Math.floor(c.y-r); y<=Math.ceil(c.y+r); y++) for(let x=Math.floor(c.x-r); x<=Math.ceil(c.x+r); x++){
+      if(x<0||y<0||x>=W||y>=H) continue; if((x-c.x)*(x-c.x)+(y-c.y)*(y-c.y) > r*r) continue;
+      n++; if(cinza(x,y)<140) esc++;
+    }
+    return n ? esc/n : 0;
+  };
+  // 2) código do aluno
+  const bits = []; for(let i=0;i<8;i++) bits.push(preenchimento(FTP.bitsX+i*FTP.bitP+FTP.bitL/2, FTP.bitsY+FTP.bitL/2, FTP.bitL*0.3) > 0.5 ? 1 : 0);
+  const codigo = bits.slice(0,7).reduce((a,b,i)=>a+(b<<i),0), codigoOk = codigo>0 && bits[7]===bits.slice(0,7).reduce((a,x)=>a^x,0);
+  // 3) respostas
+  const respostas = {}, duvidas = [];
+  qs.forEach((q,i)=>{
+    const f = (q.opcoes||[]).map((o,k)=>{ const p=ftpPos(i,k,qs.length); return preenchimento(p.x, p.y, FTP.r*0.55); });
+    const cheios = f.map((v,k)=>v>0.42?k:-1).filter(k=>k>=0);
+    const fracos = f.filter(v=>v>0.2 && v<=0.42).length;
+    if(cheios.length===1) respostas[q.id] = cheios[0];
+    if(cheios.length>1 || fracos>0) duvidas.push(i);
+  });
+  return { codigo, codigoOk, respostas, duvidas };
+}
+async function ftpGravar(){
+  const t=_ftp.teste, qs=ftPerguntas(t);
+  const validas = _ftp.lidas.filter(L=>!L.erro);
+  const semAluno = validas.filter(L=>!L.alunoId).map(L=>L.pagina);
+  if(semAluno.length){ alert('Indica o aluno nas páginas: '+semAluno.join(', ')+'.'); return; }
+  const ids = validas.map(L=>L.alunoId);
+  if(new Set(ids).size !== ids.length){ alert('Há alunos repetidos em mais de uma página. Corrige antes de gravar.'); return; }
+  const pend = validas.filter(L=>L.duvidas.length).length;
+  if(pend && !confirm(pend+' folha(s) ainda têm perguntas por confirmar. Gravar mesmo assim (com as respostas lidas)?')) return;
+  const ja = validas.filter(L=>_ftp.linhas.find(l=>l.aluno_id===L.alunoId && l.lida_em)).map(L=>ftpNome(L.alunoId));
+  if(ja.length && !confirm('Já há nota gravada para: '+ja.join(', ')+'.\nSubstituir?')) return;
+  for(const L of validas){
+    const c = ftpCorrigir(qs, L.respostas);
+    const reg = { respostas:L.respostas, duvidas:L.duvidas, certas:c.certas, pontos:c.pontos, total:c.total, nota:c.nota, lida_em:new Date().toISOString(), updated_at:new Date().toISOString(), gravado_por:currentUser.id };
+    const lin = _ftp.linhas.find(l=>l.aluno_id===L.alunoId);
+    let res;
+    if(lin) res = await sb.from('formacao_prova_papel').update(reg).eq('id', lin.id);
+    else {
+      const usados = new Set(_ftp.linhas.map(l=>l.codigo)); let cod = (L.codigoOk && !usados.has(L.codigo)) ? L.codigo : 1; while(usados.has(cod)) cod++;
+      res = await sb.from('formacao_prova_papel').insert(Object.assign({ teste_id:t.id, aluno_id:L.alunoId, codigo:cod }, reg));
+    }
+    if(res.error){ alert('Erro ao gravar ('+ftpNome(L.alunoId)+'): '+res.error.message); return; }
+  }
+  await ftpCarregar(t.id); _ftp.lidas = []; _ftp.aberta = null; _ftp.estado = validas.length+' nota(s) gravada(s).';
+  ftpRender();
 }
 
 // ---------- Admin: editor de testes ----------
