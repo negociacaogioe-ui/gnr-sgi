@@ -8725,14 +8725,7 @@ function avRenderFicha(){
       <table style="margin-top:8px"><tbody>${AVAL_NIVEIS.map(x=>`<tr><td style="white-space:nowrap;vertical-align:top"><strong>${x.n}</strong><div style="font-size:11px;color:var(--gray600)">(${x.v})</div></td><td style="font-size:12.5px;line-height:1.5">${x.d}</td></tr>`).join('')}</tbody></table>
     </details>
   </div>
-  <div class="form-section"><h3>3. Identificação do avaliador</h3>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 16px;font-size:13px;align-items:center">
-      <div><strong>Nome:</strong> ${_ppEsc(pAv.nome||'—')}</div><div><strong>Unidade:</strong> ${_ppEsc(pAv.cter||'—')}</div>
-      <div><strong>Posto:</strong> ${_ppEsc(pAv.posto||'—')}</div>
-      <div><strong>Função:</strong> ${edit?`<input type="text" value="${_ppEsc(F.funcao||'')}" oninput="_av.ficha.funcao=this.value;avFichaAgendar(1200)" style="font-size:13px;margin-top:3px">`:_ppEsc(F.funcao||'—')}</div>
-      <div><strong>Data:</strong> ${submEm?new Date(submEm).toLocaleDateString('pt-PT'):'—'}</div>
-      ${valEm?`<div><strong>Validada em:</strong> ${new Date(valEm.validado_em).toLocaleDateString('pt-PT')} por ${_ppEsc(avNome(valEm.validado_por))}</div>`:''}
-    </div></div>
+  ${(F.avaliadorId!==currentUser.id || valEm || submEm) ? `<div style="font-size:12px;color:var(--gray600);margin-top:.5rem">${F.avaliadorId!==currentUser.id?'Avaliador: '+_ppEsc(avNome(F.avaliadorId))+(pAv.cter?' ('+_ppEsc(pAv.cter)+')':'')+' · ':''}${submEm?'Submetida em '+new Date(submEm).toLocaleDateString('pt-PT'):''}${valEm?' · Validada em '+new Date(valEm.validado_em).toLocaleDateString('pt-PT')+' por '+_ppEsc(avNome(valEm.validado_por)):''}</div>` : ''}
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:1rem">${acoes}</div>`;
 }
 function avSetNivel(uc, k, v){ avFichaAgendar(400);
