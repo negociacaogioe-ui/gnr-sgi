@@ -8084,10 +8084,10 @@ async function avCarregarAcesso(){
 function avTemAcesso(){ return _av.admin || _av.epq || _av.psico; }
 // Separadores a que cada perfil tem acesso
 function avTabsPermitidas(){
-  if(_av.admin) return [['resumo','Resumo'],['quadro','Quadro de avaliações'],['avaliador','Por avaliador'],['minhas','As minhas avaliações'],['psico','Grelha de observação'],['psicoconc','Concordância da observação'],['config','Configuração']];
+  if(_av.admin) return [['resumo','Resumo'],['quadro','Quadro de avaliações'],['avaliador','Por avaliador'],['minhas','As minhas avaliações'],['psico','Grelha de observação'],['psicoperfil','Perfil por função'],['config','Configuração']];
   const t = [];
   if(_av.epq) t.push(['minhas','As minhas avaliações']);
-  if(_av.psico) t.push(['psico','Grelha de observação'],['psicoconc','Concordância da observação']);
+  if(_av.psico) t.push(['psico','Grelha de observação'],['psicoperfil','Perfil por função']);
   return t;
 }
 function avCardHtml(){
@@ -8193,7 +8193,7 @@ function avRender(){
   const tabs = avTabsPermitidas();
   let head = `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:1rem">
     <div><div class="page-title" style="font-size:20px">${_fa('fa-graduation-cap','var(--gold)')} Avaliação de Formandos</div>
-      <div class="page-sub">${(_av.tab==='psico'||_av.tab==='psicoconc') ? 'Grelha de Observação e Análise Comportamental — exercícios finais do CNeg' : 'Fichas de Avaliação das Provas Práticas — Regulamento do CNeg, Anexo B'}</div></div>
+      <div class="page-sub">${(_av.tab==='psico'||_av.tab==='psicoconc'||_av.tab==='psicoperfil') ? 'Grelha de Observação e Análise Comportamental — exercícios finais do CNeg' : 'Fichas de Avaliação das Provas Práticas — Regulamento do CNeg, Anexo B'}</div></div>
     ${_av.edicoes.length ? `<div style="display:flex;align-items:center;gap:6px"><label style="font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em">Edição</label>
       <select onchange="_av.edicaoId=this.value;abrirAvaliacao()" style="width:auto;font-size:13px">${_av.edicoes.map(e=>`<option value="${e.id}" ${e.id===_av.edicaoId?'selected':''}>${_ppEsc(e.nome)}${e.ativa?' (ativa)':''}</option>`).join('')}</select></div>` : ''}
   </div>`;
@@ -8207,6 +8207,7 @@ function avRender(){
   else if(_av.tab==='config') body = avHtmlConfig();
   else if(_av.tab==='psico') body = avPsiHtmlLista();
   else if(_av.tab==='psicoconc') body = avPsiHtmlConcordancia();
+  else if(_av.tab==='psicoperfil') body = avPsiHtmlPerfil();
   else body = avHtmlGrelhaAvaliador(currentUser.id, true);
   el.innerHTML = head + body;
   if(_av.tab==='config'){ avCarregarListaEpq(); avCarregarCandidatosAluno(); avCarregarListaPsico(); }
@@ -8726,26 +8727,57 @@ async function avDecidir(estado){
 // ===== AVALIAÇÃO DE FORMANDOS › GRELHA DE OBSERVAÇÃO PSICOLÓGICA =====
 // Só admin + psicólogos (tabela aval_psicologos). Tabelas: aval_obs_psico (uma folha por psicólogo/aluno/exercício)
 // e aval_obs_consenso (cotação final acordada). RLS: cada psicólogo só vê a folha do colega depois de fechar a sua.
-const AVPSI_ITENS = [
-  { k:'i1',  t:'Escuta ativa', ind:'Perguntas abertas, paráfrase, resumo, rotulação emocional, encorajadores mínimos, pausas eficazes', a1:'Interrompe, faz perguntas fechadas em série, fala mais do que ouve', a5:'Usa as técnicas de forma natural e variada; o interlocutor fala mais e revela informação nova', ub:'UC1.1, UC1.5, UC1.7' },
-  { k:'i2',  t:'Empatia e rapport', ind:'Reconhece sentimentos e perspetiva do interlocutor, trata-o pelo nome, mostra interesse genuíno, cria confiança', a1:'Desvaloriza ou julga o interlocutor; tom distante ou de confronto', a5:'O interlocutor passa a aceitar o negociador como interlocutor válido e responde com menos hostilidade', ub:'UC1.5, UC1.7' },
-  { k:'i3',  t:'Autorregulação emocional', ind:'Mantém tom e ritmo estáveis perante insultos, ameaças, silêncios ou ultimatos; recupera após erros', a1:'Reage à provocação, eleva a voz, mostra irritação ou bloqueio', a5:'Mantém-se calmo nos picos de tensão e usa essa calma para baixar a intensidade do interlocutor', ub:'UC1.2, UC3.8' },
-  { k:'i4',  t:'Comunicação verbal e paraverbal', ind:'Linguagem simples e concreta; tom, volume e ritmo ajustados; evita palavras-gatilho («não», «nunca», «tem de»); usa «nós»', a1:'Linguagem técnica ou autoritária; tom monótono ou agressivo; usa gatilhos', a5:'Comunicação clara e calibrada ao estado do interlocutor ao longo das fases', ub:'UC1.1' },
-  { k:'i5',  t:'Gestão da resistência', ind:'Perante recusas, exigências ou ataques, não discute nem cede; reformula, desvia, procura o interesse por trás da posição', a1:'Entra em confronto ou cede à primeira pressão; faz promessas que não pode cumprir', a5:'Transforma recusas em diálogo sobre interesses sem perder a posição institucional', ub:'UC1.6' },
-  { k:'i6',  t:'Orientação para a resolução', ind:'Segue a estratégia definida, trabalha opções, obtém pequenos compromissos, conduz para a saída segura', a1:'Conversa sem rumo; não liga o diálogo ao objetivo', a5:'Cada fase aproxima o interlocutor da resolução; compromissos claros e cumpridos', ub:'UC1.4, UC2.4, UC2.5' },
-  { k:'i7',  t:'Flexibilidade e adaptação', ind:'Ajusta a abordagem a nova informação, mudança de interlocutor, de papel ou de estrutura da equipa', a1:'Mantém a mesma abordagem apesar de sinais claros de que não resulta', a5:'Muda de tática no momento certo e explica à equipa porquê', ub:'UC2.8, UC2.9' },
-  { k:'i8',  t:'Comunicação e cooperação na equipa', ind:'Ouve e usa as notas do coach, partilha informação, respeita papéis, faz passagem de turno clara', a1:'Ignora a equipa, não partilha informação, conflito de papéis', a5:'A equipa funciona como um todo; a informação circula sem perdas', ub:'UC2.7, UC3.6' },
-  { k:'i9',  t:'Consciência situacional e avaliação de risco', ind:'Identifica sinais de progresso ou deterioração e indícios de risco para reféns, terceiros ou o próprio; informa o comando e a equipa tática', a1:'Não deteta ou não reporta sinais de risco relevantes', a5:'Antecipa mudanças e transmite avaliação útil à decisão de comando e à Equipa Tática', ub:'UC2.6, UC3.1, UC3.3' },
-  { k:'i10', t:'Postura profissional e tomada de decisão', ind:'Respeita a cadeia de comando e os limites de autorização, assume responsabilidade, decide com segurança e sem precipitação', a1:'Hesita ou decide fora da sua competência; desresponsabiliza-se', a5:'Decisões seguras, fundamentadas e dentro dos limites; transmite confiança à equipa', ub:'UC3.5, UC3.7, UC3.8' }
+// Banco de itens por função: 4 comuns (f:'C') + itens próprios de cada função. lv = descrição dos níveis 1 a 5.
+const AVPSI_FUNCOES = [
+  { k:'N1', t:'Negociador n.º 1' }, { k:'N2', t:'Negociador n.º 2' }, { k:'N3', t:'Negociador n.º 3' },
+  { k:'N4', t:'Negociador n.º 4' }, { k:'CO', t:'Coordenador' }
 ];
+const AVPSI_ITENS = [
+  { k:'C1', f:'C', t:'Gestão de stress e autocontrolo', ind:'Mantém o controlo e o desempenho da função sob pressão.',
+    indF:{ N1:'Não reage a provocações, ameaças ou ultimatos; mantém tom e ritmo; usa pausas.', N2:'Mantém-se calmo quando o N.º 1 está em dificuldade; notas claras, sem alarmismo.', N3:'Mantém os quadros organizados mesmo com muita informação a chegar.', N4:'Faz entrevistas e contactos de forma metódica mesmo com urgência.', CO:'Calmo perante a pressão do comando e do tempo; não passa a pressão à equipa; gere rendições e desgaste.' },
+    lv:['Perde o controlo ou bloqueia; a pressão degrada claramente o trabalho da função.','Sinais de tensão frequentes (precipitação, rigidez, irritação) que afetam o trabalho em alguns momentos.','Mantém o controlo na maior parte do exercício; tensão pontual sem consequência.','Mantém o controlo do princípio ao fim, também nos picos de pressão; recupera depressa.','Como 4 e transmite calma à equipa ou ao visado; serve de referência.'] },
+  { k:'C2', f:'C', t:'Flexibilidade e adaptação', ind:'Ajusta a abordagem a nova informação, mudança de cenário, de interlocutor ou de função.',
+    lv:['Mantém a mesma abordagem apesar de sinais claros de que não resulta.','Adapta-se só quando lho indicam, ou tarde.','Adapta-se à maior parte das mudanças, com atrasos pontuais.','Adapta-se no momento certo a todas as mudanças relevantes.','Antecipa as mudanças e explica à equipa porquê.'] },
+  { k:'C3', f:'C', t:'Cooperação e comunicação na equipa', ind:'Partilha informação, usa o que recebe, respeita os papéis, faz passagens claras.',
+    lv:['Trabalha isolado, não partilha ou ignora o que recebe; conflito de papéis.','Partilha de forma incompleta ou tardia; usa pouco o que recebe.','Partilha e usa a informação na maior parte do exercício.','A informação circula sem perdas nem atrasos; respeita sempre os papéis.','Como 4 e promove ativamente a coordenação; a equipa funciona melhor por causa dele.'] },
+  { k:'C4', f:'C', t:'Consciência situacional e avaliação de risco', ind:'Perceção do que está a acontecer: sinais de progresso ou deterioração e indícios de risco, reportados a quem deve.',
+    lv:['Não deteta ou não reporta sinais de risco relevantes.','Deteta alguns sinais, mas tarde ou sem os reportar.','Deteta e reporta a maior parte dos sinais relevantes.','Deteta e reporta todos os sinais relevantes, a tempo.','Antecipa a evolução; a sua avaliação influencia as decisões.'] },
+  { k:'N1_1', f:'N1', t:'Escuta ativa', ind:'Perguntas abertas, paráfrase, resumo, identificação de emoções, encorajadores, pausas.',
+    lv:['Interrompe, faz perguntas fechadas seguidas, fala mais do que o visado.','Usa uma ou duas técnicas de vez em quando, sobretudo após nota do N.º 2; perde informação.','Usa várias técnicas na maior parte do contacto; falhas pontuais sem perder informação relevante.','Usa as técnicas do princípio ao fim, também quando o visado ameaça ou se cala.','Como 4 e nota-se o efeito: o visado fala mais, acalma e revela informação nova.'] },
+  { k:'N1_2', f:'N1', t:'Empatia e rapport', ind:'Reconhece sentimentos e perspetiva do visado, trata-o pelo nome, constrói confiança.',
+    lv:['Desvaloriza, julga ou confronta o visado.','Tentativas pontuais, por vezes forçadas ou genéricas.','Reconhece emoções e perspetiva na maior parte do contacto.','Consistente em todo o contacto; o visado aceita-o como interlocutor.','Como 4 e há mudança visível no visado: menos hostil, mais colaborante.'] },
+  { k:'N1_3', f:'N1', t:'Comunicação verbal e paraverbal', ind:'Linguagem simples; tom, volume e ritmo ajustados; evita palavras que provocam o visado.',
+    lv:['Linguagem técnica ou autoritária; tom agressivo ou monótono; palavras que provocam, com frequência.','Adequada em parte; tom desajustado ou palavras que provocam em vários momentos.','Clara e ajustada na maior parte do contacto; deslizes pontuais.','Clara e ajustada ao estado do visado do princípio ao fim.','Como 4 e usa a voz para baixar a intensidade do visado.'] },
+  { k:'N1_4', f:'N1', t:'Orientação para a resolução', ind:'Segue a estratégia do PN, trabalha os objetivos intermédios, não cede nem promete o que não pode, procura o interesse por trás da posição.',
+    lv:['Conversa sem rumo, ou cede ou promete o que não pode cumprir.','Liga-se ao objetivo só pontualmente; perde o rumo com facilidade.','Segue a estratégia na maior parte; recupera os desvios.','Conduz cada fase para os objetivos intermédios, sem ceder nem prometer.','Como 4 e transforma recusas em avanços; compromissos claros e cumpridos.'] },
+  { k:'N2_1', f:'N2', t:'Apoio e feedback ao N.º 1', ind:'Acompanha o diálogo; notas oportunas, curtas e úteis; classifica bem urgente e prioritário; apoia o N.º 1 entre contactos.',
+    lv:['Não acompanha, ou as notas atrapalham (excessivas, confusas, fora de tempo).','Notas pontuais, por vezes tardias ou mal classificadas.','Notas úteis na maior parte dos momentos-chave.','Notas certas no momento certo e bem classificadas; apoia o N.º 1 entre contactos.','Como 4 e as notas mudam visivelmente o rumo do contacto para melhor.'] },
+  { k:'N2_2', f:'N2', t:'Filtragem e encaminhamento da informação', ind:'Retira do diálogo o que é relevante e encaminha-o ao N.º 3 e ao N.º 1.',
+    lv:['Não regista ou não encaminha informação relevante.','Encaminha parte, com atrasos ou misturada com o irrelevante.','Encaminha a maior parte da informação relevante.','Encaminha toda a informação relevante, a tempo e a quem deve.','Como 4 e destaca o que muda a avaliação da situação.'] },
+  { k:'N3_1', f:'N3', t:'Recolha e organização da informação', ind:'Quadros completos, atualizados, com a informação no quadro certo.',
+    lv:['Quadros vazios, desatualizados ou desorganizados.','Parte da informação registada, com atrasos ou no sítio errado.','Quadros atualizados na maior parte do exercício.','Quadros completos, atualizados e organizados do princípio ao fim.','Como 4 e a organização facilita visivelmente o trabalho do N.º 1, N.º 2 e Coordenador.'] },
+  { k:'N3_2', f:'N3', t:'Análise e planeamento', ind:'Identifica posição e interesses, o problema que impede a resolução, objetivos intermédios e modalidades de ação; atualiza o PN com nova informação.',
+    lv:['Não elabora o PN, ou confunde o problema com o cenário.','PN incompleto ou não atualizado.','PN adequado na maior parte, com lacunas pontuais.','PN completo, coerente e atualizado.','Como 4 e a análise antecipa saídas que a equipa usa.'] },
+  { k:'N4_1', f:'N4', t:'Entrevista de fontes', ind:'Prepara a entrevista, faz perguntas abertas, cria confiança com a fonte, verifica a credibilidade, não revela informação operacional.',
+    lv:['Sem preparação; perguntas fechadas ou indutoras; ou revela informação operacional.','Obtém alguma informação mas deixa escapar dados importantes; pouca verificação.','Obtém a maior parte da informação relevante, com verificação razoável.','Entrevista bem preparada e conduzida; informação relevante e verificada.','Como 4 e obtém informação decisiva que a equipa não tinha.'] },
+  { k:'N4_2', f:'N4', t:'Pesquisa e encaminhamento da informação', ind:'Responde aos pedidos do Coordenador, identifica e faz os contactos necessários, devolve a informação com a fonte e o grau de confiança.',
+    lv:['Não responde aos pedidos ou não identifica quem contactar.','Responde parcialmente ou tarde; informação sem fonte nem grau de confiança.','Responde à maior parte dos pedidos em tempo útil.','Responde a todos os pedidos a tempo, com fonte e grau de confiança.','Como 4 e antecipa necessidades de informação antes de lhe serem pedidas.'] },
+  { k:'CO_1', f:'CO', t:'Articulação com o comando e a equipa tática', ind:'Proposta ao Comandante clara e sucinta (avaliação → o que propomos); comando informado; articulação com a equipa tática.',
+    lv:['Não informa o comando, ou comunica de forma confusa e longa.','Informa tarde ou de forma incompleta.','Informa e articula adequadamente na maior parte do exercício.','Comunicação clara, sucinta e atempada com o comando e a equipa tática.','Como 4 e as propostas orientam a decisão do comando.'] },
+  { k:'CO_2', f:'CO', t:'Coordenação da equipa', ind:'Distribui tarefas, gere ritmo, rendições e desgaste, envia informação dirigida ao N.º 3 e ao N.º 4.',
+    lv:['Equipa sem orientação; tarefas duplicadas ou por fazer.','Coordenação pontual; falhas na distribuição ou no acompanhamento.','Coordena a maior parte do exercício, com falhas pontuais.','Todos sabem o que fazer; ritmo e desgaste geridos.','Como 4 e a equipa ganha eficácia visível com a sua coordenação.'] },
+  { k:'CO_3', f:'CO', t:'Tomada de decisão', ind:'Decide dentro dos limites, a tempo e de forma fundamentada.',
+    lv:['Não decide, ou decide fora da sua competência.','Decide tarde ou sem fundamento claro.','Decisões adequadas na maior parte; hesitações pontuais.','Decisões seguras, fundamentadas e no tempo certo.','Como 4 e as decisões antecipam a evolução do incidente.'] }
+];
+function avPsiFuncKey(label){ const f = AVPSI_FUNCOES.find(x=>x.t===label); return f ? f.k : null; }
+function avPsiItensFuncao(label){ const k = avPsiFuncKey(label); return k ? AVPSI_ITENS.filter(i=>i.f==='C' || i.f===k) : []; }
 // Mesmos 5 níveis do Apêndice 7 do Anexo B (AVAL_NIVEIS) + NO (não observável)
 const AVPSI_ESCALA = [
   ...AVAL_NIVEIS.slice().sort((a,b)=>a.n-b.n).map(x=>({ n:String(x.n), t:x.v, d:x.d })),
   { n:'NO', t:'Não observável', d:'O cenário não deu oportunidade de observar o comportamento. Não entra na média.' }
 ];
-const AVPSI_FUNCOES = ['Negociador n.º 1','Negociador n.º 2','Negociador n.º 3','Negociador n.º 4','Coordenador'];
 function avPsiNum(v){ return (v===undefined||v===null||v===''||v==='NO') ? null : Number(v); }
-function avPsiMedia(niveis){ return avMedia(AVPSI_ITENS.map(i=>avPsiNum((niveis||{})[i.k]))); }
+function avPsiMedia(niveis, funcao){ return avMedia(avPsiItensFuncao(funcao).map(i=>avPsiNum((niveis||{})[i.k]))); }
 function avPsiFmt(v){ return v==null ? '—' : (v==='NO' ? 'NO' : Number(v).toFixed(1).replace('.',',')); }
 function avPsiEstadoBadge(e){
   return e==='fechada'
@@ -8760,21 +8792,22 @@ function avPsiHtmlLista(){
   const lista = (_av.admin ? _av.obs : _av.obs.filter(o=>o.psicologo_id===currentUser.id))
     .slice().sort((a,b)=>String(b.data_hora||b.created_at||'').localeCompare(String(a.data_hora||a.created_at||'')));
   const topo = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-      <div style="font-size:12.5px;color:var(--gray600);line-height:1.5;max-width:70ch">Cada folha regista a observação de um psicólogo sobre um formando num exercício (10 itens, níveis 1 a 5 ou NO). Os psicólogos observam e cotam de forma independente; a folha do colega só fica visível em <strong>Concordância da observação</strong> depois de ambos fecharem a sua.</div>
+      <div style="font-size:12.5px;color:var(--gray600);line-height:1.5;max-width:70ch">Cada folha regista a observação de um formando na função que ocupou num exercício: 4 itens comuns + os itens próprios da função (níveis 1 a 5 ou NO). Só as folhas fechadas contam para o <strong>Perfil por função</strong>, que mostra também as funções que cada formando ainda não ocupou.</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">${_av.admin && !_av.psico ? '<button class="btn btn-primary" onclick="avPsiVerModelo()"><i class="fas fa-eye"></i> Abrir grelha (pré-visualização)</button>' : ''}
       ${_av.psico ? '<button class="btn btn-primary" onclick="avPsiNova()"><i class="fas fa-plus"></i> Nova folha</button>' : ''}</div></div>`;
   if(!lista.length) return topo + '<div style="padding:1.5rem;background:var(--gray100);border-radius:var(--rl);color:var(--gray600);font-size:13px">Ainda sem folhas de observação.</div>';
   return topo + `<div class="table-card"><div class="table-wrap"><table>
-    <thead><tr><th>Data / hora</th><th>Exercício</th><th>Aluno</th>${_av.admin?'<th>Psicólogo</th>':''}<th style="text-align:center">Itens cotados</th><th style="text-align:center">Média</th><th>Estado</th></tr></thead>
+    <thead><tr><th>Data / hora</th><th>Exercício</th><th>Aluno</th><th>Função</th>${_av.admin?'<th>Psicólogo</th>':''}<th style="text-align:center">Itens cotados</th><th style="text-align:center">Média</th><th>Estado</th></tr></thead>
     <tbody>${lista.map(o=>{
-      const cot = AVPSI_ITENS.filter(i=>(o.niveis||{})[i.k]).length;
+      const its = avPsiItensFuncao(o.funcao), cot = its.filter(i=>(o.niveis||{})[i.k]).length;
       return `<tr style="cursor:pointer" onclick="avPsiAbrir('${o.id}')">
       <td style="white-space:nowrap;font-family:'IBM Plex Mono',monospace;font-size:12.5px">${avDataHora(o.data_hora)}</td>
       <td>${_ppEsc(o.exercicio)}</td>
       <td style="font-weight:600">${_ppEsc(avNome(o.aluno_id))}</td>
+      <td>${_ppEsc(o.funcao||'—')}</td>
       ${_av.admin?`<td>${_ppEsc(avNome(o.psicologo_id))}</td>`:''}
-      <td style="text-align:center">${cot}/10</td>
-      <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700">${avPsiFmt(avPsiMedia(o.niveis))}</td>
+      <td style="text-align:center">${cot}/${its.length}</td>
+      <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700">${avPsiFmt(avPsiMedia(o.niveis, o.funcao))}</td>
       <td>${avPsiEstadoBadge(o.estado)}</td></tr>`; }).join('')}</tbody></table></div></div>`;
 }
 
@@ -8810,27 +8843,27 @@ function avPsiSet(k, v){
 function avPsiRender(){
   const P = _av.psi, edit = avPsiEditavel();
   const pAl = _av.perfis[P.alunoId] || {}, pPs = _av.perfis[P.psicologoId] || {};
-  const media = avPsiMedia(P.niveis), cot = AVPSI_ITENS.filter(i=>P.niveis[i.k]).length;
-  const btn = (k, v) => {
+  const itens = avPsiItensFuncao(P.funcao), fk = avPsiFuncKey(P.funcao);
+  const media = avPsiMedia(P.niveis, P.funcao), cot = itens.filter(i=>P.niveis[i.k]).length;
+  const btn = (k, v, desc) => {
     const on = P.niveis[k]===v;
     return edit
-      ? `<button type="button" onclick="avPsiSet('${k}','${v}')" title="${on?'Clicar de novo para retirar':(v==='NO'?'Não observável':'Nível '+v)}" style="display:inline-flex;min-width:34px;height:34px;padding:0 6px;align-items:center;justify-content:center;border-radius:17px;cursor:pointer;border:1.5px solid ${on?'var(--gl)':'var(--border)'};background:${on?'var(--gl)':'#fff'};color:${on?'#fff':'var(--gray600)'};font-weight:700;font-family:inherit;font-size:12.5px">${v}</button>`
+      ? `<button type="button" onclick="avPsiSet('${k}','${v}')" title="${on?'Clicar de novo para retirar':(v==='NO'?'Não observável':'Nível '+v+(desc?' — '+_ppEsc(desc):''))}" style="display:inline-flex;min-width:34px;height:34px;padding:0 6px;align-items:center;justify-content:center;border-radius:17px;cursor:pointer;border:1.5px solid ${on?'var(--gl)':'var(--border)'};background:${on?'var(--gl)':'#fff'};color:${on?'#fff':'var(--gray600)'};font-weight:700;font-family:inherit;font-size:12.5px">${v}</button>`
       : `<span style="display:inline-flex;min-width:30px;height:30px;padding:0 4px;align-items:center;justify-content:center;border-radius:15px;${on?'background:var(--gl);color:#fff;font-weight:700':'color:var(--gray400)'}">${on?v:'·'}</span>`;
   };
-  const linhas = AVPSI_ITENS.map((it, idx)=>{
+  const linhas = itens.map((it, idx)=>{
     const ab = !!P.abertos[it.k];
+    const ind = (it.indF && fk && it.indF[fk]) ? it.indF[fk] : it.ind;
     return `<tr>
       <td style="min-width:240px"><button type="button" onclick="avPsiToggle('${it.k}')" style="display:flex;gap:6px;align-items:flex-start;background:none;border:0;padding:0;text-align:left;cursor:pointer;font:inherit;color:inherit">
         <i class="fas fa-chevron-right" id="avpc-${it.k}" style="color:var(--gl);font-size:11px;margin-top:4px;transition:transform .15s;${ab?'transform:rotate(90deg)':''}"></i>
-        <span style="font-weight:600;font-size:13px;color:var(--gray900)">${idx+1} – ${_ppEsc(it.t)}</span></button></td>
-      ${['1','2','3','4','5','NO'].map(v=>`<td style="text-align:center;padding:4px">${btn(it.k, v)}</td>`).join('')}
+        <span style="font-weight:600;font-size:13px;color:var(--gray900)">${idx+1} – ${_ppEsc(it.t)}${it.f==='C'?' <span style="font-weight:400;font-size:11px;color:var(--gray600)">(comum)</span>':''}</span></button></td>
+      ${['1','2','3','4','5','NO'].map(v=>`<td style="text-align:center;padding:4px">${btn(it.k, v, v==='NO'?'':it.lv[Number(v)-1])}</td>`).join('')}
     </tr>
     <tr class="${ab?'':'hidden'}" id="avpd-${it.k}"><td colspan="7" style="padding:0 6px 10px">
       <div style="background:var(--gp);border-left:3px solid var(--gl);border-radius:var(--r);padding:8px 12px;font-size:12.5px;line-height:1.55;color:var(--gray900)">
-        <div><strong>Indicadores observáveis:</strong> ${_ppEsc(it.ind)}</div>
-        <div style="margin-top:4px"><strong>Nível 1:</strong> ${_ppEsc(it.a1)}</div>
-        <div style="margin-top:2px"><strong>Nível 5:</strong> ${_ppEsc(it.a5)}</div>
-        <div style="margin-top:4px;font-size:11.5px;color:var(--gray600)">Relação com o Anexo B: ${_ppEsc(it.ub)}</div></div></td></tr>
+        <div><strong>O que se observa:</strong> ${_ppEsc(ind)}</div>
+        ${it.lv.map((d,n)=>`<div style="margin-top:3px"><strong>${n+1}</strong> — ${_ppEsc(d)}</div>`).join('')}</div></td></tr>
     <tr><td colspan="7" style="padding:0 6px 12px;border-bottom:1px solid var(--border)">${edit
       ? `<textarea rows="2" placeholder="Evidências (minuto · comportamento · reação do interlocutor)" oninput="_av.psi.evid['${it.k}']=this.value" style="font-size:12.5px;width:100%">${_ppEsc(P.evid[it.k]||'')}</textarea>`
       : `<div style="font-size:12.5px;color:${P.evid[it.k]?'var(--gray900)':'var(--gray400)'};white-space:pre-wrap"><strong style="color:var(--gray600)">Evidências:</strong> ${_ppEsc(P.evid[it.k]||'—')}</div>`}</td></tr>`;
@@ -8864,9 +8897,9 @@ function avPsiRender(){
     ${edit ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 16px">
       <div class="field" style="margin:0"><label>Formando</label>${P.id
         ? `<div style="font-size:13px;font-weight:600;padding-top:6px">${_ppEsc(avNome(P.alunoId))}</div>`
-        : `<select onchange="_av.psi.alunoId=this.value"><option value="">— escolher formando —</option>${_av.alunos.filter(a=>a.aluno_id!==currentUser.id).map(a=>`<option value="${a.aluno_id}" ${a.aluno_id===P.alunoId?'selected':''}>${_ppEsc(avNome(a.aluno_id))}</option>`).join('')}</select>`}</div>
+        : `<select onchange="_av.psi.alunoId=this.value;avPsiRender()"><option value="">— escolher formando —</option>${_av.alunos.filter(a=>a.aluno_id!==currentUser.id).map(a=>`<option value="${a.aluno_id}" ${a.aluno_id===P.alunoId?'selected':''}>${_ppEsc(avNome(a.aluno_id))}</option>`).join('')}</select>`}</div>
       <div class="field" style="margin:0"><label>Função no exercício</label>
-        <select onchange="_av.psi.funcao=this.value"><option value="">— escolher —</option>${AVPSI_FUNCOES.map(f=>`<option ${P.funcao===f?'selected':''}>${f}</option>`).join('')}${P.funcao&&!AVPSI_FUNCOES.includes(P.funcao)?`<option selected>${_ppEsc(P.funcao)}</option>`:''}</select></div>
+        <select onchange="_av.psi.funcao=this.value;avPsiRender()"><option value="">— escolher função —</option>${AVPSI_FUNCOES.map(f=>`<option value="${f.t}" ${P.funcao===f.t?'selected':''}>${f.t}</option>`).join('')}</select></div>
       <div class="field" style="margin:0;grid-column:1/-1"><label>Exercício</label>
         <input type="text" list="avpsi-exercicios" value="${_ppEsc(P.exercicio)}" oninput="_av.psi.exercicio=this.value" placeholder="Usar a mesma designação que o outro psicólogo">
         <datalist id="avpsi-exercicios">${exs.map(x=>`<option value="${_ppEsc(x)}"></option>`).join('')}</datalist></div>
@@ -8879,12 +8912,12 @@ function avPsiRender(){
       <div><strong>Gravação:</strong> ${P.gravacao?'Sim':'Não'}</div></div>`}
     <div style="font-size:13px;margin-top:10px"><strong>Psicólogo:</strong> ${_ppEsc(((pPs.posto?pPs.posto+' ':'')+(pPs.nome||'')).trim()||'—')}${P.fechadaEm?` · fechada em ${new Date(P.fechadaEm).toLocaleString('pt-PT')}`:''}</div>
   </div>
-  <div class="form-section"><h3>Itens de observação <span style="font-weight:400;font-size:12px;text-transform:none;letter-spacing:0">(clicar no item para ver indicadores e âncoras)</span></h3>
-    <div class="table-wrap"><table>
+  <div class="form-section"><h3>Itens de observação${P.funcao?' — '+_ppEsc(P.funcao):''} <span style="font-weight:400;font-size:12px;text-transform:none;letter-spacing:0">(clicar no item para ver o que se observa e os 5 níveis)</span></h3>
+    ${!itens.length ? '<div style="padding:1rem;background:var(--gray100);border-radius:var(--r);font-size:13px;color:var(--gray600)">Escolhe a função que o formando ocupou no exercício para ver os itens a avaliar.</div>' : `<div class="table-wrap"><table>
       <thead><tr><th>Item</th>${['1','2','3','4','5','NO'].map(v=>`<th style="text-align:center">${v}</th>`).join('')}</tr></thead>
-      <tbody>${linhas}</tbody></table></div>
+      <tbody>${linhas}</tbody></table></div>`}
     <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:13px;margin-top:10px">
-      <div><strong>Itens cotados:</strong> ${cot}/10</div>
+      <div><strong>Itens cotados:</strong> ${cot}/${itens.length}</div>
       <div><strong>Média (excluindo NO):</strong> <span style="font-family:'IBM Plex Mono',monospace;font-weight:700">${avPsiFmt(media)}</span></div></div>
     <details style="margin-top:12px;border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;background:#fff">
       <summary style="font-size:13px;font-weight:600;color:var(--gn);cursor:pointer">Escala de cotação — Apêndice 7 (Definição dos Níveis de Avaliação)</summary>
@@ -8903,16 +8936,18 @@ async function avPsiGuardar(estado){
   const P = _av.psi;
   if(P.modelo) return;
   if(!P.alunoId){ alert('Escolhe o formando.'); return; }
+  if(!avPsiFuncKey(P.funcao)){ alert('Escolhe a função que o formando ocupou.'); return; }
   if(!(P.exercicio||'').trim()){ alert('Indica o exercício.'); return; }
   if(!P.dataHora || isNaN(new Date(P.dataHora))){ alert('Indica a data e a hora do exercício.'); return; }
-  const niveis = {}; AVPSI_ITENS.forEach(i=>{ if(P.niveis[i.k]) niveis[i.k]=P.niveis[i.k]; });
-  const evid = {}; AVPSI_ITENS.forEach(i=>{ const t=(P.evid[i.k]||'').trim(); if(t) evid[i.k]=t; });
+  const itensF = avPsiItensFuncao(P.funcao);
+  const niveis = {}; itensF.forEach(i=>{ if(P.niveis[i.k]) niveis[i.k]=P.niveis[i.k]; });
+  const evid = {}; itensF.forEach(i=>{ const t=(P.evid[i.k]||'').trim(); if(t) evid[i.k]=t; });
   if(estado==='fechada'){
-    const falta = AVPSI_ITENS.filter(i=>!niveis[i.k]);
+    const falta = itensF.filter(i=>!niveis[i.k]);
     if(falta.length){ alert('Para fechar, cota todos os itens (usa NO quando não foi observável). Em falta: '+falta.map(i=>i.t).join(', ')+'.'); return; }
-    const semEv = AVPSI_ITENS.filter(i=>(niveis[i.k]==='1'||niveis[i.k]==='5') && !evid[i.k]);
+    const semEv = itensF.filter(i=>(niveis[i.k]==='1'||niveis[i.k]==='5') && !evid[i.k]);
     if(semEv.length){ alert('Os níveis 1 e 5 exigem evidência escrita. Em falta: '+semEv.map(i=>i.t).join(', ')+'.'); return; }
-    if(!confirm('Fechar a folha? Depois de fechada já não a podes alterar (só o administrador a pode reabrir) e passas a ver a folha do outro psicólogo para este formando e exercício.')) return;
+    if(!confirm('Fechar a folha? Depois de fechada já não a podes alterar (só o administrador a pode reabrir) e passa a contar para o perfil do formando.')) return;
   }
   const payload = { exercicio:P.exercicio.trim(), data_hora:new Date(P.dataHora).toISOString(), funcao:(P.funcao||'').trim()||null, gravacao:!!P.gravacao,
     niveis, evidencias:evid, momento_critico:(P.momento||'').trim()||null, ponto_forte:(P.forte||'').trim()||null, ponto_desenvolver:(P.desenv||'').trim()||null, estado };
@@ -8957,6 +8992,51 @@ function avPsiGrupos(){
   }
   return gs.sort((a,b)=>(avNome(a.aluno_id)).localeCompare(avNome(b.aluno_id),'pt') || String(a.exercicio).localeCompare(String(b.exercicio),'pt'));
 }
+// Perfil por função: média das folhas fechadas de cada formando em cada função + funções por fazer (mapa de rotação)
+function avPsiPerfilAluno(alunoId){
+  const fs = _av.obs.filter(o=>o.aluno_id===alunoId && o.estado==='fechada' && avPsiFuncKey(o.funcao));
+  const porF = {};
+  AVPSI_FUNCOES.forEach(f=>{
+    const folhas = fs.filter(o=>o.funcao===f.t);
+    const itens = {};
+    avPsiItensFuncao(f.t).forEach(it=>{ itens[it.k] = avMedia(folhas.map(o=>avPsiNum((o.niveis||{})[it.k]))); });
+    porF[f.k] = { n:folhas.length, media: avMedia(folhas.map(o=>avPsiMedia(o.niveis, o.funcao))), itens };
+  });
+  const feitas = AVPSI_FUNCOES.filter(f=>porF[f.k].n);
+  const melhor = feitas.filter(f=>porF[f.k].media!=null).sort((a,b)=>porF[b.k].media-porF[a.k].media)[0] || null;
+  return { porF, feitas:feitas.length, melhor };
+}
+function avPsiPerfilToggle(id){ _av.perfilAberto = _av.perfilAberto===id ? null : id; avRender(); }
+function avPsiHtmlPerfil(){
+  if(!_av.alunos.length) return '<div style="padding:1.5rem;color:var(--gray400);font-size:13px">Sem alunos inscritos nesta edição.</div>';
+  const cel = (pf) => pf.n
+    ? `<span style="font-family:'IBM Plex Mono',monospace;font-weight:700">${avPsiFmt(pf.media)}</span>${pf.n>1?`<span style="font-size:10.5px;color:var(--gray600)"> (${pf.n})</span>`:''}`
+    : '<span style="font-size:11px;color:var(--gray400)">por fazer</span>';
+  const linhas = _av.alunos.map(a=>{
+    const P = avPsiPerfilAluno(a.aluno_id), aberto = _av.perfilAberto===a.aluno_id;
+    let det = '';
+    if(aberto){
+      const comuns = AVPSI_ITENS.filter(i=>i.f==='C');
+      det = `<tr><td colspan="${AVPSI_FUNCOES.length+3}" style="background:var(--gray100);padding:10px 12px">
+        <div style="font-size:12px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Itens comuns por função</div>
+        <div class="table-wrap"><table><thead><tr><th>Item</th>${AVPSI_FUNCOES.map(f=>`<th style="text-align:center">${f.t.replace('Negociador ','')}</th>`).join('')}</tr></thead>
+        <tbody>${comuns.map(it=>`<tr><td style="font-size:12.5px">${_ppEsc(it.t)}</td>${AVPSI_FUNCOES.map(f=>`<td style="text-align:center">${P.porF[f.k].n?avPsiFmt(P.porF[f.k].itens[it.k]):'—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+        <div style="font-size:12px;font-weight:700;color:var(--gray600);text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px">Itens próprios</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px">${AVPSI_FUNCOES.map(f=>`<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;font-size:12.5px">
+          <div style="font-weight:700;margin-bottom:4px">${f.t}</div>${P.porF[f.k].n ? AVPSI_ITENS.filter(i=>i.f===f.k).map(it=>`<div style="display:flex;justify-content:space-between;gap:8px"><span>${_ppEsc(it.t)}</span><strong>${avPsiFmt(P.porF[f.k].itens[it.k])}</strong></div>`).join('') : '<span style="color:var(--gray400)">por fazer</span>'}</div>`).join('')}</div>
+      </td></tr>`;
+    }
+    return `<tr style="cursor:pointer" onclick="avPsiPerfilToggle('${a.aluno_id}')">
+      <td style="font-weight:600"><i class="fas fa-chevron-right" style="font-size:10px;color:var(--gl);margin-right:6px;${aberto?'transform:rotate(90deg)':''}"></i>${_ppEsc(avNome(a.aluno_id))}</td>
+      ${AVPSI_FUNCOES.map(f=>`<td style="text-align:center">${cel(P.porF[f.k])}</td>`).join('')}
+      <td style="text-align:center">${P.feitas}/${AVPSI_FUNCOES.length}</td>
+      <td>${P.melhor?`<span class="badge badge-green">${P.melhor.t}</span>`:'—'}</td></tr>${det}`;
+  }).join('');
+  return `<div style="font-size:12.5px;color:var(--gray600);line-height:1.55;margin-bottom:12px;max-width:80ch">Média das folhas <strong>fechadas</strong> de cada formando em cada função (itens comuns + próprios; NO não conta). «por fazer» indica as funções que o formando ainda não ocupou. Com uma só passagem por função, o perfil é indicativo. Clica no nome para ver os itens.</div>
+    <div class="table-card"><div class="table-wrap"><table>
+      <thead><tr><th>Formando</th>${AVPSI_FUNCOES.map(f=>`<th style="text-align:center">${f.t}</th>`).join('')}<th style="text-align:center">Funções</th><th>Melhor desempenho</th></tr></thead>
+      <tbody>${linhas}</tbody></table></div></div>`;
+}
 function avPsiFinalSugerido(a, b){
   const na=avPsiNum(a), nb=avPsiNum(b);
   if(na!=null && nb!=null) return Math.abs(na-nb)<=1 ? String(Math.round(((na+nb)/2)*2)/2) : '';
@@ -8975,7 +9055,7 @@ function avPsiHtmlConcordancia(){
     const A = fs[0], B = fs[1];
     const cons = _av.obsCons.find(c=>c.aluno_id===g.aluno_id && c.exercicio_key===g.exercicio_key) || {};
     let ambos=0, conc=0; const finais=[];
-    const linhas = AVPSI_ITENS.map(it=>{
+    const linhas = avPsiItensFuncao(A.funcao).map(it=>{
       const a=(A.niveis||{})[it.k], b=(B.niveis||{})[it.k], na=avPsiNum(a), nb=avPsiNum(b);
       const dif = (na!=null && nb!=null) ? Math.abs(na-nb) : null;
       if(dif!=null){ ambos++; if(dif<=1) conc++; }
@@ -9017,7 +9097,7 @@ function avPsiHtmlConcordancia(){
 async function avPsiGuardarConsenso(gi){
   const g = (_av.psiGrupos||[])[gi]; if(!g) return;
   const finais = {}, motivos = {}; const semMotivo = [], semFinal = [];
-  AVPSI_ITENS.forEach(it=>{
+  avPsiItensFuncao(g.folhas[0].funcao).forEach(it=>{
     const f = document.getElementById(`avpf-${gi}-${it.k}`)?.value || '';
     const m = (document.getElementById(`avpm-${gi}-${it.k}`)?.value || '').trim();
     if(f) finais[it.k]=f; else semFinal.push(it.t);
