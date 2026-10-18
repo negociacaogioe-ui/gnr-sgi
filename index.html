@@ -9407,10 +9407,11 @@ function ftpRender(){
     ${!_ftp.alunos.length ? '<div style="font-size:12px;color:var(--gray600);margin-top:6px">Sem alunos na edição ativa da Avaliação de Formandos.</div>' : ''}
     ${rev}
     <div style="font-weight:700;color:var(--gn);margin:1.25rem 0 .5rem">Notas gravadas (${gravadas.length})${porLer?` <span style="font-weight:400;font-size:12px;color:var(--gray600)">· ${porLer} folha(s) gerada(s) ainda por ler</span>`:''}</div>
-    ${gravadas.length ? `<div class="table-wrap"><table><thead><tr><th>Aluno</th><th>Código</th><th style="text-align:center">Certas</th><th style="text-align:center">Nota (0–20)</th><th>Lida em</th></tr></thead><tbody>
+    ${gravadas.length ? `<div class="table-wrap"><table><thead><tr><th>Aluno</th><th>Código</th><th style="text-align:center">Certas</th><th style="text-align:center">Nota (0–20)</th><th>Lida em</th><th></th></tr></thead><tbody>
       ${gravadas.map(l=>`<tr><td>${_ppEsc(ftpNome(l.aluno_id))}</td><td style="font-family:'IBM Plex Mono',monospace">${l.codigo}</td><td style="text-align:center">${l.certas}/${qs.length}</td>
         <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;color:${Number(l.nota)<10?'var(--red)':'var(--gn)'}">${ftpFmt(l.nota)}</td>
-        <td style="font-size:12px;white-space:nowrap">${new Date(l.lida_em).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</td></tr>`).join('')}
+        <td style="font-size:12px;white-space:nowrap">${new Date(l.lida_em).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
+        <td><button class="btn btn-outline btn-sm" style="margin:0;color:var(--red)" title="Zerar: apaga as respostas e a nota deste aluno (a folha e o código mantêm-se)" onclick="ftpZerar('${l.id}')"><i class="fas fa-eraser"></i> Zerar</button></td></tr>`).join('')}
       </tbody></table></div>` : '<div style="font-size:13px;color:var(--gray400)">Ainda sem notas gravadas.</div>'}
   </div>`;
 }
@@ -9560,6 +9561,14 @@ function ftpAnalisar(img, qs){
     if(cheios.length>1 || fracos>0) duvidas.push(i);
   });
   return { codigo, codigoOk, respostas, duvidas };
+}
+// Zerar a nota de um aluno: a linha volta a «por ler» (mantém o código, por isso a mesma folha pode ser lida outra vez)
+async function ftpZerar(id){
+  const l = _ftp.linhas.find(x=>x.id===id); if(!l) return;
+  if(!confirm('Zerar a prova de '+ftpNome(l.aluno_id)+'?\n\nApaga as respostas lidas e a nota. O código da folha mantém-se.')) return;
+  const { error } = await sb.from('formacao_prova_papel').update({ respostas:{}, duvidas:[], certas:null, pontos:null, total:null, nota:null, lida_em:null, updated_at:new Date().toISOString() }).eq('id', id);
+  if(error){ alert('Erro: '+error.message); return; }
+  await ftpCarregar(_ftp.teste.id); _ftp.estado = 'Prova de '+ftpNome(l.aluno_id)+' zerada.'; ftpRender();
 }
 async function ftpGravar(){
   const t=_ftp.teste, qs=ftPerguntas(t);
