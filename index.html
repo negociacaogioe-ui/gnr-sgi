@@ -8062,22 +8062,34 @@ const AV_ESTADOS = {
   devolvida: { t:'Devolvida', bg:'var(--redl)',    fg:'var(--red)' }
 };
 
-let _av = { epq:false, admin:false, edicoes:[], edicaoId:null, alunos:[], perfis:{}, fichas:[], epqIds:[], tab:null, filtroAval:null, ficha:null };
+let _av = { epq:false, admin:false, psico:false, edicoes:[], edicaoId:null, alunos:[], perfis:{}, fichas:[], epqIds:[], psicoIds:[], obs:[], obsCons:[], tab:null, filtroAval:null, ficha:null, psi:null };
 
 function _avIsAdmin(){ return currentProfile?.role === 'admin'; }
 async function avCarregarAcesso(){
   _av.admin = _avIsAdmin();
-  _av.epq = false;
+  _av.epq = false; _av.psico = false;
   if(!currentUser) return;
   try{
     const { data } = await sb.from('aval_epq').select('user_id').eq('user_id', currentUser.id).maybeSingle();
     _av.epq = !!data;
   }catch(e){ console.warn('aval_epq', e); }
+  try{
+    const { data } = await sb.from('aval_psicologos').select('user_id').eq('user_id', currentUser.id).maybeSingle();
+    _av.psico = !!data;
+  }catch(e){ console.warn('aval_psicologos', e); }
   // Vista simulada pelo admin (só na interface)
-  if(window.__sgiVista === 'epq') _av.epq = true;
-  else if(window.__sgiVista === 'aluno') _av.epq = false;
+  if(window.__sgiVista === 'epq'){ _av.epq = true; _av.psico = false; }
+  else if(window.__sgiVista === 'aluno'){ _av.epq = false; _av.psico = false; }
 }
-function avTemAcesso(){ return _av.admin || _av.epq; }
+function avTemAcesso(){ return _av.admin || _av.epq || _av.psico; }
+// Separadores a que cada perfil tem acesso
+function avTabsPermitidas(){
+  if(_av.admin) return [['resumo','Resumo'],['quadro','Quadro de avaliações'],['avaliador','Por avaliador'],['minhas','As minhas avaliações'],['psico','Grelha psicológica'],['psicoconc','Concordância psicológica'],['config','Configuração']];
+  const t = [];
+  if(_av.epq) t.push(['minhas','As minhas avaliações']);
+  if(_av.psico) t.push(['psico','Grelha psicológica'],['psicoconc','Concordância psicológica']);
+  return t;
+}
 function avCardHtml(){
   if(!avTemAcesso()) return '';
   return `<div style="grid-column:1/-1;margin-bottom:4px">
@@ -8085,8 +8097,8 @@ function avCardHtml(){
       <div style="width:48px;height:48px;background:#fff;border:1px solid var(--goldp);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">${_fa('fa-graduation-cap','var(--gold)')}</div>
       <div style="flex:1">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:15px;font-weight:700;color:var(--gn)">Avaliação de Formandos</span>
-          <span style="background:var(--gold);color:#fff;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;letter-spacing:.05em">${_av.admin?'ADMIN':'EPQ'}</span></div>
-        <div style="font-size:12.5px;color:var(--gray600);margin-top:2px">Fichas de avaliação das Provas Práticas (UC 1, UC 2 e UC 3) — acesso restrito</div>
+          <span style="background:var(--gold);color:#fff;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;letter-spacing:.05em">${_av.admin?'ADMIN':(_av.epq?'EPQ':'PSICOLOGIA')}</span></div>
+        <div style="font-size:12.5px;color:var(--gray600);margin-top:2px">${(!_av.admin && !_av.epq) ? 'Grelha de observação e análise comportamental dos exercícios finais — acesso restrito' : 'Fichas de avaliação das Provas Práticas (UC 1, UC 2 e UC 3) — acesso restrito'}</div>
       </div>
       <i class="fas fa-chevron-right" style="color:var(--gold)"></i>
     </div>
@@ -8137,17 +8149,21 @@ async function avCarregar(){
     const at = _av.edicoes.find(e=>e.ativa) || _av.edicoes[0];
     _av.edicaoId = at ? at.id : null;
   }
-  _av.alunos = []; _av.fichas = []; _av.epqIds = [];
+  _av.alunos = []; _av.fichas = []; _av.epqIds = []; _av.psicoIds = []; _av.obs = []; _av.obsCons = [];
   if(!_av.edicaoId) return;
   const ed = _av.edicoes.find(e=>e.id===_av.edicaoId);
-  if(ed && ed.ativa){ try{ await sb.rpc('aval_sincronizar_alunos'); }catch(e){ console.warn('sync alunos', e); } }
-  const [{ data:al }, { data:fi }] = await Promise.all([
+  if(ed && ed.ativa && (_av.admin || _av.epq)){ try{ await sb.rpc('aval_sincronizar_alunos'); }catch(e){ console.warn('sync alunos', e); } }
+  const verFichas = _av.admin || _av.epq, verObs = _av.admin || _av.psico;
+  const [{ data:al }, { data:fi }, { data:ob }, { data:oc }] = await Promise.all([
     sb.from('aval_alunos').select('*').eq('edicao_id', _av.edicaoId),
-    sb.from('aval_fichas').select('*').eq('edicao_id', _av.edicaoId)
+    verFichas ? sb.from('aval_fichas').select('*').eq('edicao_id', _av.edicaoId) : Promise.resolve({ data:[] }),
+    verObs ? sb.from('aval_obs_psico').select('*').eq('edicao_id', _av.edicaoId) : Promise.resolve({ data:[] }),
+    verObs ? sb.from('aval_obs_consenso').select('*').eq('edicao_id', _av.edicaoId) : Promise.resolve({ data:[] })
   ]);
-  _av.alunos = (al || []).filter(a=>!a.removido); _av.fichas = fi || [];
+  _av.alunos = (al || []).filter(a=>!a.removido); _av.fichas = fi || []; _av.obs = ob || []; _av.obsCons = oc || [];
   if(_av.admin){ const { data:ep } = await sb.from('aval_epq').select('user_id'); _av.epqIds = (ep||[]).map(x=>x.user_id); }
-  const ids = Array.from(new Set([..._av.alunos.map(a=>a.aluno_id), ..._av.fichas.map(f=>f.avaliador_id), ..._av.epqIds, currentUser.id]));
+  if(_av.admin){ const { data:ps } = await sb.from('aval_psicologos').select('user_id'); _av.psicoIds = (ps||[]).map(x=>x.user_id); }
+  const ids = Array.from(new Set([..._av.alunos.map(a=>a.aluno_id), ..._av.fichas.map(f=>f.avaliador_id), ..._av.obs.map(o=>o.psicologo_id), ..._av.epqIds, ..._av.psicoIds, currentUser.id]));
   if(ids.length){
     const { data:pf } = await sb.from('profiles').select('id,nome,posto,cter,email,role').in('id', ids);
     (pf||[]).forEach(p=>_av.perfis[p.id]=p);
@@ -8163,9 +8179,9 @@ async function abrirAvaliacao(tab){
   ['dashboard','incidentes','itp','formacao','formacao-detalhe','admin'].forEach(x=>{ const el=document.getElementById('section-'+x); if(el) el.classList.add('hidden'); });
   document.getElementById('section-formacao-detalhe').classList.remove('hidden');
   if(tab) _av.tab = tab;
-  if(!_av.tab) _av.tab = _av.admin ? 'resumo' : 'minhas';
-  if(!_av.admin) _av.tab = 'minhas';
-  _av.ficha = null;
+  const permitidas = avTabsPermitidas().map(t=>t[0]);
+  if(!_av.tab || !permitidas.includes(_av.tab)) _av.tab = permitidas[0];
+  _av.ficha = null; _av.psi = null;
   const el = document.getElementById('formacao-detalhe-content');
   el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--gray400)"><span class="spinner"></span></div>';
   try{ await avCarregar(); }catch(e){ el.innerHTML='<div class="alert alert-error">Erro ao carregar: '+_ppEsc(e.message||e)+'</div>'; return; }
@@ -8174,12 +8190,10 @@ async function abrirAvaliacao(tab){
 function avRender(){
   const el = document.getElementById('formacao-detalhe-content');
   const ed = _av.edicoes.find(e=>e.id===_av.edicaoId);
-  const tabs = _av.admin
-    ? [['resumo','Resumo'],['quadro','Quadro de avaliações'],['avaliador','Por avaliador'],['minhas','As minhas avaliações'],['config','Configuração']]
-    : [['minhas','As minhas avaliações']];
+  const tabs = avTabsPermitidas();
   let head = `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:1rem">
     <div><div class="page-title" style="font-size:20px">${_fa('fa-graduation-cap','var(--gold)')} Avaliação de Formandos</div>
-      <div class="page-sub">Fichas de Avaliação das Provas Práticas — Regulamento do CNeg, Anexo B</div></div>
+      <div class="page-sub">${(_av.tab==='psico'||_av.tab==='psicoconc') ? 'Grelha de Observação e Análise Comportamental — exercícios finais do CNeg' : 'Fichas de Avaliação das Provas Práticas — Regulamento do CNeg, Anexo B'}</div></div>
     ${_av.edicoes.length ? `<div style="display:flex;align-items:center;gap:6px"><label style="font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em">Edição</label>
       <select onchange="_av.edicaoId=this.value;abrirAvaliacao()" style="width:auto;font-size:13px">${_av.edicoes.map(e=>`<option value="${e.id}" ${e.id===_av.edicaoId?'selected':''}>${_ppEsc(e.nome)}${e.ativa?' (ativa)':''}</option>`).join('')}</select></div>` : ''}
   </div>`;
@@ -8191,9 +8205,11 @@ function avRender(){
   else if(_av.tab==='quadro' && _av.admin) body = avHtmlQuadro();
   else if(_av.tab==='avaliador') body = avHtmlPorAvaliador();
   else if(_av.tab==='config') body = avHtmlConfig();
+  else if(_av.tab==='psico') body = avPsiHtmlLista();
+  else if(_av.tab==='psicoconc') body = avPsiHtmlConcordancia();
   else body = avHtmlGrelhaAvaliador(currentUser.id, true);
   el.innerHTML = head + body;
-  if(_av.tab==='config'){ avCarregarListaEpq(); avCarregarCandidatosAluno(); }
+  if(_av.tab==='config'){ avCarregarListaEpq(); avCarregarCandidatosAluno(); avCarregarListaPsico(); }
 }
 
 // Lista das avaliações (fichas únicas) de um avaliador (as minhas / por avaliador)
@@ -8372,6 +8388,10 @@ function avHtmlConfig(){
     <div class="field" style="margin:0 0 10px;max-width:320px"><label>CTer</label><select id="av-epq-cter" onchange="_av.epqCter=this.value;avRenderListaEpq()"><option value="">Todos os CTer</option></select></div>
     <div id="av-epq-lista" style="font-size:13px;color:var(--gray400)">A carregar…</div>
   </div>
+  <div class="form-section"><h3><i class="fas fa-user-doctor" style="color:var(--gl)"></i> Psicólogos (grelha de observação comportamental)</h3>
+    <div style="font-size:12px;color:var(--gray600);margin-bottom:8px">Só os marcados (e os administradores) acedem à Grelha psicológica. Não veem as fichas UC 1–3. Um aluno inscrito na edição não pode ser marcado.</div>
+    <div id="av-psico-lista" style="font-size:13px;color:var(--gray400)">A carregar…</div>
+  </div>
   ${ed?`<div class="form-section"><h3><i class="fas fa-id-card" style="color:var(--gl)"></i> Dados dos alunos — ${_ppEsc(ed.nome)}</h3>
     <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:12px">
       <div class="field" style="margin:0;flex:1;min-width:260px"><label>Acrescentar aluno</label><select id="av-add-aluno"><option value="">A carregar…</option></select></div>
@@ -8420,6 +8440,36 @@ async function avMarcarEpq(uid, on){
   if(error){ alert('Erro: '+error.message); return; }
   if(on) _av.epqIds.push(uid); else _av.epqIds = _av.epqIds.filter(x=>x!==uid);
   if(on){ if(!epqIds.includes(uid)) epqIds.push(uid); } else epqIds = epqIds.filter(x=>x!==uid);
+}
+async function avCarregarListaPsico(){
+  const box = document.getElementById('av-psico-lista'); if(!box) return;
+  const { data:us, error } = await sb.from('profiles').select('id,nome,posto,cter,role,approved').eq('approved', true).order('nome');
+  if(error){ box.textContent = 'Erro: '+error.message; return; }
+  (us||[]).forEach(u=>{ _av.perfis[u.id] = Object.assign(_av.perfis[u.id]||{}, u); });
+  const alunos = new Set(_av.alunos.map(a=>a.aluno_id));
+  const lista = (us||[]).filter(u=>u.role!=='admin' && (!alunos.has(u.id) || _av.psicoIds.includes(u.id)));
+  lista.sort((a,b)=>(_av.psicoIds.includes(b.id)-_av.psicoIds.includes(a.id)) || (a.nome||'').localeCompare(b.nome||'','pt'));
+  box.innerHTML = `<div class="field" style="margin:0 0 8px;max-width:320px"><input type="text" placeholder="Procurar por nome…" oninput="avFiltrarPsico(this.value)"></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px">${lista.map(u=>`
+    <label class="av-psi-op" data-nome="${_ppEsc((u.nome||'').toLowerCase())}" style="display:${_av.psicoIds.includes(u.id)?'flex':'none'};align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--r);background:#fff;cursor:pointer;color:var(--gray900)">
+      <input type="checkbox" ${_av.psicoIds.includes(u.id)?'checked':''} onchange="avMarcarPsico('${u.id}',this.checked,this)" style="width:16px;height:16px;accent-color:var(--gl)">
+      <span>${_ppEsc(((u.posto?u.posto+' ':'')+(u.nome||'')).trim())}<span style="color:var(--gray400);font-size:11px"> · ${_ppEsc(u.cter||'—')}${alunos.has(u.id)?' · inscrito como aluno':''}</span></span></label>`).join('')}</div>
+    <div style="font-size:11.5px;color:var(--gray600);margin-top:6px">Aparecem os psicólogos marcados; escreve um nome para encontrar e marcar outro militar.</div>`;
+}
+function avFiltrarPsico(q){
+  q = (q||'').trim().toLowerCase();
+  document.querySelectorAll('.av-psi-op').forEach(el=>{
+    const marcado = el.querySelector('input').checked;
+    el.style.display = (marcado || (q.length>=2 && el.dataset.nome.includes(q))) ? 'flex' : 'none';
+  });
+}
+async function avMarcarPsico(uid, on, cb){
+  if(on && _av.alunos.some(a=>a.aluno_id===uid)){ alert('Este militar está inscrito como aluno nesta edição. Remove-o primeiro da lista de alunos.'); if(cb) cb.checked=false; return; }
+  const { error } = on
+    ? await sb.from('aval_psicologos').insert({ user_id: uid, criado_por: currentUser.id })
+    : await sb.from('aval_psicologos').delete().eq('user_id', uid);
+  if(error){ alert('Erro: '+error.message); if(cb) cb.checked=!on; return; }
+  if(on) _av.psicoIds.push(uid); else _av.psicoIds = _av.psicoIds.filter(x=>x!==uid);
 }
 async function avCriarEdicao(){
   const nome = document.getElementById('av-ed-nome').value.trim();
@@ -8671,6 +8721,310 @@ async function avDecidir(estado){
     F.rows[data.uc] = data;
   }
   avRenderFicha();
+}
+
+// ===== AVALIAÇÃO DE FORMANDOS › GRELHA DE OBSERVAÇÃO PSICOLÓGICA =====
+// Só admin + psicólogos (tabela aval_psicologos). Tabelas: aval_obs_psico (uma folha por psicólogo/aluno/exercício)
+// e aval_obs_consenso (cotação final acordada). RLS: cada psicólogo só vê a folha do colega depois de fechar a sua.
+const AVPSI_ITENS = [
+  { k:'i1',  t:'Escuta ativa', ind:'Perguntas abertas, paráfrase, resumo, rotulação emocional, encorajadores mínimos, pausas eficazes', a1:'Interrompe, faz perguntas fechadas em série, fala mais do que ouve', a5:'Usa as técnicas de forma natural e variada; o interlocutor fala mais e revela informação nova', ub:'UC1.1, UC1.5, UC1.7' },
+  { k:'i2',  t:'Empatia e rapport', ind:'Reconhece sentimentos e perspetiva do interlocutor, trata-o pelo nome, mostra interesse genuíno, cria confiança', a1:'Desvaloriza ou julga o interlocutor; tom distante ou de confronto', a5:'O interlocutor passa a aceitar o negociador como interlocutor válido e responde com menos hostilidade', ub:'UC1.5, UC1.7' },
+  { k:'i3',  t:'Autorregulação emocional', ind:'Mantém tom e ritmo estáveis perante insultos, ameaças, silêncios ou ultimatos; recupera após erros', a1:'Reage à provocação, eleva a voz, mostra irritação ou bloqueio', a5:'Mantém-se calmo nos picos de tensão e usa essa calma para baixar a intensidade do interlocutor', ub:'UC1.2, UC3.8' },
+  { k:'i4',  t:'Comunicação verbal e paraverbal', ind:'Linguagem simples e concreta; tom, volume e ritmo ajustados; evita palavras-gatilho («não», «nunca», «tem de»); usa «nós»', a1:'Linguagem técnica ou autoritária; tom monótono ou agressivo; usa gatilhos', a5:'Comunicação clara e calibrada ao estado do interlocutor ao longo das fases', ub:'UC1.1' },
+  { k:'i5',  t:'Gestão da resistência', ind:'Perante recusas, exigências ou ataques, não discute nem cede; reformula, desvia, procura o interesse por trás da posição', a1:'Entra em confronto ou cede à primeira pressão; faz promessas que não pode cumprir', a5:'Transforma recusas em diálogo sobre interesses sem perder a posição institucional', ub:'UC1.6' },
+  { k:'i6',  t:'Orientação para a resolução', ind:'Segue a estratégia definida, trabalha opções, obtém pequenos compromissos, conduz para a saída segura', a1:'Conversa sem rumo; não liga o diálogo ao objetivo', a5:'Cada fase aproxima o interlocutor da resolução; compromissos claros e cumpridos', ub:'UC1.4, UC2.4, UC2.5' },
+  { k:'i7',  t:'Flexibilidade e adaptação', ind:'Ajusta a abordagem a nova informação, mudança de interlocutor, de papel ou de estrutura da equipa', a1:'Mantém a mesma abordagem apesar de sinais claros de que não resulta', a5:'Muda de tática no momento certo e explica à equipa porquê', ub:'UC2.8, UC2.9' },
+  { k:'i8',  t:'Comunicação e cooperação na equipa', ind:'Ouve e usa as notas do coach, partilha informação, respeita papéis, faz passagem de turno clara', a1:'Ignora a equipa, não partilha informação, conflito de papéis', a5:'A equipa funciona como um todo; a informação circula sem perdas', ub:'UC2.7, UC3.6' },
+  { k:'i9',  t:'Consciência situacional e avaliação de risco', ind:'Identifica sinais de progresso ou deterioração e indícios de risco para reféns, terceiros ou o próprio; informa o comando e a equipa tática', a1:'Não deteta ou não reporta sinais de risco relevantes', a5:'Antecipa mudanças e transmite avaliação útil à decisão de comando e à Equipa Tática', ub:'UC2.6, UC3.1, UC3.3' },
+  { k:'i10', t:'Postura profissional e tomada de decisão', ind:'Respeita a cadeia de comando e os limites de autorização, assume responsabilidade, decide com segurança e sem precipitação', a1:'Hesita ou decide fora da sua competência; desresponsabiliza-se', a5:'Decisões seguras, fundamentadas e dentro dos limites; transmite confiança à equipa', ub:'UC3.5, UC3.7, UC3.8' }
+];
+const AVPSI_ESCALA = [
+  { n:'1', t:'Insuficiente', d:'O comportamento está ausente ou surge de forma contraproducente; prejudica o rumo da negociação.' },
+  { n:'2', t:'Em desenvolvimento', d:'Surge de forma pontual ou só após indicação do coach; falhas frequentes.' },
+  { n:'3', t:'Adequado', d:'Surge de forma consistente na maior parte do exercício; falhas pontuais sem impacto relevante.' },
+  { n:'4', t:'Bom', d:'Consistente durante todo o exercício, incluindo nos momentos de maior tensão.' },
+  { n:'5', t:'Excelente', d:'Consistente, ajustado ao momento e com efeito visível no interlocutor ou na equipa; serve de modelo.' },
+  { n:'NO', t:'Não observável', d:'O cenário não deu oportunidade de observar o comportamento. Não entra na média.' }
+];
+const AVPSI_FUNCOES = ['Negociador n.º 1','Negociador n.º 2','Negociador n.º 3','Negociador n.º 4','Coordenador'];
+function avPsiNum(v){ return (v===undefined||v===null||v===''||v==='NO') ? null : Number(v); }
+function avPsiMedia(niveis){ return avMedia(AVPSI_ITENS.map(i=>avPsiNum((niveis||{})[i.k]))); }
+function avPsiFmt(v){ return v==null ? '—' : (v==='NO' ? 'NO' : Number(v).toFixed(1).replace('.',',')); }
+function avPsiEstadoBadge(e){
+  return e==='fechada'
+    ? '<span style="background:var(--gp);color:var(--gm);font-size:10.5px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap">Fechada</span>'
+    : '<span style="background:var(--amberl);color:var(--amber);font-size:10.5px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap">Rascunho</span>';
+}
+function avPsiExercicios(){ return [...new Set([..._av.obs.map(o=>o.exercicio), ..._av.fichas.map(f=>f.exercicio)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt')); }
+
+// Lista de folhas
+function avPsiHtmlLista(){
+  if(!_av.alunos.length) return '<div style="padding:1.5rem;color:var(--gray400);font-size:13px">Sem alunos inscritos nesta edição.</div>';
+  const lista = (_av.admin ? _av.obs : _av.obs.filter(o=>o.psicologo_id===currentUser.id))
+    .slice().sort((a,b)=>String(b.data_hora||b.created_at||'').localeCompare(String(a.data_hora||a.created_at||'')));
+  const topo = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+      <div style="font-size:12.5px;color:var(--gray600);line-height:1.5;max-width:70ch">Cada folha regista a observação de um psicólogo sobre um formando num exercício (10 itens, níveis 1 a 5 ou NO). Os psicólogos observam e cotam de forma independente; a folha do colega só fica visível em <strong>Concordância psicológica</strong> depois de ambos fecharem a sua.</div>
+      ${_av.psico ? '<button class="btn btn-primary" onclick="avPsiNova()"><i class="fas fa-plus"></i> Nova folha</button>' : ''}</div>`;
+  if(!lista.length) return topo + '<div style="padding:1.5rem;background:var(--gray100);border-radius:var(--rl);color:var(--gray600);font-size:13px">Ainda sem folhas de observação.</div>';
+  return topo + `<div class="table-card"><div class="table-wrap"><table>
+    <thead><tr><th>Data / hora</th><th>Exercício</th><th>Aluno</th>${_av.admin?'<th>Psicólogo</th>':''}<th style="text-align:center">Itens cotados</th><th style="text-align:center">Média</th><th>Estado</th></tr></thead>
+    <tbody>${lista.map(o=>{
+      const cot = AVPSI_ITENS.filter(i=>(o.niveis||{})[i.k]).length;
+      return `<tr style="cursor:pointer" onclick="avPsiAbrir('${o.id}')">
+      <td style="white-space:nowrap;font-family:'IBM Plex Mono',monospace;font-size:12.5px">${avDataHora(o.data_hora)}</td>
+      <td>${_ppEsc(o.exercicio)}</td>
+      <td style="font-weight:600">${_ppEsc(avNome(o.aluno_id))}</td>
+      ${_av.admin?`<td>${_ppEsc(avNome(o.psicologo_id))}</td>`:''}
+      <td style="text-align:center">${cot}/10</td>
+      <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700">${avPsiFmt(avPsiMedia(o.niveis))}</td>
+      <td>${avPsiEstadoBadge(o.estado)}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+}
+
+// Folha de observação
+function avPsiNova(base){
+  if(!_av.psico){ alert('Só os psicólogos marcados em Configuração podem preencher folhas.'); return; }
+  _av.psi = { id:null, alunoId:'', psicologoId:currentUser.id, exercicio:(base&&base.exercicio)||'', dataHora:(base&&base.dataHora)||'',
+    funcao:'', gravacao:false, niveis:{}, evid:{}, momento:'', forte:'', desenv:'', estado:'rascunho', abertos:{} };
+  avPsiRender();
+}
+function avPsiAbrir(id){
+  const o = _av.obs.find(x=>x.id===id); if(!o) return;
+  _av.psi = { id:o.id, alunoId:o.aluno_id, psicologoId:o.psicologo_id, exercicio:o.exercicio||'', dataHora:avIsoParaInput(o.data_hora),
+    funcao:o.funcao||'', gravacao:!!o.gravacao, niveis:JSON.parse(JSON.stringify(o.niveis||{})), evid:JSON.parse(JSON.stringify(o.evidencias||{})),
+    momento:o.momento_critico||'', forte:o.ponto_forte||'', desenv:o.ponto_desenvolver||'', estado:o.estado, fechadaEm:o.fechada_em, abertos:{} };
+  avPsiRender();
+}
+function avPsiEditavel(){ const P=_av.psi; return P.psicologoId===currentUser.id && P.estado!=='fechada' && _av.psico; }
+function avPsiToggle(k){
+  const P=_av.psi; P.abertos[k]=!P.abertos[k];
+  const r=document.getElementById('avpd-'+k); if(r) r.classList.toggle('hidden', !P.abertos[k]);
+  const c=document.getElementById('avpc-'+k); if(c) c.style.transform = P.abertos[k] ? 'rotate(90deg)' : '';
+}
+function avPsiSet(k, v){
+  const P=_av.psi; if(P.niveis[k]===v) delete P.niveis[k]; else P.niveis[k]=v;
+  avPsiRender();
+}
+function avPsiRender(){
+  const P = _av.psi, edit = avPsiEditavel();
+  const pAl = _av.perfis[P.alunoId] || {}, pPs = _av.perfis[P.psicologoId] || {};
+  const media = avPsiMedia(P.niveis), cot = AVPSI_ITENS.filter(i=>P.niveis[i.k]).length;
+  const btn = (k, v) => {
+    const on = P.niveis[k]===v;
+    return edit
+      ? `<button type="button" onclick="avPsiSet('${k}','${v}')" title="${on?'Clicar de novo para retirar':(v==='NO'?'Não observável':'Nível '+v)}" style="display:inline-flex;min-width:34px;height:34px;padding:0 6px;align-items:center;justify-content:center;border-radius:17px;cursor:pointer;border:1.5px solid ${on?'var(--gl)':'var(--border)'};background:${on?'var(--gl)':'#fff'};color:${on?'#fff':'var(--gray600)'};font-weight:700;font-family:inherit;font-size:12.5px">${v}</button>`
+      : `<span style="display:inline-flex;min-width:30px;height:30px;padding:0 4px;align-items:center;justify-content:center;border-radius:15px;${on?'background:var(--gl);color:#fff;font-weight:700':'color:var(--gray400)'}">${on?v:'·'}</span>`;
+  };
+  const linhas = AVPSI_ITENS.map((it, idx)=>{
+    const ab = !!P.abertos[it.k];
+    return `<tr>
+      <td style="min-width:240px"><button type="button" onclick="avPsiToggle('${it.k}')" style="display:flex;gap:6px;align-items:flex-start;background:none;border:0;padding:0;text-align:left;cursor:pointer;font:inherit;color:inherit">
+        <i class="fas fa-chevron-right" id="avpc-${it.k}" style="color:var(--gl);font-size:11px;margin-top:4px;transition:transform .15s;${ab?'transform:rotate(90deg)':''}"></i>
+        <span style="font-weight:600;font-size:13px;color:var(--gray900)">${idx+1} – ${_ppEsc(it.t)}</span></button></td>
+      ${['1','2','3','4','5','NO'].map(v=>`<td style="text-align:center;padding:4px">${btn(it.k, v)}</td>`).join('')}
+    </tr>
+    <tr class="${ab?'':'hidden'}" id="avpd-${it.k}"><td colspan="7" style="padding:0 6px 10px">
+      <div style="background:var(--gp);border-left:3px solid var(--gl);border-radius:var(--r);padding:8px 12px;font-size:12.5px;line-height:1.55;color:var(--gray900)">
+        <div><strong>Indicadores observáveis:</strong> ${_ppEsc(it.ind)}</div>
+        <div style="margin-top:4px"><strong>Nível 1:</strong> ${_ppEsc(it.a1)}</div>
+        <div style="margin-top:2px"><strong>Nível 5:</strong> ${_ppEsc(it.a5)}</div>
+        <div style="margin-top:4px;font-size:11.5px;color:var(--gray600)">Relação com o Anexo B: ${_ppEsc(it.ub)}</div></div></td></tr>
+    <tr><td colspan="7" style="padding:0 6px 12px;border-bottom:1px solid var(--border)">${edit
+      ? `<textarea rows="2" placeholder="Evidências (minuto · comportamento · reação do interlocutor)" oninput="_av.psi.evid['${it.k}']=this.value" style="font-size:12.5px;width:100%">${_ppEsc(P.evid[it.k]||'')}</textarea>`
+      : `<div style="font-size:12.5px;color:${P.evid[it.k]?'var(--gray900)':'var(--gray400)'};white-space:pre-wrap"><strong style="color:var(--gray600)">Evidências:</strong> ${_ppEsc(P.evid[it.k]||'—')}</div>`}</td></tr>`;
+  }).join('');
+  const campoTexto = (lbl, prop) => `<div class="field" style="margin:0 0 10px"><label>${lbl}</label>${edit
+    ? `<textarea rows="2" oninput="_av.psi.${prop}=this.value" style="font-size:13px">${_ppEsc(P[prop]||'')}</textarea>`
+    : `<div style="font-size:13px;white-space:pre-wrap">${_ppEsc(P[prop]||'—')}</div>`}</div>`;
+  let acoes = '';
+  if(edit){
+    acoes = `<button class="btn btn-outline" onclick="avPsiGuardar('rascunho')"><i class="fas fa-save"></i> Guardar rascunho</button>
+      <button class="btn btn-primary" onclick="avPsiGuardar('fechada')"><i class="fas fa-lock"></i> Fechar folha</button>
+      ${P.id?'<button class="btn btn-outline" style="color:var(--red)" onclick="avPsiApagar()"><i class="fas fa-trash"></i> Apagar</button>':''}`;
+  } else if(_av.admin && P.id && P.estado==='fechada'){
+    acoes = `<button class="btn btn-outline" style="color:var(--red)" onclick="avPsiReabrir()"><i class="fas fa-rotate-left"></i> Reabrir (volta a rascunho)</button>`;
+  }
+  if(P.id && _av.psico && P.psicologoId===currentUser.id){
+    acoes += `<button class="btn btn-outline" onclick="avPsiNova({exercicio:_av.psi.exercicio,dataHora:_av.psi.dataHora})"><i class="fas fa-user-plus"></i> Observar outro formando neste exercício</button>`;
+  }
+  const exs = avPsiExercicios();
+  const el = document.getElementById('formacao-detalhe-content');
+  el.innerHTML = `<button class="detail-back" onclick="_av.psi=null;avRender()">← Voltar</button>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin:.5rem 0 1rem">
+    <div><div class="page-title" style="font-size:18px">Folha de Observação e Análise Comportamental</div>
+      <div class="page-sub">Exercícios finais do CNeg · observação independente · NO = não observável (não entra na média)</div></div>
+    <div>${avPsiEstadoBadge(P.estado)}</div>
+  </div>
+  <div class="form-section"><h3>Identificação</h3>
+    ${edit ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 16px">
+      <div class="field" style="margin:0"><label>Formando</label>${P.id
+        ? `<div style="font-size:13px;font-weight:600;padding-top:6px">${_ppEsc(avNome(P.alunoId))}</div>`
+        : `<select onchange="_av.psi.alunoId=this.value"><option value="">— escolher formando —</option>${_av.alunos.filter(a=>a.aluno_id!==currentUser.id).map(a=>`<option value="${a.aluno_id}" ${a.aluno_id===P.alunoId?'selected':''}>${_ppEsc(avNome(a.aluno_id))}</option>`).join('')}</select>`}</div>
+      <div class="field" style="margin:0"><label>Função no exercício</label>
+        <select onchange="_av.psi.funcao=this.value"><option value="">— escolher —</option>${AVPSI_FUNCOES.map(f=>`<option ${P.funcao===f?'selected':''}>${f}</option>`).join('')}${P.funcao&&!AVPSI_FUNCOES.includes(P.funcao)?`<option selected>${_ppEsc(P.funcao)}</option>`:''}</select></div>
+      <div class="field" style="margin:0;grid-column:1/-1"><label>Exercício</label>
+        <input type="text" list="avpsi-exercicios" value="${_ppEsc(P.exercicio)}" oninput="_av.psi.exercicio=this.value" placeholder="Usar a mesma designação que o outro psicólogo">
+        <datalist id="avpsi-exercicios">${exs.map(x=>`<option value="${_ppEsc(x)}"></option>`).join('')}</datalist></div>
+      <div class="field" style="margin:0"><label>Data e hora</label><input type="datetime-local" value="${_ppEsc(P.dataHora)}" oninput="_av.psi.dataHora=this.value"></div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-top:18px"><input type="checkbox" ${P.gravacao?'checked':''} onchange="_av.psi.gravacao=this.checked" style="width:16px;height:16px;accent-color:var(--gl)"> Exercício gravado</label>
+    </div>`
+    : `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 16px;font-size:13px">
+      <div><strong>Formando:</strong> ${_ppEsc(avNome(P.alunoId))}</div><div><strong>Função:</strong> ${_ppEsc(P.funcao||'—')}</div>
+      <div><strong>Exercício:</strong> ${_ppEsc(P.exercicio||'—')}</div><div><strong>Data e hora:</strong> ${P.dataHora?avDataHora(new Date(P.dataHora).toISOString()):'—'}</div>
+      <div><strong>Gravação:</strong> ${P.gravacao?'Sim':'Não'}</div></div>`}
+    <div style="font-size:13px;margin-top:10px"><strong>Psicólogo:</strong> ${_ppEsc(((pPs.posto?pPs.posto+' ':'')+(pPs.nome||'')).trim()||'—')}${P.fechadaEm?` · fechada em ${new Date(P.fechadaEm).toLocaleString('pt-PT')}`:''}</div>
+  </div>
+  <div class="form-section"><h3>Itens de observação <span style="font-weight:400;font-size:12px;text-transform:none;letter-spacing:0">(clicar no item para ver indicadores e âncoras)</span></h3>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Item</th>${['1','2','3','4','5','NO'].map(v=>`<th style="text-align:center">${v}</th>`).join('')}</tr></thead>
+      <tbody>${linhas}</tbody></table></div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:13px;margin-top:10px">
+      <div><strong>Itens cotados:</strong> ${cot}/10</div>
+      <div><strong>Média (excluindo NO):</strong> <span style="font-family:'IBM Plex Mono',monospace;font-weight:700">${avPsiFmt(media)}</span></div></div>
+    <details style="margin-top:12px;border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;background:#fff">
+      <summary style="font-size:13px;font-weight:600;color:var(--gn);cursor:pointer">Escala de cotação</summary>
+      <table style="margin-top:8px"><tbody>${AVPSI_ESCALA.map(x=>`<tr><td style="white-space:nowrap;vertical-align:top"><strong>${x.n}</strong> — ${x.t}</td><td style="font-size:12.5px;line-height:1.5">${x.d}</td></tr>`).join('')}</tbody></table>
+      <div style="font-size:12px;color:var(--gray600);margin-top:6px">Os níveis 1 e 5 exigem pelo menos uma evidência escrita.</div>
+    </details>
+  </div>
+  <div class="form-section"><h3>Síntese</h3>
+    ${campoTexto('Momento crítico observado (o que aconteceu e como o formando respondeu)','momento')}
+    ${campoTexto('Ponto forte principal','forte')}
+    ${campoTexto('Ponto a desenvolver principal','desenv')}
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:1rem">${acoes}</div>`;
+}
+async function avPsiGuardar(estado){
+  const P = _av.psi;
+  if(!P.alunoId){ alert('Escolhe o formando.'); return; }
+  if(!(P.exercicio||'').trim()){ alert('Indica o exercício.'); return; }
+  if(!P.dataHora || isNaN(new Date(P.dataHora))){ alert('Indica a data e a hora do exercício.'); return; }
+  const niveis = {}; AVPSI_ITENS.forEach(i=>{ if(P.niveis[i.k]) niveis[i.k]=P.niveis[i.k]; });
+  const evid = {}; AVPSI_ITENS.forEach(i=>{ const t=(P.evid[i.k]||'').trim(); if(t) evid[i.k]=t; });
+  if(estado==='fechada'){
+    const falta = AVPSI_ITENS.filter(i=>!niveis[i.k]);
+    if(falta.length){ alert('Para fechar, cota todos os itens (usa NO quando não foi observável). Em falta: '+falta.map(i=>i.t).join(', ')+'.'); return; }
+    const semEv = AVPSI_ITENS.filter(i=>(niveis[i.k]==='1'||niveis[i.k]==='5') && !evid[i.k]);
+    if(semEv.length){ alert('Os níveis 1 e 5 exigem evidência escrita. Em falta: '+semEv.map(i=>i.t).join(', ')+'.'); return; }
+    if(!confirm('Fechar a folha? Depois de fechada já não a podes alterar (só o administrador a pode reabrir) e passas a ver a folha do outro psicólogo para este formando e exercício.')) return;
+  }
+  const payload = { exercicio:P.exercicio.trim(), data_hora:new Date(P.dataHora).toISOString(), funcao:(P.funcao||'').trim()||null, gravacao:!!P.gravacao,
+    niveis, evidencias:evid, momento_critico:(P.momento||'').trim()||null, ponto_forte:(P.forte||'').trim()||null, ponto_desenvolver:(P.desenv||'').trim()||null, estado };
+  const res = P.id
+    ? await sb.from('aval_obs_psico').update(payload).eq('id', P.id).select().single()
+    : await sb.from('aval_obs_psico').insert(Object.assign({ edicao_id:_av.edicaoId, aluno_id:P.alunoId, psicologo_id:currentUser.id }, payload)).select().single();
+  if(res.error){
+    const dup = /duplicate|unique/i.test(res.error.message||'');
+    alert(dup ? 'Já tens uma folha para este formando neste exercício. Abre-a na lista.' : 'Erro ao guardar: '+res.error.message); return;
+  }
+  if(estado==='fechada'){ try{ await avCarregar(); }catch(e){} }
+  else { const i=_av.obs.findIndex(x=>x.id===res.data.id); if(i>=0) _av.obs[i]=res.data; else _av.obs.push(res.data); }
+  avPsiAbrir(res.data.id);
+}
+async function avPsiApagar(){
+  const P=_av.psi; if(!P.id) return;
+  if(!confirm('Apagar esta folha de observação? Não pode ser anulado.')) return;
+  const { error } = await sb.from('aval_obs_psico').delete().eq('id', P.id);
+  if(error){ alert('Erro: '+error.message); return; }
+  _av.obs = _av.obs.filter(x=>x.id!==P.id); _av.psi=null; avRender();
+}
+async function avPsiReabrir(){
+  const P=_av.psi; if(!P.id || !_av.admin) return;
+  if(!confirm('Reabrir esta folha? Volta a rascunho e o psicólogo pode alterá-la.')) return;
+  const { data, error } = await sb.from('aval_obs_psico').update({ estado:'rascunho' }).eq('id', P.id).select().single();
+  if(error){ alert('Erro: '+error.message); return; }
+  const i=_av.obs.findIndex(x=>x.id===data.id); if(i>=0) _av.obs[i]=data;
+  avPsiAbrir(data.id);
+}
+
+// Concordância entre psicólogos e cotação final
+function avPsiGrupos(){
+  const m = new Map();
+  _av.obs.filter(o=>o.estado==='fechada').forEach(o=>{
+    const key = o.aluno_id+'|'+o.exercicio_key;
+    if(!m.has(key)) m.set(key, { aluno_id:o.aluno_id, exercicio_key:o.exercicio_key, exercicio:o.exercicio, data_hora:o.data_hora, folhas:[] });
+    m.get(key).folhas.push(o);
+  });
+  const gs = [...m.values()];
+  if(!_av.admin) { /* o psicólogo só compara os grupos em que fechou a sua folha (garantido também pela RLS) */
+    return gs.filter(g=>g.folhas.some(f=>f.psicologo_id===currentUser.id));
+  }
+  return gs.sort((a,b)=>(avNome(a.aluno_id)).localeCompare(avNome(b.aluno_id),'pt') || String(a.exercicio).localeCompare(String(b.exercicio),'pt'));
+}
+function avPsiFinalSugerido(a, b){
+  const na=avPsiNum(a), nb=avPsiNum(b);
+  if(na!=null && nb!=null) return Math.abs(na-nb)<=1 ? String(Math.round(((na+nb)/2)*2)/2) : '';
+  if(na!=null) return String(na); if(nb!=null) return String(nb);
+  return (a==='NO'||b==='NO') ? 'NO' : '';
+}
+function avPsiHtmlConcordancia(){
+  const gs = _av.psiGrupos = avPsiGrupos();
+  const intro = `<div style="font-size:12.5px;color:var(--gray600);line-height:1.55;margin-bottom:12px;max-width:80ch">Só aparecem folhas <strong>fechadas</strong>. Diferença de 0 ou 1 ponto conta como concordância e a cotação final sugerida é a média; diferença de 2 ou mais pontos obriga a acordar uma cotação única e a registar o motivo. Abaixo de 80% de concordância, os psicólogos devem rever juntos as âncoras antes do exercício seguinte.</div>`;
+  if(!gs.length) return intro + '<div style="padding:1.5rem;background:var(--gray100);border-radius:var(--rl);color:var(--gray600);font-size:13px">Ainda não há folhas fechadas para comparar.</div>';
+  const podeEditar = _av.admin || _av.psico;
+  return intro + gs.map((g, gi)=>{
+    const fs = g.folhas.slice().sort((x,y)=>avNome(x.psicologo_id).localeCompare(avNome(y.psicologo_id),'pt'));
+    const cab = `<h3 style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span>${_ppEsc(avNome(g.aluno_id))} — ${_ppEsc(g.exercicio)}</span><span style="font-weight:400;font-size:12px;color:var(--gray600)">${avDataHora(g.data_hora)}</span></h3>`;
+    if(fs.length<2) return `<div class="form-section">${cab}<div style="font-size:13px;color:var(--gray600)">Folha fechada por ${_ppEsc(avNome(fs[0].psicologo_id))}. À espera da folha do segundo psicólogo.</div></div>`;
+    const A = fs[0], B = fs[1];
+    const cons = _av.obsCons.find(c=>c.aluno_id===g.aluno_id && c.exercicio_key===g.exercicio_key) || {};
+    let ambos=0, conc=0; const finais=[];
+    const linhas = AVPSI_ITENS.map(it=>{
+      const a=(A.niveis||{})[it.k], b=(B.niveis||{})[it.k], na=avPsiNum(a), nb=avPsiNum(b);
+      const dif = (na!=null && nb!=null) ? Math.abs(na-nb) : null;
+      if(dif!=null){ ambos++; if(dif<=1) conc++; }
+      const fin = (cons.finais||{})[it.k] ?? avPsiFinalSugerido(a,b);
+      finais.push(avPsiNum(fin));
+      const opts = ['','1','1.5','2','2.5','3','3.5','4','4.5','5','NO'];
+      return `<tr>
+        <td style="font-size:13px">${_ppEsc(it.t)}</td>
+        <td style="text-align:center">${avPsiFmt(a)}</td><td style="text-align:center">${avPsiFmt(b)}</td>
+        <td style="text-align:center;font-weight:700;color:${dif!=null&&dif>=2?'var(--red)':'var(--gray900)'}">${dif==null?'—':dif}</td>
+        <td style="text-align:center">${podeEditar
+          ? `<select id="avpf-${gi}-${it.k}" style="width:auto;font-size:13px">${opts.map(o=>`<option value="${o}" ${String(fin)===o?'selected':''}>${o===''?'—':o.replace('.',',')}</option>`).join('')}</select>`
+          : avPsiFmt(fin)}</td>
+        <td>${podeEditar && dif!=null && dif>=2
+          ? `<input type="text" id="avpm-${gi}-${it.k}" value="${_ppEsc((cons.motivos||{})[it.k]||'')}" placeholder="Motivo do acordo" style="font-size:12.5px">`
+          : `<span style="font-size:12.5px;color:var(--gray600)">${_ppEsc((cons.motivos||{})[it.k]||'')}</span>`}</td></tr>`;
+    }).join('');
+    const pct = ambos ? Math.round(conc/ambos*100) : null;
+    const mediaFinal = avMedia(finais);
+    return `<div class="form-section">${cab}
+      <div class="table-wrap"><table>
+        <thead><tr><th>Item</th><th style="text-align:center">${_ppEsc(avNome(A.psicologo_id))}</th><th style="text-align:center">${_ppEsc(avNome(B.psicologo_id))}</th><th style="text-align:center">Diferença</th><th style="text-align:center">Cotação final</th><th>Motivo (diferença ≥ 2)</th></tr></thead>
+        <tbody>${linhas}</tbody></table></div>
+      <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:13px;margin:10px 0">
+        <div><strong>Concordância:</strong> <span style="font-weight:700;color:${pct!=null&&pct<80?'var(--red)':'var(--gm)'}">${pct==null?'—':pct+' %'}</span> <span style="color:var(--gray600)">(${conc}/${ambos} itens com diferença ≤ 1)</span></div>
+        <div><strong>Média final:</strong> <span style="font-family:'IBM Plex Mono',monospace;font-weight:700">${avPsiFmt(mediaFinal)}</span></div>
+        ${fs.length>2?`<div style="color:var(--amber)">Há ${fs.length} folhas fechadas; comparam-se as duas primeiras.</div>`:''}</div>
+      <div class="field" style="margin:0 0 8px"><label>Parecer psicológico síntese (3–5 linhas)</label>${podeEditar
+        ? `<textarea id="avpp-${gi}" rows="3" style="font-size:13px">${_ppEsc(cons.parecer||'')}</textarea>`
+        : `<div style="font-size:13px;white-space:pre-wrap">${_ppEsc(cons.parecer||'—')}</div>`}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        ${podeEditar?`<button class="btn btn-primary btn-sm" onclick="avPsiGuardarConsenso(${gi})"><i class="fas fa-save"></i> Guardar cotação final</button>`:''}
+        <button class="btn btn-outline btn-sm" onclick="avPsiAbrir('${A.id}')"><i class="fas fa-eye"></i> Folha de ${_ppEsc(avNome(A.psicologo_id))}</button>
+        <button class="btn btn-outline btn-sm" onclick="avPsiAbrir('${B.id}')"><i class="fas fa-eye"></i> Folha de ${_ppEsc(avNome(B.psicologo_id))}</button>
+        ${cons.updated_at?`<span style="font-size:11.5px;color:var(--gray600)">Guardado em ${new Date(cons.updated_at).toLocaleString('pt-PT')} por ${_ppEsc(avNome(cons.atualizado_por))}</span>`:''}
+      </div></div>`;
+  }).join('');
+}
+async function avPsiGuardarConsenso(gi){
+  const g = (_av.psiGrupos||[])[gi]; if(!g) return;
+  const finais = {}, motivos = {}; const semMotivo = [], semFinal = [];
+  AVPSI_ITENS.forEach(it=>{
+    const f = document.getElementById(`avpf-${gi}-${it.k}`)?.value || '';
+    const m = (document.getElementById(`avpm-${gi}-${it.k}`)?.value || '').trim();
+    if(f) finais[it.k]=f; else semFinal.push(it.t);
+    if(m) motivos[it.k]=m;
+    if(document.getElementById(`avpm-${gi}-${it.k}`) && !m) semMotivo.push(it.t);
+  });
+  if(semFinal.length && !confirm('Itens sem cotação final: '+semFinal.join(', ')+'.\n\nGuardar mesmo assim?')) return;
+  if(semMotivo.length && !confirm('Itens com diferença ≥ 2 sem motivo registado: '+semMotivo.join(', ')+'.\n\nGuardar mesmo assim?')) return;
+  const parecer = (document.getElementById(`avpp-${gi}`)?.value || '').trim() || null;
+  const { data, error } = await sb.from('aval_obs_consenso').upsert({ edicao_id:_av.edicaoId, aluno_id:g.aluno_id, exercicio_key:g.exercicio_key,
+    finais, motivos, parecer, atualizado_por:currentUser.id, updated_at:new Date().toISOString() }, { onConflict:'edicao_id,aluno_id,exercicio_key' }).select().single();
+  if(error){ alert('Erro ao guardar: '+error.message); return; }
+  const i = _av.obsCons.findIndex(c=>c.id===data.id); if(i>=0) _av.obsCons[i]=data; else _av.obsCons.push(data);
+  avRender();
 }
 
 // ===== FORMAÇÃO › AVALIAÇÃO — TESTES DE AVALIAÇÃO (substituem os Google Forms) =====
