@@ -8761,7 +8761,7 @@ function avPsiHtmlLista(){
     .slice().sort((a,b)=>String(b.data_hora||b.created_at||'').localeCompare(String(a.data_hora||a.created_at||'')));
   const topo = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
       <div style="font-size:12.5px;color:var(--gray600);line-height:1.5;max-width:70ch">Cada folha regista a observação de um psicólogo sobre um formando num exercício (10 itens, níveis 1 a 5 ou NO). Os psicólogos observam e cotam de forma independente; a folha do colega só fica visível em <strong>Concordância da observação</strong> depois de ambos fecharem a sua.</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-outline" onclick="avPsiVerModelo()"><i class="fas fa-table-list"></i> Ver grelha (em branco)</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${_av.admin && !_av.psico ? '<button class="btn btn-primary" onclick="avPsiVerModelo()"><i class="fas fa-eye"></i> Abrir grelha (pré-visualização)</button>' : ''}
       ${_av.psico ? '<button class="btn btn-primary" onclick="avPsiNova()"><i class="fas fa-plus"></i> Nova folha</button>' : ''}</div></div>`;
   if(!lista.length) return topo + '<div style="padding:1.5rem;background:var(--gray100);border-radius:var(--rl);color:var(--gray600);font-size:13px">Ainda sem folhas de observação.</div>';
   return topo + `<div class="table-card"><div class="table-wrap"><table>
@@ -8785,9 +8785,9 @@ function avPsiNova(base){
     funcao:'', gravacao:false, niveis:{}, evid:{}, momento:'', forte:'', desenv:'', estado:'rascunho', abertos:{} };
   avPsiRender();
 }
-// Consulta da grelha sem preencher (ex.: administrador, que não é psicólogo)
+// Pré-visualização para o administrador: a grelha funciona como se fosse preenchida (escolher aluno, cotar), mas nada é guardado
 function avPsiVerModelo(){
-  _av.psi = { id:null, alunoId:'', psicologoId:null, exercicio:'', dataHora:'', funcao:'', gravacao:false, niveis:{}, evid:{}, momento:'', forte:'', desenv:'', estado:'rascunho', abertos:Object.fromEntries(AVPSI_ITENS.map(i=>[i.k,true])), modelo:true };
+  _av.psi = { id:null, alunoId:'', psicologoId:null, exercicio:'', dataHora:'', funcao:'', gravacao:false, niveis:{}, evid:{}, momento:'', forte:'', desenv:'', estado:'rascunho', abertos:{}, modelo:true };
   avPsiRender();
 }
 function avPsiAbrir(id){
@@ -8797,7 +8797,7 @@ function avPsiAbrir(id){
     momento:o.momento_critico||'', forte:o.ponto_forte||'', desenv:o.ponto_desenvolver||'', estado:o.estado, fechadaEm:o.fechada_em, abertos:{} };
   avPsiRender();
 }
-function avPsiEditavel(){ const P=_av.psi; return P.psicologoId===currentUser.id && P.estado!=='fechada' && _av.psico; }
+function avPsiEditavel(){ const P=_av.psi; if(P.modelo) return true; return P.psicologoId===currentUser.id && P.estado!=='fechada' && _av.psico; }
 function avPsiToggle(k){
   const P=_av.psi; P.abertos[k]=!P.abertos[k];
   const r=document.getElementById('avpd-'+k); if(r) r.classList.toggle('hidden', !P.abertos[k]);
@@ -8839,7 +8839,10 @@ function avPsiRender(){
     ? `<textarea rows="2" oninput="_av.psi.${prop}=this.value" style="font-size:13px">${_ppEsc(P[prop]||'')}</textarea>`
     : `<div style="font-size:13px;white-space:pre-wrap">${_ppEsc(P[prop]||'—')}</div>`}</div>`;
   let acoes = '';
-  if(edit){
+  if(P.modelo){
+    acoes = `<div style="font-size:12.5px;color:var(--gray600)">Pré-visualização do administrador: podes escolher o aluno e cotar como os psicólogos, mas nada é guardado.</div>
+      <button class="btn btn-outline" onclick="avPsiVerModelo()"><i class="fas fa-eraser"></i> Limpar</button>`;
+  } else if(edit){
     acoes = `<button class="btn btn-outline" onclick="avPsiGuardar('rascunho')"><i class="fas fa-save"></i> Guardar rascunho</button>
       <button class="btn btn-primary" onclick="avPsiGuardar('fechada')"><i class="fas fa-lock"></i> Fechar folha</button>
       ${P.id?'<button class="btn btn-outline" style="color:var(--red)" onclick="avPsiApagar()"><i class="fas fa-trash"></i> Apagar</button>':''}`;
@@ -8855,7 +8858,7 @@ function avPsiRender(){
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin:.5rem 0 1rem">
     <div><div class="page-title" style="font-size:18px">Folha de Observação e Análise Comportamental</div>
       <div class="page-sub">Exercícios finais do CNeg · observação independente · NO = não observável (não entra na média)</div></div>
-    <div>${P.modelo?'<span style="font-size:11.5px;color:var(--gray600)">Consulta — grelha em branco</span>':avPsiEstadoBadge(P.estado)}</div>
+    <div>${P.modelo?'<span style="background:var(--gray100);color:var(--gray600);font-size:10.5px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap">Pré-visualização — não é guardada</span>':avPsiEstadoBadge(P.estado)}</div>
   </div>
   <div class="form-section"><h3>Identificação</h3>
     ${edit ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 16px">
@@ -8898,6 +8901,7 @@ function avPsiRender(){
 }
 async function avPsiGuardar(estado){
   const P = _av.psi;
+  if(P.modelo) return;
   if(!P.alunoId){ alert('Escolhe o formando.'); return; }
   if(!(P.exercicio||'').trim()){ alert('Indica o exercício.'); return; }
   if(!P.dataHora || isNaN(new Date(P.dataHora))){ alert('Indica a data e a hora do exercício.'); return; }
