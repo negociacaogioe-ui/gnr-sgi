@@ -8181,7 +8181,7 @@ async function abrirAvaliacao(tab){
   if(tab) _av.tab = tab;
   const permitidas = avTabsPermitidas().map(t=>t[0]);
   if(!_av.tab || !permitidas.includes(_av.tab)) _av.tab = permitidas[0];
-  _av.ficha = null; _av.psi = null;
+  _av.ficha = null; _av.psi = null; _av.psiEx = null;
   const el = document.getElementById('formacao-detalhe-content');
   el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--gray400)"><span class="spinner"></span></div>';
   try{ await avCarregar(); }catch(e){ el.innerHTML='<div class="alert alert-error">Erro ao carregar: '+_ppEsc(e.message||e)+'</div>'; return; }
@@ -8197,7 +8197,7 @@ function avRender(){
     ${_av.edicoes.length ? `<div style="display:flex;align-items:center;gap:6px"><label style="font-size:11px;font-weight:600;color:var(--gray600);text-transform:uppercase;letter-spacing:.06em">Edição</label>
       <select onchange="_av.edicaoId=this.value;abrirAvaliacao()" style="width:auto;font-size:13px">${_av.edicoes.map(e=>`<option value="${e.id}" ${e.id===_av.edicaoId?'selected':''}>${_ppEsc(e.nome)}${e.ativa?' (ativa)':''}</option>`).join('')}</select></div>` : ''}
   </div>`;
-  head += `<div style="display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin-bottom:1rem">${tabs.map(([k,t])=>`<button class="tab-btn ${_av.tab===k?'active':''}" onclick="_av.tab='${k}';avRender()">${t}</button>`).join('')}</div>`;
+  head += `<div style="display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin-bottom:1rem">${tabs.map(([k,t])=>`<button class="tab-btn ${_av.tab===k?'active':''}" onclick="_av.tab='${k}';_av.psiEx=null;avRender()">${t}</button>`).join('')}</div>`;
   let body = '';
   if(!ed && _av.tab!=='config'){
     body = `<div style="padding:1.5rem;background:var(--gray100);border-radius:var(--rl);color:var(--gray600);font-size:13.5px">Ainda não existe nenhuma edição do curso.${_av.admin?' Cria a primeira em <strong>Configuração</strong>.':' O administrador tem de criar a edição do curso.'}</div>`;
@@ -8786,48 +8786,176 @@ function avPsiEstadoBadge(e){
 }
 function avPsiExercicios(){ return [...new Set([..._av.obs.map(o=>o.exercicio), ..._av.fichas.map(f=>f.exercicio)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt')); }
 
-// Lista de folhas
+// ---------- Exercícios: o psicólogo escolhe a equipa (aluno por função) e preenche uma grelha por aluno ----------
+function avPsiExKey(t){ return String(t||'').trim().toLowerCase(); }
+function avPsiFolhaEx(psicologoId, exKey, funcLabel){ return _av.obs.find(o=>o.psicologo_id===psicologoId && o.exercicio_key===exKey && o.funcao===funcLabel); }
+function avPsiTemCotacoes(o){ return !!(o && Object.keys(o.niveis||{}).length); }
+function avPsiGruposEx(){
+  const m = new Map();
+  (_av.admin ? _av.obs : _av.obs.filter(o=>o.psicologo_id===currentUser.id)).forEach(o=>{
+    const k = o.psicologo_id+'|'+o.exercicio_key;
+    if(!m.has(k)) m.set(k, { key:k, psicologo_id:o.psicologo_id, exercicio:o.exercicio, exercicio_key:o.exercicio_key, data_hora:o.data_hora, folhas:[] });
+    m.get(k).folhas.push(o);
+  });
+  return [...m.values()].sort((a,b)=>String(b.data_hora||'').localeCompare(String(a.data_hora||'')));
+}
 function avPsiHtmlLista(){
   if(!_av.alunos.length) return '<div style="padding:1.5rem;color:var(--gray400);font-size:13px">Sem alunos inscritos nesta edição.</div>';
-  const lista = (_av.admin ? _av.obs : _av.obs.filter(o=>o.psicologo_id===currentUser.id))
-    .slice().sort((a,b)=>String(b.data_hora||b.created_at||'').localeCompare(String(a.data_hora||a.created_at||'')));
+  const gs = avPsiGruposEx();
   const topo = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-      <div style="font-size:12.5px;color:var(--gray600);line-height:1.5;max-width:70ch">Cada folha regista a observação de um formando na função que ocupou num exercício: 4 itens comuns + os itens próprios da função (níveis 1 a 5 ou NO). Só as folhas fechadas contam para o <strong>Perfil por função</strong>, que mostra também as funções que cada formando ainda não ocupou.</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">${_av.admin && !_av.psico ? '<button class="btn btn-primary" onclick="avPsiVerModelo()"><i class="fas fa-eye"></i> Abrir grelha (pré-visualização)</button>' : ''}
-      ${_av.psico ? '<button class="btn btn-primary" onclick="avPsiNova()"><i class="fas fa-plus"></i> Nova folha</button>' : ''}</div></div>`;
-  if(!lista.length) return topo + '<div style="padding:1.5rem;background:var(--gray100);border-radius:var(--rl);color:var(--gray600);font-size:13px">Ainda sem folhas de observação.</div>';
+      <div style="font-size:12.5px;color:var(--gray600);line-height:1.5;max-width:70ch">Em cada exercício escolhe-se a equipa (que aluno ocupa cada função). Os alunos ficam listados; ao clicar num aluno abre-se a grelha com os itens da função que ocupa. Só as folhas fechadas contam para o <strong>Perfil por função</strong>.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${_av.psico ? '<button class="btn btn-primary" onclick="avPsiNovoEx(false)"><i class="fas fa-plus"></i> Novo exercício</button>'
+        : (_av.admin ? '<button class="btn btn-primary" onclick="avPsiNovoEx(true)"><i class="fas fa-eye"></i> Abrir grelha (pré-visualização)</button>' : '')}</div></div>`;
+  if(!gs.length) return topo + '<div style="padding:1.5rem;background:var(--gray100);border-radius:var(--rl);color:var(--gray600);font-size:13px">Ainda sem exercícios observados.</div>';
   return topo + `<div class="table-card"><div class="table-wrap"><table>
-    <thead><tr><th>Data / hora</th><th>Exercício</th><th>Aluno</th><th>Função</th>${_av.admin?'<th>Psicólogo</th>':''}<th style="text-align:center">Itens cotados</th><th style="text-align:center">Média</th><th>Estado</th></tr></thead>
-    <tbody>${lista.map(o=>{
-      const its = avPsiItensFuncao(o.funcao), cot = its.filter(i=>(o.niveis||{})[i.k]).length;
-      return `<tr style="cursor:pointer" onclick="avPsiAbrir('${o.id}')">
-      <td style="white-space:nowrap;font-family:'IBM Plex Mono',monospace;font-size:12.5px">${avDataHora(o.data_hora)}</td>
-      <td>${_ppEsc(o.exercicio)}</td>
-      <td style="font-weight:600">${_ppEsc(avNome(o.aluno_id))}</td>
-      <td>${_ppEsc(o.funcao||'—')}</td>
-      ${_av.admin?`<td>${_ppEsc(avNome(o.psicologo_id))}</td>`:''}
-      <td style="text-align:center">${cot}/${its.length}</td>
-      <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700">${avPsiFmt(avPsiMedia(o.niveis, o.funcao))}</td>
-      <td>${avPsiEstadoBadge(o.estado)}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+    <thead><tr><th>Data / hora</th><th>Exercício</th>${_av.admin?'<th>Psicólogo</th>':''}<th>Equipa</th><th style="text-align:center">Fechadas</th></tr></thead>
+    <tbody>${gs.map(g=>{
+      const eq = AVPSI_FUNCOES.map(f=>{ const o=g.folhas.find(x=>x.funcao===f.t); return o ? `<span style="white-space:nowrap">${f.k==='CO'?'Coord.':f.t.replace('Negociador ','')}: ${_ppEsc(avNome(o.aluno_id))}</span>` : ''; }).filter(Boolean).join(' · ');
+      return `<tr style="cursor:pointer" onclick="avPsiAbrirEx('${g.key}')">
+      <td style="white-space:nowrap;font-family:'IBM Plex Mono',monospace;font-size:12.5px">${avDataHora(g.data_hora)}</td>
+      <td style="font-weight:600">${_ppEsc(g.exercicio)}</td>
+      ${_av.admin?`<td>${_ppEsc(avNome(g.psicologo_id))}</td>`:''}
+      <td style="font-size:12.5px">${eq}</td>
+      <td style="text-align:center">${g.folhas.filter(o=>o.estado==='fechada').length}/${g.folhas.length}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+}
+function avPsiNovoEx(modelo){
+  if(!modelo && !_av.psico){ alert('Só os psicólogos marcados em Configuração podem observar exercícios.'); return; }
+  _av.psi = null;
+  _av.psiEx = { key:null, psicologoId: modelo ? null : currentUser.id, exercicio:'', dataHora:'', membros:{}, modelo:!!modelo, folhasModelo:{} };
+  avPsiRenderEx();
+}
+function avPsiAbrirEx(key){
+  const g = avPsiGruposEx().find(x=>x.key===key); if(!g) return;
+  const membros = {}; g.folhas.forEach(o=>{ const k=avPsiFuncKey(o.funcao); if(k) membros[k]=o.aluno_id; });
+  _av.psi = null;
+  _av.psiEx = { key, psicologoId:g.psicologo_id, exercicio:g.exercicio, dataHora:avIsoParaInput(g.data_hora), membros, modelo:false, folhasModelo:{} };
+  avPsiRenderEx();
+}
+function avPsiExEditavel(){ const E=_av.psiEx; return E.modelo || (_av.psico && E.psicologoId===currentUser.id); }
+async function avPsiCarregarCasos(){
+  let lista = null;
+  try{ const r = await sb.rpc('aval_obs_casos_treino'); if(!r.error) lista = r.data || []; }catch(e){}
+  if(lista === null){
+    const r = await sb.from('treino_incidentes').select('id,tipo,local,data_hora,equipa').order('data_hora', { ascending:false }).limit(60);
+    lista = r.error ? [] : (r.data || []);
+  }
+  const inscritos = new Set(_av.alunos.map(a=>a.aluno_id));
+  // Só casos cuja equipa tem pelo menos um aluno inscrito nesta edição
+  _av.treinoCasos = lista.filter(c=>c && c.equipa && ['n1','n2','n3','n4','nc'].some(k=>c.equipa[k] && inscritos.has(c.equipa[k].id)));
+  if(_av.psiEx && !_av.psi) avPsiRenderEx();
+}
+function avPsiNomeCaso(c){ return (c.tipo||'Caso de treino') + (c.local ? ' — '+c.local : '') + (c.data_hora ? ' — '+new Date(c.data_hora).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : ''); }
+function avPsiEquipaCaso(c){ return ['n1','n2','n3','n4','nc'].map(k=>c.equipa[k]&&c.equipa[k].id ? (_av.perfis[c.equipa[k].id] ? avNome(c.equipa[k].id) : (c.equipa[k].nome||null)) : null).filter(Boolean).join(', '); }
+async function avPsiImportarCaso(id){
+  const E = _av.psiEx, c = (_av.treinoCasos||[]).find(x=>String(x.id)===String(id)); if(!c) return;
+  E.membros = {}; E.exercicio = ''; E.dataHora = '';
+  const mapa = { n1:'N1', n2:'N2', n3:'N3', n4:'N4', nc:'CO' }, inscritos = new Set(_av.alunos.map(a=>a.aluno_id)), fora = [];
+  Object.entries(mapa).forEach(([en, fk])=>{
+    const m = c.equipa[en];
+    if(m && m.id){ if(inscritos.has(m.id)) E.membros[fk] = m.id; else fora.push(m.nome||'?'); }
+  });
+  E.exercicio = avPsiNomeCaso(c);
+  E.dataHora = c.data_hora ? avIsoParaInput(c.data_hora) : avIsoParaInput(new Date().toISOString());
+  if(fora.length) alert('Não inscritos como alunos nesta edição (não entram na equipa): '+fora.join(', ')+'.');
+  // O psicólogo não precisa de confirmar: as grelhas da equipa são criadas logo
+  if(!E.modelo && Object.values(E.membros).some(Boolean)) { await avPsiGuardarEquipa(); return; }
+  avPsiRenderEx();
+}
+function avPsiRenderEx(){
+  const E = _av.psiEx, edit = avPsiExEditavel(), criado = !!E.key;
+  if(edit && !criado && !_av.treinoCasos) avPsiCarregarCasos();
+  const exKey = avPsiExKey(E.exercicio), exs = avPsiExercicios();
+  const linhas = AVPSI_FUNCOES.map(f=>{
+    const al = E.membros[f.k] || '';
+    const folha = E.modelo ? null : (criado ? avPsiFolhaEx(E.psicologoId, exKey, f.t) : null);
+    const bloqueado = avPsiTemCotacoes(folha);
+    const usados = Object.entries(E.membros).filter(([k,v])=>k!==f.k && v).map(([,v])=>v);
+    const sel = (edit && !bloqueado)
+      ? `<select onchange="_av.psiEx.membros['${f.k}']=this.value;avPsiRenderEx()" style="font-size:13px"><option value="">— sem aluno —</option>${_av.alunos.filter(a=>a.aluno_id!==currentUser.id && !usados.includes(a.aluno_id)).map(a=>`<option value="${a.aluno_id}" ${a.aluno_id===al?'selected':''}>${_ppEsc(avNome(a.aluno_id))}</option>`).join('')}</select>`
+      : `<span style="font-weight:600">${al?_ppEsc(avNome(al)):'—'}</span>`;
+    let estado = '<span style="font-size:11px;color:var(--gray400)">—</span>';
+    if(folha) estado = folha.estado==='fechada' ? avPsiEstadoBadge('fechada') : (bloqueado ? avPsiEstadoBadge('rascunho') : '<span style="font-size:11px;color:var(--gray600)">por preencher</span>');
+    else if(E.modelo && E.folhasModelo[f.k]) estado = '<span style="font-size:11px;color:var(--gray600)">pré-visualização</span>';
+    const podeAbrir = al && (E.modelo || folha);
+    return `<tr><td style="font-weight:600;white-space:nowrap">${f.t}</td><td>${sel}</td><td>${estado}</td>
+      <td style="text-align:right">${podeAbrir?`<button class="btn btn-primary btn-sm" onclick="avPsiAbrirMembro('${f.k}')"><i class="fas fa-clipboard-list"></i> Abrir grelha</button>`:''}</td></tr>`;
+  }).join('');
+  const casos = _av.treinoCasos || [];
+  const el = document.getElementById('formacao-detalhe-content');
+  el.innerHTML = `<button class="detail-back" onclick="_av.psiEx=null;avRender()">← Voltar</button>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin:.5rem 0 1rem">
+    <div><div class="page-title" style="font-size:18px">Observação do exercício</div>
+      <div class="page-sub">Escolhe a equipa e clica em cada aluno para preencher a grelha da função que ocupa</div></div>
+    ${E.modelo?'<span style="background:var(--gray100);color:var(--gray600);font-size:10.5px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap">Pré-visualização — não é guardada</span>':''}
+  </div>
+  <div class="form-section"><h3>Exercício</h3>
+    ${edit && !criado && !E.manual ? `<div class="field" style="margin:0"><label>Exercício (caso de treino)</label>
+        ${_av.treinoCasos ? (casos.length ? `<select onchange="if(this.value) avPsiImportarCaso(this.value)"><option value="">— escolher exercício —</option>${casos.map(c=>{
+          const ja = !E.modelo && _av.obs.some(o=>o.psicologo_id===currentUser.id && o.exercicio_key===avPsiExKey(avPsiNomeCaso(c)));
+          return `<option value="${c.id}">${_ppEsc(avPsiNomeCaso(c))} · ${_ppEsc(avPsiEquipaCaso(c))}${ja?' (já observado)':''}</option>`; }).join('')}</select>`
+          : '<div style="font-size:13px;color:var(--gray600)">Não há casos de treino com alunos desta edição na equipa.</div>')
+        : '<div style="font-size:13px;color:var(--gray400)">A carregar exercícios…</div>'}
+        <div style="font-size:12px;color:var(--gray600);margin-top:6px">Ao escolher o exercício, os alunos aparecem automaticamente na função que ocupam na equipa do caso. <a href="#" onclick="event.preventDefault();_av.psiEx.manual=true;avPsiRenderEx()">Exercício sem caso de treino</a></div></div>`
+    : edit && !criado ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 16px">
+      <div class="field" style="margin:0;grid-column:1/-1"><label>Designação do exercício</label>
+        <input type="text" list="avpsi-exercicios" value="${_ppEsc(E.exercicio)}" oninput="_av.psiEx.exercicio=this.value" placeholder="Ex.: Exercício final 1 — barricado com refém">
+        <datalist id="avpsi-exercicios">${exs.map(x=>`<option value="${_ppEsc(x)}"></option>`).join('')}</datalist></div>
+      <div class="field" style="margin:0"><label>Data e hora</label><input type="datetime-local" value="${_ppEsc(E.dataHora)}" oninput="_av.psiEx.dataHora=this.value"></div>
+    </div>`
+    : `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 16px;font-size:13px">
+      <div><strong>Exercício:</strong> ${_ppEsc(E.exercicio||'—')}</div><div><strong>Data e hora:</strong> ${E.dataHora?avDataHora(new Date(E.dataHora).toISOString()):'—'}</div>
+      ${E.psicologoId?`<div><strong>Psicólogo:</strong> ${_ppEsc(avNome(E.psicologoId))}</div>`:''}</div>`}
+  </div>
+  ${(criado || E.manual || Object.values(E.membros).some(Boolean)) ? `<div class="form-section"><h3>Equipa</h3>
+    <div class="table-wrap"><table><thead><tr><th>Função</th><th>Aluno</th><th>Grelha</th><th></th></tr></thead><tbody>${linhas}</tbody></table></div>
+    ${edit && !E.modelo ? `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px">
+      <button class="btn btn-primary" onclick="avPsiGuardarEquipa()"><i class="fas fa-save"></i> ${criado?'Guardar alterações da equipa':'Criar grelhas da equipa'}</button>
+      <span style="font-size:12px;color:var(--gray600)">${criado?'Um aluno com a grelha já começada não pode ser trocado.':'Depois de criar, clica em «Abrir grelha» em cada aluno.'}</span></div>` : ''}
+  </div>` : ''}`;
+}
+async function avPsiGuardarEquipa(){
+  const E = _av.psiEx;
+  if(!(E.exercicio||'').trim()){ alert('Indica a designação do exercício.'); return; }
+  if(!E.dataHora || isNaN(new Date(E.dataHora))){ alert('Indica a data e a hora do exercício.'); return; }
+  if(!Object.values(E.membros).some(Boolean)){ alert('Escolhe pelo menos um aluno.'); return; }
+  const exKey = avPsiExKey(E.exercicio), avisos = [];
+  for(const f of AVPSI_FUNCOES){
+    const al = E.membros[f.k] || '', folha = avPsiFolhaEx(currentUser.id, exKey, f.t);
+    let res = null;
+    if(folha){
+      if(folha.aluno_id === al) continue;
+      if(avPsiTemCotacoes(folha)){ avisos.push(f.t+': grelha já começada, mantém-se '+avNome(folha.aluno_id)); continue; }
+      res = al ? await sb.from('aval_obs_psico').update({ aluno_id:al }).eq('id', folha.id)
+               : await sb.from('aval_obs_psico').delete().eq('id', folha.id);
+    } else if(al){
+      const outra = _av.obs.find(o=>o.psicologo_id===currentUser.id && o.exercicio_key===exKey && o.aluno_id===al);
+      if(outra){ avisos.push(avNome(al)+' já tem grelha neste exercício como '+(outra.funcao||'?')); continue; }
+      res = await sb.from('aval_obs_psico').insert({ edicao_id:_av.edicaoId, aluno_id:al, psicologo_id:currentUser.id, exercicio:E.exercicio.trim(),
+        data_hora:new Date(E.dataHora).toISOString(), funcao:f.t, estado:'rascunho', niveis:{}, evidencias:{} });
+    }
+    if(res && res.error){ alert('Erro ('+f.t+'): '+res.error.message); break; }
+  }
+  try{ await avCarregar(); }catch(e){}
+  if(avisos.length) alert(avisos.join('\n'));
+  avPsiAbrirEx(currentUser.id+'|'+exKey);
+}
+function avPsiAbrirMembro(fk){
+  const E = _av.psiEx, f = AVPSI_FUNCOES.find(x=>x.k===fk), al = E.membros[fk]; if(!f || !al) return;
+  if(E.modelo){
+    if(!E.folhasModelo[fk] || E.folhasModelo[fk].alunoId!==al)
+      E.folhasModelo[fk] = { id:null, alunoId:al, psicologoId:null, exercicio:E.exercicio, dataHora:E.dataHora, funcao:f.t, gravacao:false, niveis:{}, evid:{}, momento:'', forte:'', desenv:'', estado:'rascunho', abertos:{}, modelo:true, fixo:true };
+    _av.psi = E.folhasModelo[fk]; avPsiRender(); return;
+  }
+  const folha = avPsiFolhaEx(E.psicologoId, avPsiExKey(E.exercicio), f.t);
+  if(folha) avPsiAbrir(folha.id);
 }
 
 // Folha de observação
-function avPsiNova(base){
-  if(!_av.psico){ alert('Só os psicólogos marcados em Configuração podem preencher folhas.'); return; }
-  _av.psi = { id:null, alunoId:'', psicologoId:currentUser.id, exercicio:(base&&base.exercicio)||'', dataHora:(base&&base.dataHora)||'',
-    funcao:'', gravacao:false, niveis:{}, evid:{}, momento:'', forte:'', desenv:'', estado:'rascunho', abertos:{} };
-  avPsiRender();
-}
-// Pré-visualização para o administrador: a grelha funciona como se fosse preenchida (escolher aluno, cotar), mas nada é guardado
-function avPsiVerModelo(){
-  _av.psi = { id:null, alunoId:'', psicologoId:null, exercicio:'', dataHora:'', funcao:'', gravacao:false, niveis:{}, evid:{}, momento:'', forte:'', desenv:'', estado:'rascunho', abertos:{}, modelo:true };
-  avPsiRender();
-}
 function avPsiAbrir(id){
   const o = _av.obs.find(x=>x.id===id); if(!o) return;
   _av.psi = { id:o.id, alunoId:o.aluno_id, psicologoId:o.psicologo_id, exercicio:o.exercicio||'', dataHora:avIsoParaInput(o.data_hora),
     funcao:o.funcao||'', gravacao:!!o.gravacao, niveis:JSON.parse(JSON.stringify(o.niveis||{})), evid:JSON.parse(JSON.stringify(o.evidencias||{})),
-    momento:o.momento_critico||'', forte:o.ponto_forte||'', desenv:o.ponto_desenvolver||'', estado:o.estado, fechadaEm:o.fechada_em, abertos:{} };
+    momento:o.momento_critico||'', forte:o.ponto_forte||'', desenv:o.ponto_desenvolver||'', estado:o.estado, fechadaEm:o.fechada_em, abertos:{}, fixo:true };
   avPsiRender();
 }
 function avPsiEditavel(){ const P=_av.psi; if(P.modelo) return true; return P.psicologoId===currentUser.id && P.estado!=='fechada' && _av.psico; }
@@ -8873,8 +9001,8 @@ function avPsiRender(){
     : `<div style="font-size:13px;white-space:pre-wrap">${_ppEsc(P[prop]||'—')}</div>`}</div>`;
   let acoes = '';
   if(P.modelo){
-    acoes = `<div style="font-size:12.5px;color:var(--gray600)">Pré-visualização do administrador: podes escolher o aluno e cotar como os psicólogos, mas nada é guardado.</div>
-      <button class="btn btn-outline" onclick="avPsiVerModelo()"><i class="fas fa-eraser"></i> Limpar</button>`;
+    acoes = `<div style="font-size:12.5px;color:var(--gray600)">Pré-visualização do administrador: podes cotar como os psicólogos, mas nada é guardado.</div>
+      <button class="btn btn-outline" onclick="_av.psi.niveis={};_av.psi.evid={};_av.psi.momento='';_av.psi.forte='';_av.psi.desenv='';avPsiRender()"><i class="fas fa-eraser"></i> Limpar</button>`;
   } else if(edit){
     acoes = `<button class="btn btn-outline" onclick="avPsiGuardar('rascunho')"><i class="fas fa-save"></i> Guardar rascunho</button>
       <button class="btn btn-primary" onclick="avPsiGuardar('fechada')"><i class="fas fa-lock"></i> Fechar folha</button>
@@ -8882,19 +9010,16 @@ function avPsiRender(){
   } else if(_av.admin && P.id && P.estado==='fechada'){
     acoes = `<button class="btn btn-outline" style="color:var(--red)" onclick="avPsiReabrir()"><i class="fas fa-rotate-left"></i> Reabrir (volta a rascunho)</button>`;
   }
-  if(P.id && _av.psico && P.psicologoId===currentUser.id){
-    acoes += `<button class="btn btn-outline" onclick="avPsiNova({exercicio:_av.psi.exercicio,dataHora:_av.psi.dataHora})"><i class="fas fa-user-plus"></i> Observar outro formando neste exercício</button>`;
-  }
   const exs = avPsiExercicios();
   const el = document.getElementById('formacao-detalhe-content');
-  el.innerHTML = `<button class="detail-back" onclick="_av.psi=null;avRender()">← Voltar</button>
+  el.innerHTML = `<button class="detail-back" onclick="_av.psi=null;(_av.psiEx?avPsiRenderEx():avRender())">← Voltar à equipa</button>
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin:.5rem 0 1rem">
     <div><div class="page-title" style="font-size:18px">Folha de Observação e Análise Comportamental</div>
       <div class="page-sub">Exercícios finais do CNeg · observação independente · NO = não observável (não entra na média)</div></div>
     <div>${P.modelo?'<span style="background:var(--gray100);color:var(--gray600);font-size:10.5px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap">Pré-visualização — não é guardada</span>':avPsiEstadoBadge(P.estado)}</div>
   </div>
   <div class="form-section"><h3>Identificação</h3>
-    ${edit ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 16px">
+    ${(edit && !P.fixo) ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 16px">
       <div class="field" style="margin:0"><label>Formando</label>${P.id
         ? `<div style="font-size:13px;font-weight:600;padding-top:6px">${_ppEsc(avNome(P.alunoId))}</div>`
         : `<select onchange="_av.psi.alunoId=this.value;avPsiRender()"><option value="">— escolher formando —</option>${_av.alunos.filter(a=>a.aluno_id!==currentUser.id).map(a=>`<option value="${a.aluno_id}" ${a.aluno_id===P.alunoId?'selected':''}>${_ppEsc(avNome(a.aluno_id))}</option>`).join('')}</select>`}</div>
@@ -8909,7 +9034,7 @@ function avPsiRender(){
     : `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 16px;font-size:13px">
       <div><strong>Formando:</strong> ${_ppEsc(avNome(P.alunoId))}</div><div><strong>Função:</strong> ${_ppEsc(P.funcao||'—')}</div>
       <div><strong>Exercício:</strong> ${_ppEsc(P.exercicio||'—')}</div><div><strong>Data e hora:</strong> ${P.dataHora?avDataHora(new Date(P.dataHora).toISOString()):'—'}</div>
-      <div><strong>Gravação:</strong> ${P.gravacao?'Sim':'Não'}</div></div>`}
+      <div>${edit?`<label style="display:flex;align-items:center;gap:8px;font-size:13px"><input type="checkbox" ${P.gravacao?'checked':''} onchange="_av.psi.gravacao=this.checked" style="width:16px;height:16px;accent-color:var(--gl)"> Exercício gravado</label>`:`<strong>Gravação:</strong> ${P.gravacao?'Sim':'Não'}`}</div></div>`}
     <div style="font-size:13px;margin-top:10px"><strong>Psicólogo:</strong> ${_ppEsc(((pPs.posto?pPs.posto+' ':'')+(pPs.nome||'')).trim()||'—')}${P.fechadaEm?` · fechada em ${new Date(P.fechadaEm).toLocaleString('pt-PT')}`:''}</div>
   </div>
   <div class="form-section"><h3>Itens de observação${P.funcao?' — '+_ppEsc(P.funcao):''} <span style="font-weight:400;font-size:12px;text-transform:none;letter-spacing:0">(clicar no item para ver o que se observa e os 5 níveis)</span></h3>
@@ -8964,10 +9089,11 @@ async function avPsiGuardar(estado){
 }
 async function avPsiApagar(){
   const P=_av.psi; if(!P.id) return;
-  if(!confirm('Apagar esta folha de observação? Não pode ser anulado.')) return;
+  if(!confirm('Apagar esta grelha? O aluno sai da equipa deste exercício. Não pode ser anulado.')) return;
   const { error } = await sb.from('aval_obs_psico').delete().eq('id', P.id);
   if(error){ alert('Erro: '+error.message); return; }
-  _av.obs = _av.obs.filter(x=>x.id!==P.id); _av.psi=null; avRender();
+  _av.obs = _av.obs.filter(x=>x.id!==P.id); _av.psi=null;
+  if(_av.psiEx){ const k=avPsiFuncKey(P.funcao); if(k) delete _av.psiEx.membros[k]; avPsiRenderEx(); } else avRender();
 }
 async function avPsiReabrir(){
   const P=_av.psi; if(!P.id || !_av.admin) return;
