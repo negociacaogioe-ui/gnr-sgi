@@ -8084,10 +8084,10 @@ async function avCarregarAcesso(){
 function avTemAcesso(){ return _av.admin || _av.epq || _av.psico; }
 // Separadores a que cada perfil tem acesso
 function avTabsPermitidas(){
-  if(_av.admin) return [['resumo','Resumo'],['quadro','Quadro de avaliações'],['avaliador','Por avaliador'],['minhas','As minhas avaliações'],['psico','Grelha psicológica'],['psicoconc','Concordância psicológica'],['config','Configuração']];
+  if(_av.admin) return [['resumo','Resumo'],['quadro','Quadro de avaliações'],['avaliador','Por avaliador'],['minhas','As minhas avaliações'],['psico','Grelha de observação'],['psicoconc','Concordância da observação'],['config','Configuração']];
   const t = [];
   if(_av.epq) t.push(['minhas','As minhas avaliações']);
-  if(_av.psico) t.push(['psico','Grelha psicológica'],['psicoconc','Concordância psicológica']);
+  if(_av.psico) t.push(['psico','Grelha de observação'],['psicoconc','Concordância da observação']);
   return t;
 }
 function avCardHtml(){
@@ -8389,7 +8389,7 @@ function avHtmlConfig(){
     <div id="av-epq-lista" style="font-size:13px;color:var(--gray400)">A carregar…</div>
   </div>
   <div class="form-section"><h3><i class="fas fa-user-doctor" style="color:var(--gl)"></i> Psicólogos (grelha de observação comportamental)</h3>
-    <div style="font-size:12px;color:var(--gray600);margin-bottom:8px">Só os marcados (e os administradores) acedem à Grelha psicológica. Não veem as fichas UC 1–3. Um aluno inscrito na edição não pode ser marcado.</div>
+    <div style="font-size:12px;color:var(--gray600);margin-bottom:8px">Só os marcados (e os administradores) acedem à Grelha de observação. Não veem as fichas UC 1–3. Um aluno inscrito na edição não pode ser marcado.</div>
     <div id="av-psico-lista" style="font-size:13px;color:var(--gray400)">A carregar…</div>
   </div>
   ${ed?`<div class="form-section"><h3><i class="fas fa-id-card" style="color:var(--gl)"></i> Dados dos alunos — ${_ppEsc(ed.nome)}</h3>
@@ -8738,12 +8738,9 @@ const AVPSI_ITENS = [
   { k:'i9',  t:'Consciência situacional e avaliação de risco', ind:'Identifica sinais de progresso ou deterioração e indícios de risco para reféns, terceiros ou o próprio; informa o comando e a equipa tática', a1:'Não deteta ou não reporta sinais de risco relevantes', a5:'Antecipa mudanças e transmite avaliação útil à decisão de comando e à Equipa Tática', ub:'UC2.6, UC3.1, UC3.3' },
   { k:'i10', t:'Postura profissional e tomada de decisão', ind:'Respeita a cadeia de comando e os limites de autorização, assume responsabilidade, decide com segurança e sem precipitação', a1:'Hesita ou decide fora da sua competência; desresponsabiliza-se', a5:'Decisões seguras, fundamentadas e dentro dos limites; transmite confiança à equipa', ub:'UC3.5, UC3.7, UC3.8' }
 ];
+// Mesmos 5 níveis do Apêndice 7 do Anexo B (AVAL_NIVEIS) + NO (não observável)
 const AVPSI_ESCALA = [
-  { n:'1', t:'Insuficiente', d:'O comportamento está ausente ou surge de forma contraproducente; prejudica o rumo da negociação.' },
-  { n:'2', t:'Em desenvolvimento', d:'Surge de forma pontual ou só após indicação do coach; falhas frequentes.' },
-  { n:'3', t:'Adequado', d:'Surge de forma consistente na maior parte do exercício; falhas pontuais sem impacto relevante.' },
-  { n:'4', t:'Bom', d:'Consistente durante todo o exercício, incluindo nos momentos de maior tensão.' },
-  { n:'5', t:'Excelente', d:'Consistente, ajustado ao momento e com efeito visível no interlocutor ou na equipa; serve de modelo.' },
+  ...AVAL_NIVEIS.slice().sort((a,b)=>a.n-b.n).map(x=>({ n:String(x.n), t:x.v, d:x.d })),
   { n:'NO', t:'Não observável', d:'O cenário não deu oportunidade de observar o comportamento. Não entra na média.' }
 ];
 const AVPSI_FUNCOES = ['Negociador n.º 1','Negociador n.º 2','Negociador n.º 3','Negociador n.º 4','Coordenador'];
@@ -8763,8 +8760,9 @@ function avPsiHtmlLista(){
   const lista = (_av.admin ? _av.obs : _av.obs.filter(o=>o.psicologo_id===currentUser.id))
     .slice().sort((a,b)=>String(b.data_hora||b.created_at||'').localeCompare(String(a.data_hora||a.created_at||'')));
   const topo = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-      <div style="font-size:12.5px;color:var(--gray600);line-height:1.5;max-width:70ch">Cada folha regista a observação de um psicólogo sobre um formando num exercício (10 itens, níveis 1 a 5 ou NO). Os psicólogos observam e cotam de forma independente; a folha do colega só fica visível em <strong>Concordância psicológica</strong> depois de ambos fecharem a sua.</div>
-      ${_av.psico ? '<button class="btn btn-primary" onclick="avPsiNova()"><i class="fas fa-plus"></i> Nova folha</button>' : ''}</div>`;
+      <div style="font-size:12.5px;color:var(--gray600);line-height:1.5;max-width:70ch">Cada folha regista a observação de um psicólogo sobre um formando num exercício (10 itens, níveis 1 a 5 ou NO). Os psicólogos observam e cotam de forma independente; a folha do colega só fica visível em <strong>Concordância da observação</strong> depois de ambos fecharem a sua.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-outline" onclick="avPsiVerModelo()"><i class="fas fa-table-list"></i> Ver grelha (em branco)</button>
+      ${_av.psico ? '<button class="btn btn-primary" onclick="avPsiNova()"><i class="fas fa-plus"></i> Nova folha</button>' : ''}</div></div>`;
   if(!lista.length) return topo + '<div style="padding:1.5rem;background:var(--gray100);border-radius:var(--rl);color:var(--gray600);font-size:13px">Ainda sem folhas de observação.</div>';
   return topo + `<div class="table-card"><div class="table-wrap"><table>
     <thead><tr><th>Data / hora</th><th>Exercício</th><th>Aluno</th>${_av.admin?'<th>Psicólogo</th>':''}<th style="text-align:center">Itens cotados</th><th style="text-align:center">Média</th><th>Estado</th></tr></thead>
@@ -8785,6 +8783,11 @@ function avPsiNova(base){
   if(!_av.psico){ alert('Só os psicólogos marcados em Configuração podem preencher folhas.'); return; }
   _av.psi = { id:null, alunoId:'', psicologoId:currentUser.id, exercicio:(base&&base.exercicio)||'', dataHora:(base&&base.dataHora)||'',
     funcao:'', gravacao:false, niveis:{}, evid:{}, momento:'', forte:'', desenv:'', estado:'rascunho', abertos:{} };
+  avPsiRender();
+}
+// Consulta da grelha sem preencher (ex.: administrador, que não é psicólogo)
+function avPsiVerModelo(){
+  _av.psi = { id:null, alunoId:'', psicologoId:null, exercicio:'', dataHora:'', funcao:'', gravacao:false, niveis:{}, evid:{}, momento:'', forte:'', desenv:'', estado:'rascunho', abertos:Object.fromEntries(AVPSI_ITENS.map(i=>[i.k,true])), modelo:true };
   avPsiRender();
 }
 function avPsiAbrir(id){
@@ -8852,7 +8855,7 @@ function avPsiRender(){
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin:.5rem 0 1rem">
     <div><div class="page-title" style="font-size:18px">Folha de Observação e Análise Comportamental</div>
       <div class="page-sub">Exercícios finais do CNeg · observação independente · NO = não observável (não entra na média)</div></div>
-    <div>${avPsiEstadoBadge(P.estado)}</div>
+    <div>${P.modelo?'<span style="font-size:11.5px;color:var(--gray600)">Consulta — grelha em branco</span>':avPsiEstadoBadge(P.estado)}</div>
   </div>
   <div class="form-section"><h3>Identificação</h3>
     ${edit ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 16px">
@@ -8881,7 +8884,7 @@ function avPsiRender(){
       <div><strong>Itens cotados:</strong> ${cot}/10</div>
       <div><strong>Média (excluindo NO):</strong> <span style="font-family:'IBM Plex Mono',monospace;font-weight:700">${avPsiFmt(media)}</span></div></div>
     <details style="margin-top:12px;border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;background:#fff">
-      <summary style="font-size:13px;font-weight:600;color:var(--gn);cursor:pointer">Escala de cotação</summary>
+      <summary style="font-size:13px;font-weight:600;color:var(--gn);cursor:pointer">Escala de cotação — Apêndice 7 (Definição dos Níveis de Avaliação)</summary>
       <table style="margin-top:8px"><tbody>${AVPSI_ESCALA.map(x=>`<tr><td style="white-space:nowrap;vertical-align:top"><strong>${x.n}</strong> — ${x.t}</td><td style="font-size:12.5px;line-height:1.5">${x.d}</td></tr>`).join('')}</tbody></table>
       <div style="font-size:12px;color:var(--gray600);margin-top:6px">Os níveis 1 e 5 exigem pelo menos uma evidência escrita.</div>
     </details>
