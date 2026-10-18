@@ -8669,9 +8669,8 @@ function avRenderFicha(){
 
   let acoes = '';
   if(edit){
-    acoes = `<button class="btn btn-outline" onclick="avGuardarFicha('rascunho')"><i class="fas fa-save"></i> Guardar rascunho</button>
-      ${_av.admin
-        ? `<button class="btn btn-primary" onclick="avGuardarFicha('validada')"><i class="fas fa-check-double"></i> Guardar e validar</button>`
+    acoes = `${_av.admin
+        ? `<button class="btn btn-primary" onclick="avGuardarFicha('validada')"><i class="fas fa-check-double"></i> Validar</button>`
         : `<button class="btn btn-primary" onclick="avGuardarFicha('submetida')"><i class="fas fa-paper-plane"></i> Submeter para validação</button>`}`;
   } else if(_av.admin && !novo){
     if(estado==='submetida') acoes = `<button class="btn btn-success" onclick="avDecidir('validada')"><i class="fas fa-check"></i> Validar</button>
@@ -8679,36 +8678,36 @@ function avRenderFicha(){
     else if(estado==='validada') acoes = `<button class="btn btn-outline" style="color:var(--red)" onclick="avDecidir('devolvida')"><i class="fas fa-rotate-left"></i> Reabrir (devolver)</button>`;
   }
   if(F.fixo){
-    acoes += `<button class="btn btn-outline" onclick="_av.ficha=null;avRender()"><i class="fas fa-arrow-left"></i> Voltar à lista de alunos do exercício</button>`;
+    acoes += `<button class="btn btn-outline" onclick="avFichaFlush().then(()=>{_av.ficha=null;avRender()})"><i class="fas fa-arrow-left"></i> Voltar à lista de alunos do exercício</button>`;
   } else if(!novo && F.avaliadorId===currentUser.id){
-    acoes += `<button class="btn btn-outline" onclick="avNovaAvaliacao({exercicio:_av.ficha.exercicio,dataHora:_av.ficha.dataHora,funcao:_av.ficha.funcao})"><i class="fas fa-user-plus"></i> Avaliar outro aluno neste exercício</button>`;
+    acoes += `<button class="btn btn-outline" onclick="avFichaFlush().then(()=>avNovaAvaliacao({exercicio:_av.ficha.exercicio,dataHora:_av.ficha.dataHora,funcao:_av.ficha.funcao}))"><i class="fas fa-user-plus"></i> Avaliar outro aluno neste exercício</button>`;
   }
 
   const motivo = Object.values(F.rows).map(r=>r.motivo).find(Boolean);
   const submEm = Object.values(F.rows).map(r=>r.submetida_em).find(Boolean);
   const valEm = Object.values(F.rows).find(r=>r.validado_em);
   const el = document.getElementById('formacao-detalhe-content');
-  el.innerHTML = `<button class="detail-back" onclick="${voltar}">← Voltar</button>
+  el.innerHTML = `<button class="detail-back" onclick="avFichaFlush().then(()=>{${voltar}})">← Voltar</button>
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin:.5rem 0 1rem">
     <div><div class="page-title" style="font-size:18px">Ficha de Avaliação da PP — UC 1, UC 2 e UC 3</div>
       <div class="page-sub">Anexo B do Regulamento do CNeg (artigo 12.º) · só contam os parâmetros cotados</div></div>
-    <div>${avEstadoBadge(estado)}</div>
+    <div style="text-align:right">${avEstadoBadge(estado)}${edit?`<div id="av-ficha-estado" style="font-size:11.5px;color:var(--gray600);margin-top:4px">${_ppEsc(F.estadoGravacao||'Gravação automática')}</div>`:''}</div>
   </div>
   ${estado==='devolvida'&&motivo?`<div style="background:var(--redl);border:1px solid var(--red);border-radius:var(--r);padding:10px 12px;font-size:12.5px;color:var(--red);margin-bottom:1rem"><strong>Devolvida para correção:</strong> ${_ppEsc(motivo)}</div>`:''}
   <div class="form-section"><h3>Exercício</h3>
     ${edit && !F.fixo ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 16px">
         <div class="field" style="margin:0;grid-column:1/-1"><label>Designação do exercício</label>
-          <input type="text" list="av-exercicios" value="${_ppEsc(F.exercicio)}" oninput="_av.ficha.exercicio=this.value" placeholder="Ex.: Exercício de barricado com refém">
+          <input type="text" list="av-exercicios" value="${_ppEsc(F.exercicio)}" oninput="_av.ficha.exercicio=this.value;avFichaAgendar(1200)" placeholder="Ex.: Exercício de barricado com refém">
           <datalist id="av-exercicios">${exercicios.map(x=>`<option value="${_ppEsc(x)}"></option>`).join('')}</datalist></div>
         <div class="field" style="margin:0"><label>Data e hora</label>
-          <input type="datetime-local" value="${_ppEsc(F.dataHora)}" oninput="_av.ficha.dataHora=this.value"></div>
+          <input type="datetime-local" value="${_ppEsc(F.dataHora)}" oninput="_av.ficha.dataHora=this.value;avFichaAgendar(1200)"></div>
       </div>`
     : `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 16px;font-size:13px">
         <div><strong>Exercício:</strong> ${_ppEsc(F.exercicio||'—')}</div><div><strong>Data e hora:</strong> ${rAny.data_hora ? avDataHora(rAny.data_hora) : (F.dataHora ? avDataHora(new Date(F.dataHora).toISOString()) : '—')}</div></div>`}
   </div>
   <div class="form-section"><h3>1. Elementos de identificação do formando</h3>
     ${edit && novo && !F.fixo ? `<div class="field" style="margin:0 0 10px;max-width:460px"><label>Aluno</label>
-        <select onchange="_av.ficha.alunoId=this.value;avRenderFicha()"><option value="">— escolher aluno —</option>${_av.alunos.map(a=>`<option value="${a.aluno_id}" ${a.aluno_id===F.alunoId?'selected':''}>${_ppEsc(avNome(a.aluno_id))}</option>`).join('')}</select></div>` : ''}
+        <select onchange="_av.ficha.alunoId=this.value;avRenderFicha();avFichaAgendar(400)"><option value="">— escolher aluno —</option>${_av.alunos.map(a=>`<option value="${a.aluno_id}" ${a.aluno_id===F.alunoId?'selected':''}>${_ppEsc(avNome(a.aluno_id))}</option>`).join('')}</select></div>` : ''}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 16px;font-size:13px">
       <div><strong>Nome:</strong> ${_ppEsc(pAl.nome||'—')}</div><div><strong>Posto:</strong> ${_ppEsc(pAl.posto||'—')}</div>
       <div><strong>N.º Matrícula:</strong> ${_ppEsc(al.matricula||'—')}</div><div><strong>Arma:</strong> ${_ppEsc(al.arma||'—')}</div>
@@ -8730,25 +8729,52 @@ function avRenderFicha(){
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 16px;font-size:13px;align-items:center">
       <div><strong>Nome:</strong> ${_ppEsc(pAv.nome||'—')}</div><div><strong>Unidade:</strong> ${_ppEsc(pAv.cter||'—')}</div>
       <div><strong>Posto:</strong> ${_ppEsc(pAv.posto||'—')}</div>
-      <div><strong>Função:</strong> ${edit?`<input type="text" value="${_ppEsc(F.funcao||'')}" oninput="_av.ficha.funcao=this.value" style="font-size:13px;margin-top:3px">`:_ppEsc(F.funcao||'—')}</div>
+      <div><strong>Função:</strong> ${edit?`<input type="text" value="${_ppEsc(F.funcao||'')}" oninput="_av.ficha.funcao=this.value;avFichaAgendar(1200)" style="font-size:13px;margin-top:3px">`:_ppEsc(F.funcao||'—')}</div>
       <div><strong>Data:</strong> ${submEm?new Date(submEm).toLocaleDateString('pt-PT'):'—'}</div>
       ${valEm?`<div><strong>Validada em:</strong> ${new Date(valEm.validado_em).toLocaleDateString('pt-PT')} por ${_ppEsc(avNome(valEm.validado_por))}</div>`:''}
     </div></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:1rem">${acoes}</div>`;
 }
-function avSetNivel(uc, k, v){
+function avSetNivel(uc, k, v){ avFichaAgendar(400);
   const niv = _av.ficha.niveis[uc] = _av.ficha.niveis[uc] || {};
   if(niv[k]===v) delete niv[k]; else niv[k] = v;
   avRenderFicha();
 }
-async function avGuardarFicha(estado){
-  if(window.__sgiVista === 'epq'){ alert('Estás na vista EPQ (simulação). As fichas não são guardadas nesta vista — ficariam registadas em teu nome como avaliação do Núcleo de Negociação. Volta à vista de Admin para avaliar.'); return; }
+// Gravação automática da ficha: cada alteração agenda uma gravação silenciosa (em fila, sem gravações em paralelo)
+let _avFichaTimer = null, _avFichaFila = Promise.resolve(), _avFichaPendente = false;
+function avFichaEstado(t, erro){
+  const F = _av.ficha; if(F) F.estadoGravacao = t;
+  const el = document.getElementById('av-ficha-estado');
+  if(el){ el.textContent = t; el.style.color = erro ? 'var(--red)' : 'var(--gray600)'; }
+}
+function avFichaAgendar(ms){
+  const F = _av.ficha; if(!F || !avFichaEditavel()) return;
+  clearTimeout(_avFichaTimer); _avFichaPendente = true;
+  avFichaEstado('A gravar…');
+  _avFichaTimer = setTimeout(()=>{ _avFichaPendente = false; const alvo = F; _avFichaFila = _avFichaFila.then(()=>{ if(_av.ficha===alvo) return avGuardarFicha(null, true); }); }, ms==null?400:ms);
+}
+// Antes de sair da ficha, grava o que estiver pendente
+function avFichaFlush(){
+  if(_avFichaPendente){ clearTimeout(_avFichaTimer); _avFichaPendente = false; const alvo = _av.ficha; _avFichaFila = _avFichaFila.then(()=>{ if(_av.ficha===alvo) return avGuardarFicha(null, true); }); }
+  return _avFichaFila;
+}
+async function avGuardarFicha(estado, silencioso){
+  if(silencioso){
+    if(window.__sgiVista === 'epq'){ avFichaEstado('Vista EPQ (simulação): não é gravado'); return; }
+    const F0 = _av.ficha;
+    if(!F0.alunoId || !(F0.exercicio||'').trim() || !F0.dataHora || isNaN(new Date(F0.dataHora))){ avFichaEstado('Indica o aluno, o exercício e a data para gravar'); return; }
+    estado = Object.keys(F0.rows).length ? avGrupoEstado(F0.rows) : 'rascunho';
+    if(!AVAL_UCS.some(u=>avCalcular(u.uc, F0.niveis[u.uc]).cotados>0) && !Object.keys(F0.rows).length){ avFichaEstado('Sem cotações'); return; }
+  }
+  if(!silencioso && window.__sgiVista === 'epq'){ alert('Estás na vista EPQ (simulação). As fichas não são guardadas nesta vista — ficariam registadas em teu nome como avaliação do Núcleo de Negociação. Volta à vista de Admin para avaliar.'); return; }
   const F = _av.ficha;
+  if(!silencioso){ await avFichaFlush(); clearTimeout(_avFichaTimer); }
   if(!F.alunoId){ alert('Escolhe o aluno.'); return; }
   if(!(F.exercicio||'').trim()){ alert('Indica o exercício.'); return; }
   if(!F.dataHora || isNaN(new Date(F.dataHora))){ alert('Indica a data e a hora do exercício.'); return; }
   const cotadas = AVAL_UCS.filter(u=>avCalcular(u.uc, F.niveis[u.uc]).cotados>0);
-  if(!cotadas.length){
+  if(silencioso){ /* sem perguntas: grava o que está */ }
+  else if(!cotadas.length){
     if(!Object.keys(F.rows).length){ alert('Cota pelo menos um parâmetro.'); return; }
     if(!confirm('Nenhum parâmetro está cotado. Apagar esta avaliação?')) return;
   } else if(estado==='submetida' && !confirm('Submeter para validação? Depois de submetida, só o administrador a pode devolver para correção.')) return;
@@ -8763,16 +8789,21 @@ async function avGuardarFicha(estado){
       res = row
         ? await sb.from('aval_fichas').update(payload).eq('id', row.id).select().single()
         : await sb.from('aval_fichas').insert(Object.assign({ edicao_id:_av.edicaoId, aluno_id:F.alunoId, uc:u.uc, avaliador_id:currentUser.id }, payload)).select().single();
-      if(res.error){ alert('Erro ao guardar a UC '+u.uc+': '+res.error.message); avRenderFicha(); return; }
+      if(res.error){ if(silencioso){ avFichaEstado('Erro ao gravar a UC '+u.uc+': '+res.error.message, true); return; } alert('Erro ao guardar a UC '+u.uc+': '+res.error.message); avRenderFicha(); return; }
       const i = _av.fichas.findIndex(x=>x.id===res.data.id);
       if(i>=0) _av.fichas[i] = res.data; else _av.fichas.push(res.data);
       F.rows[u.uc] = res.data;
     } else if(row){
       res = await sb.from('aval_fichas').delete().eq('id', row.id);
-      if(res.error){ alert('Erro ao retirar a UC '+u.uc+': '+res.error.message); avRenderFicha(); return; }
+      if(res.error){ if(silencioso){ avFichaEstado('Erro ao gravar a UC '+u.uc+': '+res.error.message, true); return; } alert('Erro ao retirar a UC '+u.uc+': '+res.error.message); avRenderFicha(); return; }
       _av.fichas = _av.fichas.filter(x=>x.id!==row.id);
       delete F.rows[u.uc];
     }
+  }
+  if(silencioso){
+    if(Object.keys(F.rows).length) F.key = F.grupo; else { F.key = null; F.grupo = null; }
+    avFichaEstado('Gravado às '+new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));
+    return;
   }
   if(!Object.keys(F.rows).length){ _av.ficha = null; avRender(); return; }
   F.key = F.grupo;
