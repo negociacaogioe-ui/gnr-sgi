@@ -8181,7 +8181,7 @@ async function abrirAvaliacao(tab){
   if(tab) _av.tab = tab;
   const permitidas = avTabsPermitidas().map(t=>t[0]);
   if(!_av.tab || !permitidas.includes(_av.tab)) _av.tab = permitidas[0];
-  _av.ficha = null; _av.psi = null; _av.psiEx = null;
+  _av.ficha = null; _av.psi = null; _av.psiEx = null; _av.treinoCasos = null;
   const el = document.getElementById('formacao-detalhe-content');
   el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--gray400)"><span class="spinner"></span></div>';
   try{ await avCarregar(); }catch(e){ el.innerHTML='<div class="alert alert-error">Erro ao carregar: '+_ppEsc(e.message||e)+'</div>'; return; }
@@ -8785,55 +8785,84 @@ function avPsiEstadoBadge(e){
 }
 function avPsiExercicios(){ return [...new Set([..._av.obs.map(o=>o.exercicio), ..._av.fichas.map(f=>f.exercicio)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt')); }
 
-// ---------- Uma grelha por aluno (e por psicólogo), com todos os itens agrupados por função ----------
-// O psicólogo cota em cada exercício os itens da função que o aluno ocupa. Gravação automática.
-// Chaves em niveis: '<função>:<item>' (ex.: 'N1:C1', 'CO:CO_2'); em evidencias: '<função>' (notas) e '<função>:_data' (1.ª cotação).
-const AVPSI_EXERCICIO = 'Grelha de observação';
+// ---------- Grelha por exercício: escolhe-se o exercício (caso de treino), aparecem os alunos da equipa; ----------
+// ---------- cada aluno tem uma grelha com todos os itens agrupados por função. Gravação automática. ----------
+// Chaves em niveis: '<função>:<item>' (ex.: 'N1:C1', 'CO:CO_2'); em evidencias: '<função>' (notas).
+const AVPSI_EN = { n1:'N1', n2:'N2', n3:'N3', n4:'N4', nc:'CO' };
 function avPsiChave(fk, ik){ return fk+':'+ik; }
 function avPsiItensDe(fk){ return AVPSI_ITENS.filter(i=>i.f==='C' || i.f===fk); }
-function avPsiFolhaAluno(alunoId, psicologoId){ return _av.obs.find(o=>o.aluno_id===alunoId && o.psicologo_id===psicologoId && o.exercicio===AVPSI_EXERCICIO); }
+function avPsiFolhaAluno(alunoId, psicologoId, exercicio){ const k = String(exercicio||'').trim().toLowerCase(); return _av.obs.find(o=>o.aluno_id===alunoId && o.psicologo_id===psicologoId && o.exercicio_key===k); }
 function avPsiCotadosFuncao(niveis, fk){ return avPsiItensDe(fk).filter(i=>(niveis||{})[avPsiChave(fk,i.k)]).length; }
 function avPsiMediaFuncao(niveis, fk){ return avMedia(avPsiItensDe(fk).map(i=>avPsiNum((niveis||{})[avPsiChave(fk,i.k)]))); }
-function avPsiPsicologosComDados(){ return [...new Set(_av.obs.filter(o=>o.exercicio===AVPSI_EXERCICIO).map(o=>o.psicologo_id))]; }
-// De quem é a grelha mostrada: o psicólogo vê a sua; o admin escolhe (por omissão, o primeiro com dados)
+function avPsiPsicologosComDados(){ return [...new Set(_av.obs.map(o=>o.psicologo_id))]; }
+// De quem são as grelhas mostradas: o psicólogo vê as suas; o admin escolhe (por omissão, o primeiro com dados)
 function avPsiPsicologoAtivo(){
   if(_av.psico) return currentUser.id;
   const ids = avPsiPsicologosComDados();
   if(!_av.psiVer || !ids.includes(_av.psiVer)) _av.psiVer = ids[0] || null;
   return _av.psiVer;
 }
+// Exercícios = casos de treino com alunos desta edição na equipa
+async function avPsiCarregarCasos(){
+  let lista = null;
+  try{ const r = await sb.rpc('aval_obs_casos_treino'); if(!r.error) lista = r.data || []; }catch(e){}
+  if(lista === null){
+    const r = await sb.from('treino_incidentes').select('id,tipo,local,data_hora,equipa').order('data_hora', { ascending:false }).limit(60);
+    lista = r.error ? [] : (r.data || []);
+  }
+  const inscritos = new Set(_av.alunos.map(a=>a.aluno_id));
+  _av.treinoCasos = lista.filter(c=>c && c.equipa && Object.keys(AVPSI_EN).some(k=>c.equipa[k] && inscritos.has(c.equipa[k].id)));
+  if(_av.tab==='psico' && !_av.psi) avRender();
+}
+function avPsiNomeCaso(c){ return (c.tipo||'Caso de treino') + (c.local ? ' — '+c.local : '') + (c.data_hora ? ' — '+new Date(c.data_hora).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : ''); }
+// Equipa do caso: [{fk, alunoId}] só com alunos inscritos, pela ordem das funções
+function avPsiEquipaCaso(c){
+  const inscritos = new Set(_av.alunos.map(a=>a.aluno_id));
+  return Object.entries(AVPSI_EN).map(([en, fk])=>{ const m=c.equipa[en]; return (m && m.id && inscritos.has(m.id)) ? { fk, alunoId:m.id } : null; }).filter(Boolean);
+}
+function avPsiCasoAtual(){ return (_av.treinoCasos||[]).find(c=>String(c.id)===String(_av.psiCasoId)) || null; }
 
-// Lista de alunos
+// Lista: primeiro o exercício, depois os alunos da equipa
 function avPsiHtmlLista(){
   if(!_av.alunos.length) return '<div style="padding:1.5rem;color:var(--gray400);font-size:13px">Sem alunos inscritos nesta edição.</div>';
+  if(!_av.treinoCasos){ avPsiCarregarCasos(); return '<div style="padding:1.5rem;color:var(--gray400);font-size:13px">A carregar exercícios…</div>'; }
   const psId = avPsiPsicologoAtivo(), ids = avPsiPsicologosComDados();
-  const seletor = (!_av.psico && ids.length>1) ? `<div class="field" style="max-width:360px;margin-bottom:10px"><label>Psicólogo</label>
+  const seletorPs = (!_av.psico && ids.length>1) ? `<div class="field" style="margin:0;min-width:240px"><label>Psicólogo</label>
       <select onchange="_av.psiVer=this.value;avRender()">${ids.map(id=>`<option value="${id}" ${id===psId?'selected':''}>${_ppEsc(avNome(id))}</option>`).join('')}</select></div>` : '';
-  const aviso = (!_av.psico) ? `<div style="font-size:12px;color:var(--gray600);margin-bottom:10px">${psId?'Vista do administrador: grelhas de '+_ppEsc(avNome(psId))+' (só leitura). Num aluno ainda sem cotações, a grelha abre em pré-visualização e nada é guardado.':'Ainda nenhum psicólogo cotou. Ao clicar num aluno, a grelha abre em pré-visualização e nada é guardado.'}</div>` : '';
-  return `<div style="font-size:12.5px;color:var(--gray600);line-height:1.5;max-width:75ch;margin-bottom:12px">Clica no nome do aluno para abrir a grelha. Os itens estão agrupados por função; cota os da função que o aluno ocupa no exercício. As cotações ficam gravadas automaticamente.</div>
-    ${seletor}${aviso}
-    <div class="table-card"><div class="table-wrap"><table>
-    <thead><tr><th>Aluno</th>${AVPSI_FUNCOES.map(f=>`<th style="text-align:center">${f.k==='CO'?'Coordenador':f.t.replace('Negociador ','')}</th>`).join('')}<th>Última cotação</th></tr></thead>
-    <tbody>${_av.alunos.map(a=>{
-      const o = psId ? avPsiFolhaAluno(a.aluno_id, psId) : null;
-      return `<tr style="cursor:pointer" onclick="avPsiAbrirAluno('${a.aluno_id}')">
-        <td style="font-weight:600;color:var(--gn)">${_ppEsc(avNome(a.aluno_id))}</td>
-        ${AVPSI_FUNCOES.map(f=>{ const n=o?avPsiCotadosFuncao(o.niveis,f.k):0, t=avPsiItensDe(f.k).length;
-          return `<td style="text-align:center">${n?`<span style="font-weight:700;color:${n===t?'var(--gm)':'var(--amber)'}">${n}/${t}</span>`:'<span style="color:var(--gray400);font-size:11px">—</span>'}</td>`; }).join('')}
+  const casos = _av.treinoCasos;
+  const seletorEx = casos.length ? `<div class="field" style="margin:0;flex:1;min-width:280px"><label>Exercício</label>
+      <select onchange="_av.psiCasoId=this.value;avRender()"><option value="">— escolher exercício —</option>${casos.map(c=>{
+        const n = psId ? _av.obs.filter(o=>o.psicologo_id===psId && o.exercicio_key===avPsiNomeCaso(c).trim().toLowerCase()).length : 0;
+        return `<option value="${c.id}" ${String(c.id)===String(_av.psiCasoId)?'selected':''}>${_ppEsc(avPsiNomeCaso(c))}${n?' · '+n+' aluno(s) cotado(s)':''}</option>`; }).join('')}</select></div>`
+    : '<div style="font-size:13px;color:var(--gray600)">Não há casos de treino com alunos desta edição na equipa.</div>';
+  const topo = `<div style="font-size:12.5px;color:var(--gray600);line-height:1.5;max-width:75ch;margin-bottom:12px">Escolhe o exercício. Aparecem os alunos da equipa; clica no nome para abrir a grelha. Os itens estão agrupados por função — cota os da função que o aluno ocupa. As cotações ficam gravadas automaticamente.</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">${seletorEx}${seletorPs}</div>
+    ${!_av.psico ? `<div style="font-size:12px;color:var(--gray600);margin-bottom:10px">${psId?'Vista do administrador: grelhas de '+_ppEsc(avNome(psId))+' (só leitura). Num aluno ainda sem cotações, a grelha abre em pré-visualização e nada é guardado.':'Ainda nenhum psicólogo cotou. Ao clicar num aluno, a grelha abre em pré-visualização e nada é guardado.'}</div>` : ''}`;
+  const c = avPsiCasoAtual();
+  if(!c) return topo;
+  const equipa = avPsiEquipaCaso(c), ex = avPsiNomeCaso(c);
+  return topo + `<div class="table-card"><div class="table-wrap"><table>
+    <thead><tr><th>Função no exercício</th><th>Aluno</th><th style="text-align:center">Itens cotados</th><th>Última gravação</th></tr></thead>
+    <tbody>${equipa.map(m=>{
+      const f = AVPSI_FUNCOES.find(x=>x.k===m.fk), o = psId ? avPsiFolhaAluno(m.alunoId, psId, ex) : null;
+      const n = o ? avPsiCotadosFuncao(o.niveis, m.fk) : 0, t = avPsiItensDe(m.fk).length;
+      return `<tr style="cursor:pointer" onclick="avPsiAbrirAluno('${m.alunoId}','${m.fk}')">
+        <td style="white-space:nowrap">${f.t}</td>
+        <td style="font-weight:600;color:var(--gn)">${_ppEsc(avNome(m.alunoId))}</td>
+        <td style="text-align:center">${n?`<span style="font-weight:700;color:${n===t?'var(--gm)':'var(--amber)'}">${n}/${t}</span>`:'<span style="color:var(--gray400);font-size:11px">—</span>'}</td>
         <td style="font-size:12px;color:var(--gray600);white-space:nowrap">${o&&o.updated_at?new Date(o.updated_at).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—'}</td></tr>`; }).join('')}</tbody></table></div></div>`;
 }
 
-// Grelha do aluno
-function avPsiAbrirAluno(alunoId){
-  const psId = avPsiPsicologoAtivo();
-  const o = psId ? avPsiFolhaAluno(alunoId, psId) : null;
+// Grelha do aluno no exercício escolhido
+function avPsiAbrirAluno(alunoId, fk){
+  const c = avPsiCasoAtual(); if(!c) return;
+  const ex = avPsiNomeCaso(c), psId = avPsiPsicologoAtivo();
+  const o = psId ? avPsiFolhaAluno(alunoId, psId, ex) : null;
   const modelo = !_av.psico && !o;
-  _av.psi = { id:o?o.id:null, alunoId, psicologoId: _av.psico ? currentUser.id : psId,
+  _av.psi = { id:o?o.id:null, alunoId, psicologoId: _av.psico ? currentUser.id : psId, exercicio:ex, dataCaso:c.data_hora||null, funcAtual:fk,
     niveis: JSON.parse(JSON.stringify((o&&o.niveis)||{})), evid: JSON.parse(JSON.stringify((o&&o.evidencias)||{})),
     abertos:{}, secoes:{}, modelo, estadoGravacao: o&&o.updated_at ? 'Gravado '+new Date(o.updated_at).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '' };
-  // Abre por omissão as funções que já têm cotações (ou a primeira)
-  AVPSI_FUNCOES.forEach(f=>{ if(avPsiCotadosFuncao(_av.psi.niveis, f.k)) _av.psi.secoes[f.k] = true; });
-  if(!Object.keys(_av.psi.secoes).length) _av.psi.secoes.N1 = true;
+  AVPSI_FUNCOES.forEach(f=>{ _av.psi.secoes[f.k] = true; });
   avPsiRender();
 }
 function avPsiEditavel(){ const P=_av.psi; return !!P && (P.modelo || (_av.psico && P.psicologoId===currentUser.id)); }
@@ -8846,7 +8875,6 @@ function avPsiToggleSecao(fk){ const P=_av.psi; P.secoes[fk]=!P.secoes[fk]; avPs
 function avPsiSet(fk, ik, v){
   const P=_av.psi, k=avPsiChave(fk, ik);
   if(P.niveis[k]===v) delete P.niveis[k]; else P.niveis[k]=v;
-  if(P.niveis[k] && !P.evid[fk+':_data']) P.evid[fk+':_data'] = new Date().toISOString();
   avPsiRender(); avPsiAgendarGravacao(300);
 }
 function avPsiNota(fk, txt){ _av.psi.evid[fk] = txt; avPsiAgendarGravacao(1200); }
@@ -8866,14 +8894,14 @@ function avPsiEstado(t, erro){
 async function avPsiGravar(P){
   const niveis = {}; Object.entries(P.niveis).forEach(([k,v])=>{ if(v) niveis[k]=v; });
   const evid = {}; Object.entries(P.evid).forEach(([k,v])=>{ const t=String(v||'').trim(); if(t) evid[k]=t; });
-  const payload = { niveis, evidencias:evid, data_hora:new Date().toISOString() };
+  const payload = { niveis, evidencias:evid };
   let res;
   if(P.id) res = await sb.from('aval_obs_psico').update(payload).eq('id', P.id).select().single();
   else {
     res = await sb.from('aval_obs_psico').insert(Object.assign({ edicao_id:_av.edicaoId, aluno_id:P.alunoId, psicologo_id:currentUser.id,
-      exercicio:AVPSI_EXERCICIO, funcao:null, estado:'rascunho' }, payload)).select().single();
+      exercicio:P.exercicio, funcao:(AVPSI_FUNCOES.find(f=>f.k===P.funcAtual)||{}).t||null, estado:'rascunho' }, payload, { data_hora:P.dataCaso||payload.data_hora })).select().single();
     if(res.error && /duplicate|unique/i.test(res.error.message||'')){
-      const { data:ex } = await sb.from('aval_obs_psico').select('*').eq('edicao_id',_av.edicaoId).eq('aluno_id',P.alunoId).eq('psicologo_id',currentUser.id).eq('exercicio',AVPSI_EXERCICIO).maybeSingle();
+      const { data:ex } = await sb.from('aval_obs_psico').select('*').eq('edicao_id',_av.edicaoId).eq('aluno_id',P.alunoId).eq('psicologo_id',currentUser.id).eq('exercicio_key',P.exercicio.trim().toLowerCase()).maybeSingle();
       if(ex){ P.id = ex.id; res = await sb.from('aval_obs_psico').update(payload).eq('id', P.id).select().single(); }
     }
   }
@@ -8899,12 +8927,13 @@ function avPsiRender(){
   };
   const secao = (f) => {
     const itens = avPsiItensDe(f.k), aberta = !!P.secoes[f.k];
-    const cot = avPsiCotadosFuncao(P.niveis, f.k), med = avPsiMediaFuncao(P.niveis, f.k), dt = P.evid[f.k+':_data'];
+    const cot = avPsiCotadosFuncao(P.niveis, f.k), med = avPsiMediaFuncao(P.niveis, f.k), atual = f.k===P.funcAtual;
     const cab = `<button type="button" onclick="avPsiToggleSecao('${f.k}')" style="display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit;text-align:left">
         <span style="display:flex;align-items:center;gap:8px"><i class="fas fa-chevron-right" style="color:var(--gl);font-size:11px;transition:transform .15s;${aberta?'transform:rotate(90deg)':''}"></i>
-          <span style="font-size:14px;font-weight:700;color:var(--gn)">${f.t}</span></span>
-        <span style="font-size:12px;color:var(--gray600)">${cot}/${itens.length} cotados${med!=null?' · média <strong style="color:var(--gn)">'+avPsiFmt(med)+'</strong>':''}${dt?' · desde '+new Date(dt).toLocaleDateString('pt-PT'):''}</span></button>`;
-    if(!aberta) return `<div class="form-section" style="padding:.75rem 1rem">${cab}</div>`;
+          <span style="font-size:14px;font-weight:700;color:var(--gn)">${f.t}</span>${atual?'<span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--gl);color:#fff">função neste exercício</span>':''}</span>
+        <span style="font-size:12px;color:var(--gray600)">${cot}/${itens.length} cotados${med!=null?' · média <strong style="color:var(--gn)">'+avPsiFmt(med)+'</strong>':''}</span></button>`;
+    const borda = atual ? 'border-left-color:var(--gl);border-left-width:4px;' : '';
+    if(!aberta) return `<div class="form-section" style="padding:.75rem 1rem;${borda}">${cab}</div>`;
     const linhas = itens.map((it, idx)=>{
       const id = f.k+'-'+it.k, ab = !!P.abertos[id];
       const ind = (it.indF && it.indF[f.k]) ? it.indF[f.k] : it.ind;
@@ -8920,7 +8949,7 @@ function avPsiRender(){
           <div><strong>O que se observa:</strong> ${_ppEsc(ind)}</div>
           ${it.lv.map((d,n)=>`<div style="margin-top:3px"><strong>${n+1}</strong> — ${_ppEsc(d)}</div>`).join('')}</div></td></tr>`;
     }).join('');
-    return `<div class="form-section">${cab}
+    return `<div class="form-section" style="${borda}">${cab}
       <div class="table-wrap" style="margin-top:10px"><table>
         <thead><tr><th>Item <span style="font-weight:400;text-transform:none;letter-spacing:0">(clicar para ver os níveis)</span></th>${['1','2','3','4','5','NO'].map(v=>`<th style="text-align:center">${v}</th>`).join('')}</tr></thead>
         <tbody>${linhas}</tbody></table></div>
@@ -8930,16 +8959,16 @@ function avPsiRender(){
     </div>`;
   };
   const el = document.getElementById('formacao-detalhe-content');
-  el.innerHTML = `<button class="detail-back" onclick="avPsiVoltarLista()">← Voltar à lista de alunos</button>
+  el.innerHTML = `<button class="detail-back" onclick="avPsiVoltarLista()">← Voltar à lista de alunos do exercício</button>
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin:.5rem 0 1rem">
     <div><div class="page-title" style="font-size:18px">${_ppEsc(avNome(P.alunoId))}</div>
-      <div class="page-sub">Grelha de observação · cota os itens da função que o aluno ocupa no exercício · NO = não observável</div></div>
+      <div class="page-sub">${_ppEsc(P.exercicio||'')} · cota os itens da função que o aluno ocupa · NO = não observável</div></div>
     <div style="text-align:right">${P.modelo
       ? '<span style="background:var(--gray100);color:var(--gray600);font-size:10.5px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap">Pré-visualização — não é guardada</span>'
       : edit ? `<span id="avpsi-estado" style="font-size:12px;color:var(--gray600)">${_ppEsc(P.estadoGravacao||'Gravação automática')}</span>`
       : `<span style="font-size:12px;color:var(--gray600)">Só leitura · ${_ppEsc(avNome(P.psicologoId))}</span>`}</div>
   </div>
-  ${AVPSI_FUNCOES.map(secao).join('')}
+  ${[...AVPSI_FUNCOES.filter(f=>f.k===P.funcAtual), ...AVPSI_FUNCOES.filter(f=>f.k!==P.funcAtual)].map(secao).join('')}
   <details style="margin-top:4px;border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;background:#fff">
     <summary style="font-size:13px;font-weight:600;color:var(--gn);cursor:pointer">Escala de cotação — Apêndice 7 (Definição dos Níveis de Avaliação)</summary>
     <table style="margin-top:8px"><tbody>${AVPSI_ESCALA.map(x=>`<tr><td style="white-space:nowrap;vertical-align:top"><strong>${x.n}</strong> — ${x.t}</td><td style="font-size:12.5px;line-height:1.5">${x.d}</td></tr>`).join('')}</tbody></table>
@@ -8949,12 +8978,16 @@ function avPsiRender(){
 
 // Perfil por função: média das cotações de cada formando em cada função + funções por fazer (mapa de rotação)
 function avPsiPerfilAluno(alunoId){
-  const psId = avPsiPsicologoAtivo(), o = psId ? avPsiFolhaAluno(alunoId, psId) : null, nv = (o&&o.niveis)||{};
+  const psId = avPsiPsicologoAtivo(), folhas = psId ? _av.obs.filter(o=>o.aluno_id===alunoId && o.psicologo_id===psId) : [];
   const porF = {};
   AVPSI_FUNCOES.forEach(f=>{
-    const itens = {}; avPsiItensDe(f.k).forEach(it=>{ itens[it.k] = avPsiNum(nv[avPsiChave(f.k,it.k)]); });
-    const n = avPsiCotadosFuncao(nv, f.k);
-    porF[f.k] = { n, media: avPsiMediaFuncao(nv, f.k), itens };
+    const itens = {}, todos = [];
+    avPsiItensDe(f.k).forEach(it=>{
+      const vs = folhas.map(o=>avPsiNum((o.niveis||{})[avPsiChave(f.k,it.k)])).filter(v=>v!=null);
+      itens[it.k] = avMedia(vs); todos.push(...vs);
+    });
+    const n = folhas.filter(o=>avPsiCotadosFuncao(o.niveis, f.k)).length;   // n.º de exercícios com cotações nesta função
+    porF[f.k] = { n, media: avMedia(todos), itens };
   });
   const feitas = AVPSI_FUNCOES.filter(f=>porF[f.k].n);
   const melhor = feitas.filter(f=>porF[f.k].media!=null).sort((x,y)=>porF[y.k].media-porF[x.k].media)[0] || null;
@@ -8964,7 +8997,7 @@ function avPsiPerfilToggle(id){ _av.perfilAberto = _av.perfilAberto===id ? null 
 function avPsiHtmlPerfil(){
   if(!_av.alunos.length) return '<div style="padding:1.5rem;color:var(--gray400);font-size:13px">Sem alunos inscritos nesta edição.</div>';
   const cel = (pf) => pf.n
-    ? `<span style="font-family:'IBM Plex Mono',monospace;font-weight:700">${avPsiFmt(pf.media)}</span>`
+    ? `<span style="font-family:'IBM Plex Mono',monospace;font-weight:700">${avPsiFmt(pf.media)}</span>${pf.n>1?`<span style="font-size:10.5px;color:var(--gray600)"> (${pf.n} ex.)</span>`:''}`
     : '<span style="font-size:11px;color:var(--gray400)">por fazer</span>';
   const linhas = _av.alunos.map(a=>{
     const P = avPsiPerfilAluno(a.aluno_id), aberto = _av.perfilAberto===a.aluno_id;
@@ -8986,7 +9019,7 @@ function avPsiHtmlPerfil(){
       <td style="text-align:center">${P.feitas}/${AVPSI_FUNCOES.length}</td>
       <td>${P.melhor?`<span class="badge badge-green">${P.melhor.t}</span>`:'—'}</td></tr>${det}`;
   }).join('');
-  return `<div style="font-size:12.5px;color:var(--gray600);line-height:1.55;margin-bottom:12px;max-width:80ch">Média das cotações de cada formando em cada função (itens comuns + próprios dessa função; NO não conta). «por fazer» indica as funções que o formando ainda não ocupou. Com uma só passagem por função, o perfil é indicativo. Clica no nome para ver os itens.</div>
+  return `<div style="font-size:12.5px;color:var(--gray600);line-height:1.55;margin-bottom:12px;max-width:80ch">Média das cotações de cada formando em cada função, somando todos os exercícios (itens comuns + próprios dessa função; NO não conta). «por fazer» indica as funções que o formando ainda não ocupou. Com uma só passagem por função, o perfil é indicativo. Clica no nome para ver os itens.</div>
     <div class="table-card"><div class="table-wrap"><table>
       <thead><tr><th>Formando</th>${AVPSI_FUNCOES.map(f=>`<th style="text-align:center">${f.t}</th>`).join('')}<th style="text-align:center">Funções</th><th>Melhor desempenho</th></tr></thead>
       <tbody>${linhas}</tbody></table></div></div>`;
