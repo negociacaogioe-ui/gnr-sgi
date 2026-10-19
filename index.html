@@ -8221,13 +8221,8 @@ function avEpqGrupoAluno(alunoId, exercicio){
 function avHtmlExercicioEpq(){
   if(!_av.alunos.length) return '<div style="padding:1.5rem;color:var(--gray400);font-size:13px">Sem alunos inscritos nesta edição (militares com CTer "CTer Curso").</div>';
   if(!_av.treinoCasos){ avPsiCarregarCasos(); return '<div style="padding:1.5rem;color:var(--gray400);font-size:13px">A carregar exercícios…</div>'; }
-  const casos = _av.treinoCasos;
-  const seletor = casos.length ? `<div class="field" style="margin:0 0 12px;max-width:640px"><label>Exercício</label>
-      <select onchange="_av.psiCasoId=this.value;avRender()"><option value="">— escolher exercício —</option>${casos.map(c=>{
-        const ex = avPsiNomeCaso(c), n = avPsiEquipaCaso(c).filter(m=>avEpqGrupoAluno(m.alunoId, ex)).length;
-        return `<option value="${c.id}" ${String(c.id)===String(_av.psiCasoId)?'selected':''}>${_ppEsc(ex)}${n?' · '+n+' aluno(s) avaliado(s)':''}</option>`; }).join('')}</select></div>`
-    : '<div style="font-size:13px;color:var(--gray600);margin-bottom:12px">Não há casos de treino com alunos desta edição na equipa.</div>';
-  const topo = `<div style="font-size:12.5px;color:var(--gray600);line-height:1.5;max-width:70ch;margin-bottom:10px">Escolhe o exercício. Aparecem os alunos da equipa; clica no nome para abrir a ficha. Só contam os parâmetros cotados.</div>${seletor}`;
+  const seletor = `<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">${avExSeletorHtml(c=>{ const ex = avPsiNomeCaso(c), n = avPsiEquipaCaso(c).filter(m=>avEpqGrupoAluno(m.alunoId, ex)).length; return n ? n+' aluno(s) avaliado(s)' : ''; })}</div>`;
+  const topo = `<div style="font-size:12.5px;color:var(--gray600);line-height:1.5;max-width:70ch;margin-bottom:10px">Escolhe o exercício (ou cria um em «Novo exercício»). Aparecem os alunos; clica no nome para abrir a ficha. Só contam os parâmetros cotados.</div>${seletor}`;
   const c = avPsiCasoAtual(); if(!c) return topo;
   const ex = avPsiNomeCaso(c);
   const num = f => f ? `<span style="font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:14px;color:${avBaixo(f.classificacao)?'var(--red)':'var(--gn)'}">${avFmt(f.classificacao)}</span>` : '<span style="color:var(--gray400);font-size:12px">—</span>';
@@ -8236,7 +8231,7 @@ function avHtmlExercicioEpq(){
     <tbody>${avPsiEquipaCaso(c).map(m=>{
       const g = avEpqGrupoAluno(m.alunoId, ex), f = AVPSI_FUNCOES.find(x=>x.k===m.fk);
       return `<tr style="cursor:pointer" onclick="avEpqAbrirAluno('${m.alunoId}')">
-        <td style="white-space:nowrap">${f?f.t:'—'}</td>
+        <td style="white-space:nowrap">${avExFuncaoHtml(c, m)}</td>
         <td style="font-weight:600;color:var(--gn)">${_ppEsc(avNome(m.alunoId))}</td>
         ${AVAL_UCS.map(u=>`<td style="text-align:center">${num(g&&g.rows[u.uc])}</td>`).join('')}
         <td>${g?avEstadoBadge(avGrupoEstado(g.rows)):'<span style="font-size:11px;color:var(--gray400)">por avaliar</span>'}</td></tr>`; }).join('')}</tbody></table></div></div>`;
@@ -8893,16 +8888,70 @@ async function avPsiCarregarCasos(){
     lista = r.error ? [] : (r.data || []);
   }
   const inscritos = new Set(_av.alunos.map(a=>a.aluno_id));
-  _av.treinoCasos = lista.filter(c=>c && c.equipa && Object.keys(AVPSI_EN).some(k=>c.equipa[k] && inscritos.has(c.equipa[k].id)));
+  const casos = lista.filter(c=>c && c.equipa && Object.keys(AVPSI_EN).some(k=>c.equipa[k] && inscritos.has(c.equipa[k].id)));
+  // Exercícios criados à parte (não dependem de um caso de treino aberto por aluno)
+  let manuais = [];
+  try{
+    const r = await sb.from('aval_exercicios').select('*').eq('edicao_id', _av.edicaoId).order('data_hora', { ascending:false, nullsFirst:false });
+    if(!r.error) manuais = (r.data||[]).map(e=>({ id:'ex-'+e.id, exId:e.id, manual:true, tipo:e.nome, local:null, data_hora:e.data_hora, funcoes:e.funcoes||{}, created_by:e.created_by }));
+  }catch(e){ console.warn('aval_exercicios', e); }
+  _av.treinoCasos = [...manuais, ...casos];
   if(((_av.tab==='psico' && !_av.psi) || (_av.tab==='minhas' && !_av.ficha))) avRender();
 }
 function avPsiNomeCaso(c){ return (c.tipo||'Caso de treino') + (c.local ? ' — '+c.local : '') + (c.data_hora ? ' — '+new Date(c.data_hora).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : ''); }
 // Equipa do caso: [{fk, alunoId}] só com alunos inscritos, pela ordem das funções
 function avPsiEquipaCaso(c){
+  if(c.manual) return _av.alunos.map(a=>({ fk:(c.funcoes||{})[a.aluno_id]||null, alunoId:a.aluno_id }));
   const inscritos = new Set(_av.alunos.map(a=>a.aluno_id));
   return Object.entries(AVPSI_EN).map(([en, fk])=>{ const m=c.equipa[en]; return (m && m.id && inscritos.has(m.id)) ? { fk, alunoId:m.id } : null; }).filter(Boolean);
 }
 function avPsiCasoAtual(){ return (_av.treinoCasos||[]).find(c=>String(c.id)===String(_av.psiCasoId)) || null; }
+// Seletor de exercício (exercícios criados à parte + casos de treino) com botão «Novo exercício»
+function avExSeletorHtml(contar){
+  const casos = _av.treinoCasos || [], man = casos.filter(c=>c.manual), tr = casos.filter(c=>!c.manual);
+  const opt = c => { const n = contar(c); return `<option value="${c.id}" ${String(c.id)===String(_av.psiCasoId)?'selected':''}>${_ppEsc(avPsiNomeCaso(c))}${n?' · '+n:''}</option>`; };
+  const c = avPsiCasoAtual();
+  const podeElim = c && c.manual && (_av.admin || c.created_by===currentUser.id);
+  return `<div class="field" style="margin:0;flex:1;min-width:280px;max-width:640px"><label>Exercício</label>
+      <div style="display:flex;gap:6px;align-items:center">
+      <select style="flex:1" onchange="_av.psiCasoId=this.value;_av.exNovo=false;avRender()"><option value="">— escolher exercício —</option>
+        ${man.length?`<optgroup label="Exercícios">${man.map(opt).join('')}</optgroup>`:''}
+        ${tr.length?`<optgroup label="Casos de treino">${tr.map(opt).join('')}</optgroup>`:''}</select>
+      <button type="button" class="btn btn-outline btn-sm" style="white-space:nowrap" onclick="_av.exNovo=!_av.exNovo;avRender()"><i class="fas fa-plus"></i> Novo exercício</button>
+      ${podeElim?`<button type="button" class="btn btn-outline btn-sm" title="Eliminar este exercício" onclick="avExEliminar('${c.exId}')"><i class="fas fa-trash"></i></button>`:''}</div></div>
+    ${_av.exNovo?`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;width:100%;padding:10px;background:var(--gray100);border-radius:var(--r)">
+      <div class="field" style="margin:0;flex:1;min-width:220px"><label>Nome do exercício</label><input id="avex-nome" type="text" placeholder="Ex.: Exercício final 1"></div>
+      <div class="field" style="margin:0"><label>Data/hora</label><input id="avex-data" type="datetime-local"></div>
+      <button type="button" class="btn btn-primary btn-sm" onclick="avExCriar()">Criar</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="_av.exNovo=false;avRender()">Cancelar</button></div>`:''}`;
+}
+async function avExCriar(){
+  const nome = (document.getElementById('avex-nome')?.value||'').trim(), dt = document.getElementById('avex-data')?.value||'';
+  if(!nome){ alert('Indica o nome do exercício.'); return; }
+  const { data, error } = await sb.from('aval_exercicios').insert({ edicao_id:_av.edicaoId, nome, data_hora: dt ? new Date(dt).toISOString() : null, created_by:currentUser.id }).select().single();
+  if(error){ alert('Erro ao criar exercício: '+error.message); return; }
+  _av.exNovo = false; _av.psiCasoId = 'ex-'+data.id; _av.treinoCasos = null;
+  await avPsiCarregarCasos(); avRender();
+}
+async function avExEliminar(exId){
+  if(!confirm('Eliminar este exercício? As avaliações já feitas não são apagadas.')) return;
+  const { error } = await sb.from('aval_exercicios').delete().eq('id', exId);
+  if(error){ alert('Erro ao eliminar: '+error.message); return; }
+  _av.psiCasoId = null; _av.treinoCasos = null; await avPsiCarregarCasos(); avRender();
+}
+// Função de cada aluno num exercício criado à parte (definida por quem avalia)
+function avExFuncaoHtml(c, m){
+  if(!c.manual){ const f = AVPSI_FUNCOES.find(x=>x.k===m.fk); return f?f.t:'—'; }
+  return `<select onclick="event.stopPropagation()" onchange="avExSetFuncao('${c.exId}','${m.alunoId}',this.value)" style="width:auto;font-size:12.5px;padding:3px 6px">
+    <option value="">— função —</option>${AVPSI_FUNCOES.map(f=>`<option value="${f.k}" ${f.k===m.fk?'selected':''}>${f.t}</option>`).join('')}</select>`;
+}
+async function avExSetFuncao(exId, alunoId, fk){
+  const c = (_av.treinoCasos||[]).find(x=>x.exId===exId); if(!c) return;
+  const funcoes = Object.assign({}, c.funcoes||{}); if(fk) funcoes[alunoId]=fk; else delete funcoes[alunoId];
+  const { error } = await sb.from('aval_exercicios').update({ funcoes }).eq('id', exId);
+  if(error){ alert('Erro ao gravar a função: '+error.message); avRender(); return; }
+  c.funcoes = funcoes;
+}
 
 // Lista: primeiro o exercício, depois os alunos da equipa
 function avPsiHtmlLista(){
@@ -8911,13 +8960,8 @@ function avPsiHtmlLista(){
   const psId = avPsiPsicologoAtivo(), ids = avPsiPsicologosComDados();
   const seletorPs = (!_av.psico && ids.length>1) ? `<div class="field" style="margin:0;min-width:240px"><label>Psicólogo</label>
       <select onchange="_av.psiVer=this.value;avRender()">${ids.map(id=>`<option value="${id}" ${id===psId?'selected':''}>${_ppEsc(avNome(id))}</option>`).join('')}</select></div>` : '';
-  const casos = _av.treinoCasos;
-  const seletorEx = casos.length ? `<div class="field" style="margin:0;flex:1;min-width:280px"><label>Exercício</label>
-      <select onchange="_av.psiCasoId=this.value;avRender()"><option value="">— escolher exercício —</option>${casos.map(c=>{
-        const n = psId ? _av.obs.filter(o=>o.psicologo_id===psId && o.exercicio_key===avPsiNomeCaso(c).trim().toLowerCase()).length : 0;
-        return `<option value="${c.id}" ${String(c.id)===String(_av.psiCasoId)?'selected':''}>${_ppEsc(avPsiNomeCaso(c))}${n?' · '+n+' aluno(s) cotado(s)':''}</option>`; }).join('')}</select></div>`
-    : '<div style="font-size:13px;color:var(--gray600)">Não há casos de treino com alunos desta edição na equipa.</div>';
-  const topo = `<div style="font-size:12.5px;color:var(--gray600);line-height:1.5;max-width:75ch;margin-bottom:12px">Escolhe o exercício. Aparecem os alunos da equipa; clica no nome para abrir a grelha. Os itens estão agrupados por função — cota os da função que o aluno ocupa. As cotações ficam gravadas automaticamente.</div>
+  const seletorEx = avExSeletorHtml(c=>{ const n = psId ? _av.obs.filter(o=>o.psicologo_id===psId && o.exercicio_key===avPsiNomeCaso(c).trim().toLowerCase()).length : 0; return n ? n+' aluno(s) cotado(s)' : ''; });
+  const topo = `<div style="font-size:12.5px;color:var(--gray600);line-height:1.5;max-width:75ch;margin-bottom:12px">Escolhe o exercício (ou cria um em «Novo exercício»). Aparecem os alunos; clica no nome para abrir a grelha. Os itens estão agrupados por função — cota os da função que o aluno ocupa. As cotações ficam gravadas automaticamente.</div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">${seletorEx}${seletorPs}</div>
     ${!_av.psico ? `<div style="font-size:12px;color:var(--gray600);margin-bottom:10px">${psId?'Vista do administrador: grelhas de '+_ppEsc(avNome(psId))+' (só leitura). Num aluno ainda sem cotações, a grelha abre em pré-visualização e nada é guardado.':'Ainda nenhum psicólogo cotou. Ao clicar num aluno, a grelha abre em pré-visualização e nada é guardado.'}</div>` : ''}`;
   const c = avPsiCasoAtual();
@@ -8928,8 +8972,8 @@ function avPsiHtmlLista(){
     <tbody>${equipa.map(m=>{
       const f = AVPSI_FUNCOES.find(x=>x.k===m.fk), o = psId ? avPsiFolhaAluno(m.alunoId, psId, ex) : null;
       const n = o ? avPsiCotados(o.niveis) : 0, t = AVPSI_ITENS.length;
-      return `<tr style="cursor:pointer" onclick="avPsiAbrirAluno('${m.alunoId}','${m.fk}')">
-        <td style="white-space:nowrap">${f.t}</td>
+      return `<tr style="cursor:pointer" onclick="avPsiAbrirAluno('${m.alunoId}','${m.fk||''}')">
+        <td style="white-space:nowrap">${avExFuncaoHtml(c, m)}</td>
         <td style="font-weight:600;color:var(--gn)">${_ppEsc(avNome(m.alunoId))}</td>
         <td style="text-align:center">${n?`<span style="font-weight:700;color:${n===t?'var(--gm)':'var(--amber)'}">${n}/${t}</span>`:'<span style="color:var(--gray400);font-size:11px">—</span>'}</td>
         <td style="font-size:12px;color:var(--gray600);white-space:nowrap">${o&&o.updated_at?new Date(o.updated_at).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—'}</td></tr>`; }).join('')}</tbody></table></div></div>`;
@@ -8938,6 +8982,7 @@ function avPsiHtmlLista(){
 // Grelha do aluno no exercício escolhido
 function avPsiAbrirAluno(alunoId, fk){
   const c = avPsiCasoAtual(); if(!c) return;
+  if(c.manual) fk = (c.funcoes||{})[alunoId] || null;
   const ex = avPsiNomeCaso(c), psId = avPsiPsicologoAtivo();
   const o = psId ? avPsiFolhaAluno(alunoId, psId, ex) : null;
   const modelo = !_av.psico && !o;
