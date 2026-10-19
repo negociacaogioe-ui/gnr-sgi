@@ -9374,8 +9374,37 @@ async function ftAnular(respId, testeId){
 const FTP = { cantos:[[13,13],[197,13],[13,284],[197,284]], marca:6, bitsX:132, bitsY:30, bitL:5, bitP:7, y0:58, ncol:4, colW:46, x0:14, r:2.7, passoOp:7.6 };
 let _ftp = { teste:null, linhas:[], lidas:[], alunos:[], pf:{}, edicao:null, aberta:null, estado:'' };
 function ftpGrelha(n){ const rows = Math.ceil(n/FTP.ncol); return { rows, h: Math.min(8.6, (274-FTP.y0)/rows) }; }
-function ftpPos(i, k, n){ const g = ftpGrelha(n), col = Math.floor(i/g.rows), lin = i%g.rows;
+// Layout por Unidade Curricular: se as secções do teste se chamarem «Unidade Curricular …» e cobrirem todas as perguntas,
+// cada UC ocupa colunas próprias na folha, com um cabeçalho por cima (as outras secções são ignoradas na folha).
+const FTP_UC = { y0:64.5, cabY:51.5, cabH:8.5 };
+function ftpPrepLayout(t){
+  _ftp.lay = null;
+  const blocos = []; let i = 0, cur = null;
+  (t?.perguntas||[]).forEach(q=>{
+    if((q.tipo||'escolha')==='secao'){ if(/^unidade curricular/i.test(String(q.texto||'').trim())){ cur = { titulo:String(q.texto).trim(), ini:i, fim:i-1 }; blocos.push(cur); } return; }
+    if((q.tipo||'escolha')!=='escolha') return;
+    if(cur) cur.fim = i; i++;
+  });
+  const n = i;
+  if(!blocos.length || blocos[0].ini!==0 || blocos.some(b=>b.fim<b.ini)) return null;
+  for(let R=Math.ceil(n/FTP.ncol); R<=32; R++){
+    const cols = blocos.map(b=>Math.ceil((b.fim-b.ini+1)/R));
+    if(cols.reduce((a,c)=>a+c,0) > FTP.ncol) continue;
+    let col0 = 0;
+    blocos.forEach((b,j)=>{ b.cols = cols[j]; b.rows = Math.ceil((b.fim-b.ini+1)/b.cols); b.col0 = col0; col0 += b.cols; });
+    const rmax = Math.max(...blocos.map(b=>b.rows));
+    _ftp.lay = { n, blocos, h: Math.min(8.6, (274-FTP_UC.y0)/rmax) };
+    return _ftp.lay;
+  }
+  return null;
+}
+function ftpPos(i, k, n){
+  const L = _ftp.lay;
+  if(L && L.n===n){ const b = L.blocos.find(x=>i>=x.ini && i<=x.fim), j = i-b.ini, col = b.col0 + Math.floor(j/b.rows), lin = j%b.rows;
+    return { x: FTP.x0 + col*FTP.colW + 13 + k*FTP.passoOp, y: FTP_UC.y0 + lin*L.h + L.h/2, nx: FTP.x0 + col*FTP.colW + 8, col, lin, h:L.h }; }
+  const g = ftpGrelha(n), col = Math.floor(i/g.rows), lin = i%g.rows;
   return { x: FTP.x0 + col*FTP.colW + 13 + k*FTP.passoOp, y: FTP.y0 + lin*g.h + g.h/2, nx: FTP.x0 + col*FTP.colW + 8, col, lin, h:g.h }; }
+function ftpValTxt(v){ v = Number(v); if(!v) return ''; return v===1 ? '1 valor' : (Number.isInteger(v) ? v+' valores' : v.toFixed(2).replace('.',',')+' valores'); }
 function ftpEhVF(q){ return (q.opcoes||[]).length===2 && q.opcoes[0]===FT_VF[0] && q.opcoes[1]===FT_VF[1]; }
 function ftpRotulo(q, k){ return ftpEhVF(q) ? 'VF'[k] : 'ABCD'[k]; }
 function ftpBits(cod){ const b=[]; for(let i=0;i<7;i++) b.push((cod>>i)&1); b.push(b.reduce((a,x)=>a^x,0)); return b; }
@@ -9396,7 +9425,7 @@ async function ftpCarregar(testeId){
 }
 async function ftpSecao(testeId){
   const box = document.getElementById('ft-papel'); if(!box) return;
-  _ftp.teste = _ft.testes.find(x=>x.id===testeId); _ftp.lidas = []; _ftp.aberta = null; _ftp.estado = '';
+  _ftp.teste = _ft.testes.find(x=>x.id===testeId); _ftp.lidas = []; _ftp.aberta = null; _ftp.estado = ''; ftpPrepLayout(_ftp.teste);
   box.innerHTML = '<div style="padding:1rem;color:var(--gray400)"><span class="spinner"></span></div>';
   try{
     await ftpCarregar(testeId);
@@ -9487,7 +9516,7 @@ function ftpMudar(i, qid, j, v){
 
 // Gera o PDF com uma folha por aluno (códigos guardados na base de dados)
 async function ftpGerar(){
-  const t=_ftp.teste, qs=ftPerguntas(t);
+  const t=_ftp.teste, qs=ftPerguntas(t); const lay = ftpPrepLayout(t);
   const usados = new Set(_ftp.linhas.map(l=>l.codigo)); let prox = 1;
   const novos = [];
   for(const uid of _ftp.alunos){
@@ -9515,10 +9544,17 @@ async function ftpGerar(){
     // código: 7 bits + paridade
     ftpBits(lin.codigo).forEach((b,i)=>{ const x=FTP.bitsX+i*FTP.bitP; doc.setDrawColor(0,0,0); doc.setLineWidth(0.3);
       if(b){ doc.setFillColor(0,0,0); doc.rect(x, FTP.bitsY, FTP.bitL, FTP.bitL, 'F'); } else doc.rect(x, FTP.bitsY, FTP.bitL, FTP.bitL, 'S'); });
-    doc.setFontSize(9); doc.setTextColor(0,0,0);
-    doc.text('Escreva o seu nome (maiúsculas): ______________________________________________', 22, 42);
     doc.setFontSize(8.5); doc.setTextColor(90,90,90);
-    doc.text('Pinte completamente um círculo por pergunta (caneta azul ou preta). Para anular, faça um X sobre o círculo e pinte o certo.', 22, 49);
+    doc.text('Pinte completamente um círculo por pergunta (caneta azul ou preta). Para anular, faça um X sobre o círculo e pinte o certo.', 22, 44);
+    if(lay) lay.blocos.forEach(b=>{
+      const xa = FTP.x0 + b.col0*FTP.colW, xb = FTP.x0 + (b.col0+b.cols)*FTP.colW - 3, xm = (xa+xb)/2;
+      doc.setFillColor(31,77,46); doc.rect(xa, FTP_UC.cabY, xb-xa, FTP_UC.cabH, 'F');
+      doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8.6);
+      doc.text(b.titulo.toUpperCase(), xm, FTP_UC.cabY+3.8, { align:'center' });
+      const ps = [...new Set(qs.slice(b.ini, b.fim+1).map(q=>Number(_ftp.chave?.[q.id]?.p)||0))];
+      doc.setFont('helvetica','normal'); doc.setFontSize(6.8);
+      doc.text('Perguntas '+(b.ini+1)+' a '+(b.fim+1)+(ps.length===1&&ps[0] ? ' · '+ftpValTxt(ps[0])+' cada' : ''), xm, FTP_UC.cabY+7, { align:'center' });
+    });
     qs.forEach((q,i)=>{
       const p0 = ftpPos(i, 0, qs.length);
       if(p0.lin%2===0){ doc.setFillColor(241,244,242); doc.rect(FTP.x0+p0.col*FTP.colW, p0.y-p0.h/2, FTP.colW-3, p0.h, 'F'); }
@@ -9536,7 +9572,7 @@ async function ftpGerar(){
 
 // Lê o PDF digitalizado: uma folha por página
 async function ftpLer(file){
-  const t=_ftp.teste, qs=ftPerguntas(t);
+  const t=_ftp.teste, qs=ftPerguntas(t); ftpPrepLayout(t);
   const est = m => { _ftp.estado = m; const e=document.getElementById('ftp-estado'); if(e) e.textContent = m; };
   try{
     est('A abrir o PDF…');
