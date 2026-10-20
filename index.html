@@ -15477,7 +15477,9 @@ async function mobAbrirForm(form) {
           ${msg('mob-rnrv-msg')}
         </div>
       </div>
+      <div id="mob-rnrv-lista"></div>
     </div>`;
+    mobRnrvLista();
 
   } else if (form === 'info') {
     // Mesmo formulário do desktop (renderInfo/saveInfo): registos, Anexo B e restantes campos
@@ -15692,6 +15694,48 @@ async function mobSaveRNRV() {
   }
   if(msgEl){msgEl.textContent='✓ Contacto registado com sucesso!';msgEl.style.background='var(--gp)';msgEl.style.color='var(--gm)';msgEl.style.display='block';setTimeout(()=>{msgEl.style.display='none';},3000);}
   document.getElementById('mob-rnrv-notes').value='';
+  mobRnrvLista();
+}
+
+// Lista dos contactos já registados (mobile), do mais recente para o mais antigo, com eliminar
+async function mobRnrvLista(){
+  const box=document.getElementById('mob-rnrv-lista');
+  if(!box || !mobDetail) return;
+  const {type,record:r}=mobDetail;
+  box.innerHTML='<div style="text-align:center;padding:1rem;color:var(--gray400);font-size:13px"><i class="fas fa-spinner fa-spin"></i> A carregar contactos...</div>';
+  const {data,error}=await sb.from('rnrv_contactos').select('*').eq('parent_type',type==='inc'?'incidente':'itp').eq('parent_id',r.id).order('contact_datetime',{ascending:false});
+  const atual=document.getElementById('mob-rnrv-lista'); if(!atual) return;
+  if(error){ atual.innerHTML='<div style="background:var(--redl);border:1px solid var(--red);border-radius:var(--r);padding:10px;font-size:12px;color:var(--red)">Não foi possível carregar os contactos: '+_escHtml(error.message)+'</div>'; return; }
+  const cts=data||[], n=cts.length;
+  const tipos={telefonico:'Telefónico',presencial:'Presencial',intercomunicador:'Intercomunicador',outro:'Outro'};
+  const NA=['','Calmo','Agitado','Muito agitado'], NI=['','Baixa','Média','Elevada'];
+  const corA=v=>v===3?'var(--red)':v===2?'var(--amber)':'var(--gm)', corI=v=>v===3?'var(--gm)':v===2?'var(--amber)':'var(--gray600)';
+  atual.innerHTML='<div style="background:#fff;border-radius:var(--rl);border:1px solid var(--border);overflow:hidden">'
+    +'<div style="padding:14px;background:var(--gp);display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:15px;font-weight:600;color:var(--gn)"><i class="fas fa-list"></i> Contactos registados ('+n+')</span>'
+    +'<button onclick="mobRnrvLista()" style="border:1px solid var(--border);background:#fff;border-radius:var(--r);padding:6px 10px;font-size:12px;color:var(--gn);cursor:pointer"><i class="fas fa-rotate"></i></button></div>'
+    +(n ? cts.map((c,i)=>{
+      const a=+c.emotional_activation||0, f=+c.influence_level||0;
+      return '<div style="padding:12px 14px;border-top:1px solid var(--border)">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">'
+        +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:13px;font-weight:700;color:var(--gn)">C'+(n-i)+' · '+fmtDateTime(c.contact_datetime)+'</div>'
+        +'<div style="font-size:12px;color:var(--gray600);margin-top:2px">'+_escHtml(tipos[c.contact_type]||c.contact_type||'—')+' · '+(c.duration_min!=null?c.duration_min+' min':'—')+(c.autor_nome?' · '+_escHtml(c.autor_nome):'')+'</div>'
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;font-size:11.5px;font-weight:600">'
+        +'<span style="color:'+corA(a)+';background:var(--gray50);border:1px solid var(--border);border-radius:20px;padding:2px 9px">Ativação: '+a+' ('+(NA[a]||'—')+')</span>'
+        +'<span style="color:'+corI(f)+';background:var(--gray50);border:1px solid var(--border);border-radius:20px;padding:2px 9px">Influência: '+f+' ('+(NI[f]||'—')+')</span></div>'
+        +(c.notes?'<div style="font-size:12.5px;color:var(--gray900);line-height:1.5;margin-top:7px;white-space:pre-wrap;word-break:break-word">'+_escHtml(c.notes)+'</div>':'')
+        +'</div>'
+        +'<button onclick="mobDeleteContact(\''+c.id+'\')" title="Eliminar contacto" style="flex-shrink:0;width:38px;height:38px;border:none;border-radius:var(--r);background:var(--redl);color:var(--red);cursor:pointer"><i class="fas fa-trash"></i></button>'
+        +'</div></div>';
+    }).join('') : '<div style="padding:16px;text-align:center;font-size:13px;color:var(--gray400)">Ainda sem contactos registados.</div>')
+    +'</div>';
+}
+async function mobDeleteContact(id){
+  if(!confirm('Eliminar este contacto?')) return;
+  const{data,error}=await sb.from('rnrv_contactos').delete().eq('id',id).select('id');
+  if(error){alert('Erro ao eliminar contacto: '+error.message);return;}
+  if(!data||!data.length){alert('O contacto não foi eliminado: sem permissão na base de dados para eliminar este registo.');return;}
+  mobRnrvLista();
 }
 
 // ===== CHAMADA =====
