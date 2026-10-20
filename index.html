@@ -1519,12 +1519,20 @@ function _postoRealtime(nov, treino){
     const novosC = Array.isArray(nov.envios_coord) ? nov.envios_coord.slice((ant.envios_coord||[]).length) : [];
     currentDetail.record = Object.assign({}, ant, nov);
     if(typeof mobDetail !== 'undefined' && mobDetail && mobDetail.record && mobDetail.record.id === nov.id) mobDetail.record = currentDetail.record;
+    // ITP declarado/revertido noutro aparelho: acompanha o tipo, senão os formulários gravam/leem com o parent_type errado
+    if('is_itp' in nov){
+      const _tNovo = nov.is_itp ? 'itp' : 'inc';
+      if(currentDetail.type !== _tNovo){
+        currentDetail.type = _tNovo;
+        if(typeof mobDetail !== 'undefined' && mobDetail && mobDetail.record && mobDetail.record.id === nov.id) mobDetail.type = _tNovo;
+      }
+    }
     const f = enFuncoesAtuais();
     const urg = l => l.some(x => postitPri(x) === 'urgente' && x.s !== _sgiSessaoId);
     const urgC = p => f.indexOf(p) > -1 && urg(novosC.filter(x => (x.dest || []).indexOf(p) > -1));
     if((f.indexOf('n1') > -1 && urg(novasN)) || (f.indexOf('n3') > -1 && urg(novosP)) || urgC('n3') || urgC('n4')) alertaUrgente();
     // Contactos / nomes alterados noutro aparelho: redesenha onde aparecem
-    const CAMPOS_CONT = ['contacto_vitima','contacto_agressor','nome_vitima','nome_agressor','tipo','local','estado'];
+    const CAMPOS_CONT = ['contacto_vitima','contacto_agressor','nome_vitima','nome_agressor','tipo','local','estado','is_itp'];
     const contMudou = CAMPOS_CONT.some(k => k in nov && (nov[k] || '') !== (ant[k] || ''));
     const aEditar = el => { const a = document.activeElement; return !!(el && a && el.contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName)); };
     if(typeof isMobile !== 'undefined' && isMobile){
