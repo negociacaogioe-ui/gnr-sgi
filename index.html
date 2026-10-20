@@ -5760,6 +5760,7 @@ async function saveIRIS(){
   if(_irisEstado.id){
     const res=await sb.from('iris').update(payload).eq('id',_irisEstado.id).select('*').maybeSingle();
     err=res.error; if(!err && res.data) _irisGuardarNaLista(res.data);
+    if(!err && !res.data) err={message:'sem permissão para alterar esta avaliação (a base de dados não aceitou a gravação)'};
   } else {
     const p=(async()=>await sb.from('iris').insert(payload).select('*').single())();
     _irisEstado.aInserir=p;
@@ -6801,7 +6802,9 @@ async function addContact(){
 
 async function deleteContact(id){
   if(!confirm('Eliminar este contacto?'))return;
-  await sb.from('rnrv_contactos').delete().eq('id',id);
+  const{data,error}=await sb.from('rnrv_contactos').delete().eq('id',id).select('id');
+  if(error){alert('Erro ao eliminar contacto: '+error.message);return;}
+  if(!data||!data.length){alert('O contacto não foi eliminado: sem permissão na base de dados para eliminar este registo.');return;}
   renderRNRV();
 }
 
