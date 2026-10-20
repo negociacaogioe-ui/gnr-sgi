@@ -8284,14 +8284,15 @@ function avResumoAluno(alunoId){
     const fs = _av.fichas.filter(f=>f.aluno_id===alunoId && f.uc===u.uc);
     const val = fs.filter(f=>f.estado==='validada');
     const isNN = f => (_av.perfis[f.avaliador_id]||{}).role === 'admin';
-    const epq = avMedia(val.filter(f=>!isNN(f)).map(f=>f.classificacao));
+    const epqFs = fs.filter(f=>!isNN(f) && (f.estado==='validada'||f.estado==='submetida') && f.classificacao!=null);
+    const epq = avMedia(epqFs.map(f=>f.classificacao));
     const nn  = avMedia(val.filter(isNN).map(f=>f.classificacao));
     if(fs.some(f=>(f.estado==='validada'||f.estado==='submetida') && avBaixo(f.classificacao))) r.individualBaixa = true;
     r.ucs[u.uc] = {
       epq, nn,
       nota: nn!=null ? nn : epq,
       provisoria: nn==null && epq!=null,
-      nEpq: val.filter(f=>!isNN(f)).length,
+      nEpq: epqFs.length,
       nNN: val.filter(isNN).length,
       pend: fs.filter(f=>f.estado==='submetida').length
     };
@@ -8308,7 +8309,7 @@ function avHtmlResumo(){
   const num = (v, forte) => `<span style="font-family:'IBM Plex Mono',monospace;font-weight:${forte?'700':'600'};font-size:${forte?'15px':'13.5px'};color:${avBaixo(v)?'var(--red)':(forte?'var(--gn)':'var(--gray900)')}">${avFmt(v)}</span>`;
   const sep = 'border-left:1px solid var(--border)';
   return `${pend?`<div class="pending-banner"><i class="fas fa-hourglass-half"></i> ${pend} avaliação(ões) de EPQ a aguardar validação</div>`:''}
-  <div style="font-size:12px;color:var(--gray600);margin-bottom:8px;line-height:1.55">Em cada UC: <strong>EPQ</strong> = média das avaliações validadas dos negociadores EPQ; <strong>NN</strong> = avaliação do Núcleo de Negociação (média, se houver mais do que uma). <strong>A nota da UC é a do NN</strong>; enquanto não houver avaliação do NN, fica provisória com o valor EPQ. O nome fica a <span style="color:var(--red);font-weight:700">vermelho</span> se alguma avaliação ou média for inferior a ${AV_LIMIAR} valores. Clica numa UC para ver as fichas.</div>
+  <div style="font-size:12px;color:var(--gray600);margin-bottom:8px;line-height:1.55">Em cada UC: <strong>EPQ</strong> = média das avaliações dos negociadores EPQ (validadas e por validar); <strong>NN</strong> = avaliação do Núcleo de Negociação (média, se houver mais do que uma). <strong>A nota da UC é a do NN</strong>; enquanto não houver avaliação do NN, fica provisória com o valor EPQ. O nome fica a <span style="color:var(--red);font-weight:700">vermelho</span> se alguma avaliação ou média for inferior a ${AV_LIMIAR} valores. Clica numa UC para ver as fichas.</div>
   <div class="table-card"><div class="table-wrap"><table>
     <thead>
       <tr><th rowspan="2">Aluno</th>${AVAL_UCS.map(u=>`<th colspan="2" style="text-align:center;${sep}">UC ${u.uc}<div style="font-weight:400;font-size:10px;text-transform:none;letter-spacing:0">${_ppEsc(u.nome)}</div></th>`).join('')}<th rowspan="2" style="text-align:center;${sep}">Média geral (PP)</th></tr>
@@ -8319,7 +8320,7 @@ function avHtmlResumo(){
       return `<tr>
         <td style="font-weight:700;color:${r.vermelho?'var(--red)':'var(--gray900)'}">${r.vermelho?'<i class="fas fa-triangle-exclamation" style="margin-right:5px"></i>':''}${_ppEsc(avNome(a.aluno_id))}</td>
         ${AVAL_UCS.map(u=>{ const x=r.ucs[u.uc]; const click=`style="text-align:center;cursor:pointer;vertical-align:middle;%S" onclick="avVerIndividuais('${a.aluno_id}',${u.uc})"`;
-          return `<td ${click.replace('%S',sep)}>${num(x.epq,false)}${x.pend?`<div style="font-size:10px;color:var(--amber)">+${x.pend} por validar</div>`:''}</td>
+          return `<td ${click.replace('%S',sep)}>${num(x.epq,false)}${x.pend?`<div style="font-size:10px;color:var(--amber)">inclui ${x.pend} por validar</div>`:''}</td>
                   <td ${click.replace('%S','background:var(--gp)')}>${num(x.nn,true)}${x.provisoria?`<div style="font-size:10px;color:var(--gray400)">provisória: EPQ</div>`:''}</td>`; }).join('')}
         <td style="text-align:center;${sep}">${num(r.geral,true)}${r.geral!=null&&r.geralProvisoria?`<div style="font-size:10px;color:var(--gray400)">provisória</div>`:''}</td>
       </tr>`;
