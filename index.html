@@ -8357,7 +8357,7 @@ function avHtmlFinaisPratica(){
     <tbody>${linhas.map(({a,r,pos})=>`<tr>
       <td style="text-align:center;font-weight:700">${r.geral!=null?pos+'.º':'—'}</td>
       <td style="font-weight:700">${_ppEsc(avNome(a.aluno_id))}</td>
-      ${AVAL_UCS.map(u=>{ const x=r.ucs[u.uc]; return `<td style="text-align:center;cursor:pointer;${sep}" onclick="avVerIndividuais('${a.aluno_id}',${u.uc})">${num(x.nota,false)}<div style="font-size:10px;color:var(--gray400)">${x.n} avaliaç${x.n===1?'ão':'ões'}</div></td>`; }).join('')}
+      ${AVAL_UCS.map(u=>{ const x=r.ucs[u.uc]; return `<td style="text-align:center;cursor:pointer;${sep}" onclick="avVerIndividuais('${a.aluno_id}',${u.uc})">${num(x.nota,false)}</td>`; }).join('')}
       <td style="text-align:center;background:var(--gp);${sep}">${num(r.geral,true)}</td>
     </tr>`).join('')}</tbody></table></div></div>`;
 }
@@ -8404,7 +8404,7 @@ function avExportarPauta(modo){
     return y+10;
   };
   const cor = v => avBaixo(v) ? [192,57,43] : [31,77,46];
-  const origem = x => fin ? (x.n ? x.n+' avaliaç'+(x.n===1?'ão':'ões') : '') : x.nn!=null ? ('NN'+(x.nnPend?' · '+x.nnPend+' p/ validar':'')) : (x.epq!=null ? 'EPQ (provisória)' : '');
+  const origem = x => fin ? '' : x.nn!=null ? ('NN'+(x.nnPend?' · '+x.nnPend+' p/ validar':'')) : (x.epq!=null ? 'EPQ (provisória)' : '');
   cab(); let y = cabTab(48);
   linhas.forEach((r,i)=>{
     doc.setFont('helvetica','normal'); doc.setFontSize(9);
@@ -8418,7 +8418,7 @@ function avExportarPauta(modo){
     doc.setFont('helvetica','normal');
     doc.text(postoL, x+2, ym-(postoL.length-1)*2.1); x+=wPosto;
     doc.text(nomeL, x+2, ym-(nomeL.length-1)*2.1); x+=wNome;
-    r.ucs.forEach(u=>{ doc.setFontSize(9); doc.setTextColor(...cor(u.nota)); doc.text(avFmt(u.nota), x+wUC/2, ym-0.8, {align:'center'});
+    r.ucs.forEach(u=>{ doc.setFontSize(9); doc.setTextColor(...cor(u.nota)); doc.text(avFmt(u.nota), x+wUC/2, fin?ym:ym-0.8, {align:'center'});
       doc.setFontSize(6); doc.setTextColor(130,130,130); doc.text(origem(u), x+wUC/2, ym+2.6, {align:'center'}); x+=wUC; });
     doc.setFillColor(232,240,234); doc.rect(x,y,wFin,h,'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(...cor(r.nota)); doc.text(avFmt(r.nota), x+wFin/2, r.prov?ym-0.8:ym, {align:'center'});
