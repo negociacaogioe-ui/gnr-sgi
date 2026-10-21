@@ -8286,14 +8286,17 @@ function avResumoAluno(alunoId){
     const isNN = f => (_av.perfis[f.avaliador_id]||{}).role === 'admin';
     const epqFs = fs.filter(f=>!isNN(f) && (f.estado==='validada'||f.estado==='submetida') && f.classificacao!=null);
     const epq = avMedia(epqFs.map(f=>f.classificacao));
-    const nn  = avMedia(val.filter(isNN).map(f=>f.classificacao));
+    // NN: conta todas as fichas do Núcleo de Negociação (rascunho, submetida ou validada) com classificação
+    const nnFs = fs.filter(f=>isNN(f) && f.classificacao!=null);
+    const nn  = avMedia(nnFs.map(f=>f.classificacao));
     if(fs.some(f=>(f.estado==='validada'||f.estado==='submetida') && avBaixo(f.classificacao))) r.individualBaixa = true;
     r.ucs[u.uc] = {
       epq, nn,
       nota: nn!=null ? nn : epq,
       provisoria: nn==null && epq!=null,
       nEpq: epqFs.length,
-      nNN: val.filter(isNN).length,
+      nNN: nnFs.length,
+      nnPend: nnFs.filter(f=>f.estado!=='validada').length,
       pend: fs.filter(f=>f.estado==='submetida').length
     };
   });
@@ -8310,6 +8313,7 @@ function avHtmlResumo(){
   const sep = 'border-left:1px solid var(--border)';
   return `${pend?`<div class="pending-banner"><i class="fas fa-hourglass-half"></i> ${pend} avaliação(ões) de EPQ a aguardar validação</div>`:''}
   <div style="font-size:12px;color:var(--gray600);margin-bottom:8px;line-height:1.55">Em cada UC: <strong>EPQ</strong> = média das avaliações dos negociadores EPQ (validadas e por validar); <strong>NN</strong> = avaliação do Núcleo de Negociação (média, se houver mais do que uma). <strong>A nota da UC é a do NN</strong>; enquanto não houver avaliação do NN, fica provisória com o valor EPQ. O nome fica a <span style="color:var(--red);font-weight:700">vermelho</span> se alguma avaliação ou média for inferior a ${AV_LIMIAR} valores. Clica numa UC para ver as fichas.</div>
+  <div style="margin-bottom:8px"><button class="btn btn-outline btn-sm" onclick="avExportarPauta()"><i class="fas fa-file-pdf"></i> Exportar pauta (PDF)</button></div>
   <div class="table-card"><div class="table-wrap"><table>
     <thead>
       <tr><th rowspan="2">Aluno</th>${AVAL_UCS.map(u=>`<th colspan="2" style="text-align:center;${sep}">UC ${u.uc}<div style="font-weight:400;font-size:10px;text-transform:none;letter-spacing:0">${_ppEsc(u.nome)}</div></th>`).join('')}<th rowspan="2" style="text-align:center;${sep}">Média geral (PP)</th></tr>
@@ -8321,10 +8325,94 @@ function avHtmlResumo(){
         <td style="font-weight:700;color:${r.vermelho?'var(--red)':'var(--gray900)'}">${r.vermelho?'<i class="fas fa-triangle-exclamation" style="margin-right:5px"></i>':''}${_ppEsc(avNome(a.aluno_id))}</td>
         ${AVAL_UCS.map(u=>{ const x=r.ucs[u.uc]; const click=`style="text-align:center;cursor:pointer;vertical-align:middle;%S" onclick="avVerIndividuais('${a.aluno_id}',${u.uc})"`;
           return `<td ${click.replace('%S',sep)}>${num(x.epq,false)}${x.pend?`<div style="font-size:10px;color:var(--amber)">inclui ${x.pend} por validar</div>`:''}</td>
-                  <td ${click.replace('%S','background:var(--gp)')}>${num(x.nn,true)}${x.provisoria?`<div style="font-size:10px;color:var(--gray400)">provisória: EPQ</div>`:''}</td>`; }).join('')}
+                  <td ${click.replace('%S','background:var(--gp)')}>${num(x.nn,true)}${x.nnPend?`<div style="font-size:10px;color:var(--amber)">inclui ${x.nnPend} por validar</div>`:''}${x.provisoria?`<div style="font-size:10px;color:var(--gray400)">provisória: EPQ</div>`:''}</td>`; }).join('')}
         <td style="text-align:center;${sep}">${num(r.geral,true)}${r.geral!=null&&r.geralProvisoria?`<div style="font-size:10px;color:var(--gray400)">provisória</div>`:''}</td>
       </tr>`;
     }).join('')}</tbody></table></div></div>`;
+}
+// Admin: exportar pauta das Provas Práticas (mesmo formato da pauta da Prova Final)
+function avExportarPauta(){
+  const linhas = _av.alunos.map(a=>{
+    const p = _av.perfis[a.aluno_id] || {};
+    const r = avResumoAluno(a.aluno_id);
+    return { posto:p.posto||'', nome:p.nome||'—', nota:r.geral, prov:r.geral!=null && r.geralProvisoria, ucs:AVAL_UCS.map(u=>r.ucs[u.uc]) };
+  }).sort((a,b)=>(b.nota??-1)-(a.nota??-1) || a.nome.localeCompare(b.nome,'pt'));
+  if(!linhas.length){ alert('Sem alunos inscritos nesta edição.'); return; }
+  linhas.forEach((r,i)=>{ r.pos = (i>0 && r.nota===linhas[i-1].nota) ? linhas[i-1].pos : i+1; });
+  const edNome = ((_av.edicoes||[]).find(e=>e.id===_av.edicaoId)||{}).nome || '';
+  const mEd = edNome.match(/(\d+)\s*[.ºª°o]*\s*curso/i);
+  const curso = mEd ? mEd[1]+'º Curso de Negociação' : (edNome ? edNome+' — Curso de Negociação' : 'Curso de Negociação');
+  const { jsPDF } = window.jspdf; const doc = new jsPDF({ unit:'mm', format:'a4' });
+  const W=210, H=297, M=12;
+  const cab = ()=>{
+    doc.setFillColor(26,58,31); doc.rect(0,0,W,38,'F');
+    doc.setFillColor(200,168,75); doc.rect(0,38,W,1.2,'F');
+    try{ doc.addImage(PDF_GNR,'JPEG',M,4,24,29.6); }catch(e){}
+    try{ doc.addImage(PDF_NEG,'JPEG',W-M-24,4,24,30.3); }catch(e){}
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(14);
+    doc.text('GUARDA NACIONAL REPUBLICANA', W/2, 12, {align:'center'});
+    doc.setFontSize(12.5); doc.setTextColor(200,168,75);
+    doc.text(curso.toUpperCase(), W/2, 20, {align:'center'});
+    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(255,255,255);
+    doc.text('Provas Práticas — Pauta de classificações', W/2, 27.5, {align:'center'});
+    doc.setFontSize(7.5); doc.setTextColor(190,205,192);
+    doc.text('Escala 0–20 valores · ordenada da nota mais alta para a mais baixa', W/2, 33, {align:'center'});
+  };
+  const nUC = AVAL_UCS.length, wUC = 22, wFin = 22, wPos = 10, wPosto = 32;
+  const wNome = W-2*M - wPos - wPosto - nUC*wUC - wFin;
+  const cols = [{t:'N.º',w:wPos,al:'center'},{t:'Posto',w:wPosto},{t:'Nome',w:wNome}]
+    .concat(AVAL_UCS.map(u=>({ t:'UC '+u.uc, w:wUC, al:'center' })))
+    .concat([{t:'Média geral',w:wFin,al:'center'}]);
+  const cabTab = (y)=>{
+    doc.setFillColor(31,77,46); doc.rect(M,y,W-2*M,10,'F');
+    let x=M; doc.setTextColor(255,255,255);
+    cols.forEach(c=>{ const cx = c.al==='center' ? x+c.w/2 : x+2;
+      doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.text(c.t, cx, y+6.3, {align:c.al==='center'?'center':'left'});
+      x+=c.w; });
+    return y+10;
+  };
+  const cor = v => avBaixo(v) ? [192,57,43] : [31,77,46];
+  const origem = x => x.nn!=null ? ('NN'+(x.nnPend?' · '+x.nnPend+' p/ validar':'')) : (x.epq!=null ? 'EPQ (provisória)' : '');
+  cab(); let y = cabTab(48);
+  linhas.forEach((r,i)=>{
+    doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    const nomeL = doc.splitTextToSize(r.nome, wNome-4), postoL = doc.splitTextToSize(r.posto, wPosto-4);
+    const h = Math.max(9, 4+4.2*Math.max(nomeL.length, postoL.length));
+    if(y+h > H-30){ doc.addPage(); cab(); y = cabTab(48); }
+    if(i%2===1){ doc.setFillColor(241,244,242); doc.rect(M,y,W-2*M,h,'F'); }
+    if(r.pos<=3 && r.nota!=null){ doc.setFillColor(200,168,75); doc.rect(M,y,1.2,h,'F'); }
+    const ym = y + h/2 + 1.2; let x=M;
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','bold'); doc.text(r.pos+'.º', x+wPos/2, ym, {align:'center'}); x+=wPos;
+    doc.setFont('helvetica','normal');
+    doc.text(postoL, x+2, ym-(postoL.length-1)*2.1); x+=wPosto;
+    doc.text(nomeL, x+2, ym-(nomeL.length-1)*2.1); x+=wNome;
+    r.ucs.forEach(u=>{ doc.setFontSize(9); doc.setTextColor(...cor(u.nota)); doc.text(avFmt(u.nota), x+wUC/2, ym-0.8, {align:'center'});
+      doc.setFontSize(6); doc.setTextColor(130,130,130); doc.text(origem(u), x+wUC/2, ym+2.6, {align:'center'}); x+=wUC; });
+    doc.setFillColor(232,240,234); doc.rect(x,y,wFin,h,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(...cor(r.nota)); doc.text(avFmt(r.nota), x+wFin/2, r.prov?ym-0.8:ym, {align:'center'});
+    if(r.prov){ doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(130,130,130); doc.text('provisória', x+wFin/2, ym+2.6, {align:'center'}); }
+    doc.setDrawColor(215,222,217); doc.setLineWidth(0.2); doc.line(M,y+h,W-M,y+h);
+    y += h;
+  });
+  if(y+9 > H-30){ doc.addPage(); cab(); y = cabTab(48); }
+  doc.setFillColor(31,77,46); doc.rect(M,y,W-2*M,9,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text('Média do curso ('+linhas.length+' alunos)', M+wPos+2, y+5.9);
+  let x = M+wPos+wPosto+wNome;
+  AVAL_UCS.forEach((u,j)=>{ doc.text(avFmt(avMedia(linhas.map(r=>r.ucs[j].nota))), x+wUC/2, y+5.9, {align:'center'}); x+=wUC; });
+  doc.setTextColor(200,168,75); doc.setFontSize(10.5); doc.text(avFmt(avMedia(linhas.map(r=>r.nota))), x+wFin/2, y+5.9, {align:'center'});
+  y += 9;
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(90,90,90);
+  doc.splitTextToSize('UC '+AVAL_UCS.map(u=>u.uc+' – '+u.nome).join(' · UC ')+'. A nota de cada UC é a do Núcleo de Negociação (NN); sem avaliação do NN, fica provisória com a média dos negociadores EPQ. A média geral corresponde à média das '+nUC+' Unidades Curriculares. Valores inferiores a '+AV_LIMIAR+' assinalados a vermelho.', W-2*M)
+    .forEach((l,k)=>doc.text(l, M, y+6+k*3.6));
+  const np = doc.getNumberOfPages();
+  for(let i=1;i<=np;i++){ doc.setPage(i);
+    doc.setFillColor(26,58,31); doc.rect(0,H-10,W,10,'F'); doc.setFillColor(200,168,75); doc.rect(0,H-10,W,0.6,'F');
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(200,168,75);
+    doc.text('Guarda Nacional Republicana — '+curso+' — Documento interno', M, H-4);
+    doc.setTextColor(190,205,192);
+    doc.text('Gerado em '+new Date().toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})+'  ·  Pág. '+i+'/'+np, W-M, H-4, {align:'right'}); }
+  sgiMostrarPDFGerado(doc, 'pauta_provas_praticas.pdf');
 }
 // Admin: avaliações individuais de um aluno numa UC (uma por avaliador)
 function avVerIndividuais(alunoId, uc){
