@@ -8095,7 +8095,7 @@ async function avCarregarAcesso(){
 function avTemAcesso(){ return _av.admin || _av.epq || _av.psico; }
 // Separadores a que cada perfil tem acesso
 function avTabsPermitidas(){
-  if(_av.admin) return [['resumo','Resumo'],['quadro','Quadro de avaliações'],['avaliador','Por avaliador'],['minhas','As minhas avaliações'],['psico','Grelha de observação'],['psicoperfil','Avaliação final'],['finalpratica','Notas Finais - Prática'],['config','Configuração']];
+  if(_av.admin) return [['resumo','Resumo'],['quadro','Quadro de avaliações'],['avaliador','Por avaliador'],['minhas','As minhas avaliações'],['psico','Grelha de observação'],['psicoperfil','Avaliação final'],['psicofinal','Grelha de Observação Final'],['finalpratica','Notas Finais - Prática'],['config','Configuração']];
   const t = [];
   if(_av.epq) t.push(['minhas','As minhas avaliações']);
   if(_av.psico) t.push(['psico','Grelha de observação'],['psicoperfil','Avaliação final']);
@@ -8215,6 +8215,7 @@ function avRender(){
   } else if(_av.tab==='resumo') body = avHtmlResumo();
   else if(_av.tab==='quadro' && _av.admin) body = avHtmlQuadro();
   else if(_av.tab==='finalpratica' && _av.admin) body = avHtmlFinaisPratica();
+  else if(_av.tab==='psicofinal' && _av.admin) body = avPsiHtmlGrelhaFinal();
   else if(_av.tab==='avaliador') body = avHtmlPorAvaliador();
   else if(_av.tab==='config') body = avHtmlConfig();
   else if(_av.tab==='psico') body = avPsiHtmlLista();
@@ -9271,6 +9272,44 @@ function avPsiHtmlPerfil(){
     <div class="table-card"><div class="table-wrap"><table>
       <thead><tr><th>Formando</th><th style="text-align:center">Exercícios</th>${AVPSI_GRUPOS.map(g=>`<th style="text-align:center">${g.t}</th>`).join('')}<th style="text-align:center">Média geral</th><th>Função mais forte</th></tr></thead>
       <tbody>${linhas}</tbody></table></div></div>`;
+}
+// Admin: Grelha de Observação Final — todas as folhas da grelha (todos os psicólogos, todos os exercícios,
+// incluindo rascunhos). Por formando: média de cada item, de cada função e geral (NO não conta).
+// Ao clicar no nome abrem-se em linha as folhas individuais (psicólogo, exercício, função, estado).
+function avPsiGrelhaFinalToggle(id){ _av.grelhaFinalAberto = _av.grelhaFinalAberto===id ? null : id; avRender(); }
+function avPsiHtmlGrelhaFinal(){
+  if(!_av.alunos.length) return '<div style="padding:1.5rem;color:var(--gray400);font-size:13px">Sem alunos inscritos nesta edição.</div>';
+  const sep = 'border-left:2px solid var(--border)';
+  const fix = 'position:sticky;left:0;z-index:1;min-width:220px';
+  const cel = "text-align:center;padding:7px 6px;font-family:'IBM Plex Mono',monospace;font-size:12.5px";
+  const val = (v, forte) => v==null ? '<span style="color:var(--gray400)">—</span>' : `<span style="font-weight:${forte?'700':'500'};color:${forte?'var(--gn)':'var(--gray900)'}">${avPsiFmt(v)}</span>`;
+  const head1 = `<tr><th rowspan="2" style="${fix};background:var(--gray50)">Formando</th><th rowspan="2" style="text-align:center">Folhas</th>${AVPSI_GRUPOS.map(g=>`<th colspan="${avPsiItensGrupo(g.k).length+1}" style="text-align:center;${sep}">${g.t}</th>`).join('')}<th rowspan="2" style="text-align:center;${sep}">Média geral</th><th rowspan="2">Função mais forte</th></tr>`;
+  const head2 = `<tr>${AVPSI_GRUPOS.map(g=>avPsiItensGrupo(g.k).map((it,i)=>`<th title="${_ppEsc(it.t)}" style="text-align:center;padding:7px 6px;cursor:help;${i===0?sep:''}">${it.k.replace('_','.')}</th>`).join('')+`<th style="text-align:center;padding:7px 6px;background:var(--gp)">Média</th>`).join('')}</tr>`;
+  const linhas = _av.alunos.map(a=>{
+    const folhas = _av.obs.filter(o=>o.aluno_id===a.aluno_id && avPsiCotados(o.niveis));
+    const itens = {}, porG = {}, todos = [];
+    AVPSI_ITENS.forEach(it=>{ itens[it.k] = avMedia(folhas.map(o=>avPsiNum((o.niveis||{})[it.k])).filter(v=>v!=null)); });
+    AVPSI_GRUPOS.forEach(g=>{ const vs=[]; avPsiItensGrupo(g.k).forEach(it=>folhas.forEach(o=>{ const v=avPsiNum((o.niveis||{})[it.k]); if(v!=null){ vs.push(v); } })); porG[g.k]=avMedia(vs); });
+    folhas.forEach(o=>AVPSI_ITENS.forEach(it=>{ const v=avPsiNum((o.niveis||{})[it.k]); if(v!=null) todos.push(v); }));
+    const melhor = AVPSI_FUNCOES.filter(f=>porG[f.k]!=null).sort((x,y)=>porG[y.k]-porG[x.k])[0] || null;
+    const aberto = _av.grelhaFinalAberto===a.aluno_id;
+    const cols = AVPSI_GRUPOS.map(g=>avPsiItensGrupo(g.k).map((it,i)=>`<td style="${cel};${i===0?sep:''}">${val(itens[it.k],false)}</td>`).join('')+`<td style="${cel};background:var(--gp)">${val(porG[g.k],true)}</td>`).join('');
+    const sub = aberto ? (folhas.length ? folhas.map(o=>`<tr style="background:var(--gray100)">
+        <td style="${fix};background:var(--gray100);padding:7px 10px 7px 26px;font-size:12px">${_ppEsc(avNome(o.psicologo_id))}<div style="color:var(--gray600)">${_ppEsc(o.exercicio||'sem exercício')}${o.funcao?' · '+_ppEsc(o.funcao):''}</div></td>
+        <td style="${cel}">${avPsiEstadoBadge(o.estado)}</td>
+        ${AVPSI_GRUPOS.map(g=>avPsiItensGrupo(g.k).map((it,i)=>{ const v=(o.niveis||{})[it.k]; return `<td style="${cel};${i===0?sep:''}">${v?avPsiFmt(v):'<span style="color:var(--gray400)">·</span>'}</td>`; }).join('')+`<td style="${cel};background:var(--gp)">${val(avPsiMediaGrupo(o.niveis,g.k),false)}</td>`).join('')}
+        <td style="${cel};${sep}">${val(avMedia(AVPSI_ITENS.map(it=>avPsiNum((o.niveis||{})[it.k]))),false)}</td><td></td></tr>`).join('')
+      : `<tr><td colspan="${AVPSI_ITENS.length+AVPSI_GRUPOS.length+4}" style="background:var(--gray100);padding:10px 26px;font-size:12.5px;color:var(--gray400)">Sem folhas preenchidas.</td></tr>`) : '';
+    return `<tr style="cursor:pointer" onclick="avPsiGrelhaFinalToggle('${a.aluno_id}')">
+      <td style="${fix};background:#fff;font-weight:600"><i class="fas fa-chevron-right" style="font-size:10px;color:var(--gl);margin-right:6px;${aberto?'transform:rotate(90deg)':''}"></i>${_ppEsc(avNome(a.aluno_id))}</td>
+      <td style="${cel}">${folhas.length||'—'}</td>${cols}
+      <td style="${cel};${sep}">${val(avMedia(todos),true)}</td>
+      <td>${melhor?`<span class="badge badge-green">${melhor.t}</span>`:'—'}</td></tr>${sub}`;
+  }).join('');
+  const nRasc = _av.obs.filter(o=>o.estado!=='fechada' && avPsiCotados(o.niveis)).length;
+  return `<div style="font-size:12.5px;color:var(--gray600);line-height:1.55;margin-bottom:12px;max-width:95ch">Todas as folhas da grelha de observação preenchidas, de todos os psicólogos e de todos os exercícios, <strong>incluindo as que ficaram em rascunho</strong>${nRasc?` (${nRasc} em rascunho)`:''}. Cada coluna é a média do item em todas as folhas do formando; «Média» é a média dos itens da função; «Média geral» junta todos os itens (NO não conta). Escala 1–5. Passa o rato no código do item para ver o nome; clica no nome do formando para ver cada folha.</div>
+    <div class="table-card"><div class="table-wrap"><table>${head1}${head2}<tbody>${linhas}</tbody></table></div></div>
+    <div style="font-size:11.5px;color:var(--gray600);margin-top:8px;line-height:1.6">${AVPSI_ITENS.map(it=>`<strong>${it.k.replace('_','.')}</strong> ${_ppEsc(it.t)}`).join(' · ')}</div>`;
 }
 
 // ===== FORMAÇÃO › AVALIAÇÃO — TESTES DE AVALIAÇÃO (substituem os Google Forms) =====
