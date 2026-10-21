@@ -8095,7 +8095,7 @@ async function avCarregarAcesso(){
 function avTemAcesso(){ return _av.admin || _av.epq || _av.psico; }
 // Separadores a que cada perfil tem acesso
 function avTabsPermitidas(){
-  if(_av.admin) return [['resumo','Resumo'],['quadro','Quadro de avaliações'],['avaliador','Por avaliador'],['minhas','As minhas avaliações'],['psico','Grelha de observação'],['psicoperfil','Avaliação final'],['config','Configuração']];
+  if(_av.admin) return [['resumo','Resumo'],['quadro','Quadro de avaliações'],['avaliador','Por avaliador'],['minhas','As minhas avaliações'],['psico','Grelha de observação'],['psicoperfil','Avaliação final'],['finalpratica','Notas Finais - Prática'],['config','Configuração']];
   const t = [];
   if(_av.epq) t.push(['minhas','As minhas avaliações']);
   if(_av.psico) t.push(['psico','Grelha de observação'],['psicoperfil','Avaliação final']);
@@ -8214,6 +8214,7 @@ function avRender(){
     body = `<div style="padding:1.5rem;background:var(--gray100);border-radius:var(--rl);color:var(--gray600);font-size:13.5px">Ainda não existe nenhuma edição do curso.${_av.admin?' Cria a primeira em <strong>Configuração</strong>.':' O administrador tem de criar a edição do curso.'}</div>`;
   } else if(_av.tab==='resumo') body = avHtmlResumo();
   else if(_av.tab==='quadro' && _av.admin) body = avHtmlQuadro();
+  else if(_av.tab==='finalpratica' && _av.admin) body = avHtmlFinaisPratica();
   else if(_av.tab==='avaliador') body = avHtmlPorAvaliador();
   else if(_av.tab==='config') body = avHtmlConfig();
   else if(_av.tab==='psico') body = avPsiHtmlLista();
@@ -8330,12 +8331,43 @@ function avHtmlResumo(){
       </tr>`;
     }).join('')}</tbody></table></div></div>`;
 }
+// Admin: Notas Finais - Prática — nota de cada UC = média de TODAS as fichas com classificação
+// (NN e EPQ, qualquer estado), consideradas validadas e assumidas como nota do NN.
+function avFinalPratica(alunoId){
+  const r = { ucs:{} };
+  AVAL_UCS.forEach(u=>{
+    const fs = _av.fichas.filter(f=>f.aluno_id===alunoId && f.uc===u.uc && f.classificacao!=null);
+    r.ucs[u.uc] = { nota: avMedia(fs.map(f=>f.classificacao)), n: fs.length };
+  });
+  const notas = AVAL_UCS.map(u=>r.ucs[u.uc].nota);
+  r.geral = notas.every(m=>m!=null) ? avMedia(notas) : null;
+  return r;
+}
+function avHtmlFinaisPratica(){
+  if(!_av.alunos.length) return '<div style="padding:1.5rem;color:var(--gray400);font-size:13px">Sem alunos inscritos nesta edição.</div>';
+  const num = (v, forte) => `<span style="font-family:'IBM Plex Mono',monospace;font-weight:${forte?'700':'600'};font-size:${forte?'15px':'13.5px'};color:${avBaixo(v)?'var(--red)':(forte?'var(--gn)':'var(--gray900)')}">${avFmt(v)}</span>`;
+  const sep = 'border-left:1px solid var(--border)';
+  const linhas = _av.alunos.map(a=>({ a, r:avFinalPratica(a.aluno_id) }))
+    .sort((x,y)=>(y.r.geral??-1)-(x.r.geral??-1) || avNome(x.a.aluno_id).localeCompare(avNome(y.a.aluno_id),'pt'));
+  linhas.forEach((l,i)=>{ l.pos = (i>0 && l.r.geral===linhas[i-1].r.geral) ? linhas[i-1].pos : i+1; });
+  return `<div style="font-size:12px;color:var(--gray600);margin-bottom:8px;line-height:1.55">Nota de cada UC = <strong>média de todas as avaliações registadas</strong> (NN e EPQ), todas consideradas validadas e assumidas como nota do Núcleo de Negociação. Média final = média das ${AVAL_UCS.length} UC. A <span style="color:var(--red);font-weight:700">vermelho</span> os valores inferiores a ${AV_LIMIAR}. Clica numa UC para ver as fichas.</div>
+  <div style="margin-bottom:8px"><button class="btn btn-outline btn-sm" onclick="avExportarPauta('final')"><i class="fas fa-file-pdf"></i> Exportar pauta (PDF)</button></div>
+  <div class="table-card"><div class="table-wrap"><table>
+    <thead><tr><th style="text-align:center">N.º</th><th>Aluno</th>${AVAL_UCS.map(u=>`<th style="text-align:center;${sep}">UC ${u.uc}<div style="font-weight:400;font-size:10px;text-transform:none;letter-spacing:0">${_ppEsc(u.nome)}</div></th>`).join('')}<th style="text-align:center;${sep}">Média final</th></tr></thead>
+    <tbody>${linhas.map(({a,r,pos})=>`<tr>
+      <td style="text-align:center;font-weight:700">${r.geral!=null?pos+'.º':'—'}</td>
+      <td style="font-weight:700">${_ppEsc(avNome(a.aluno_id))}</td>
+      ${AVAL_UCS.map(u=>{ const x=r.ucs[u.uc]; return `<td style="text-align:center;cursor:pointer;${sep}" onclick="avVerIndividuais('${a.aluno_id}',${u.uc})">${num(x.nota,false)}<div style="font-size:10px;color:var(--gray400)">${x.n} avaliaç${x.n===1?'ão':'ões'}</div></td>`; }).join('')}
+      <td style="text-align:center;background:var(--gp);${sep}">${num(r.geral,true)}</td>
+    </tr>`).join('')}</tbody></table></div></div>`;
+}
 // Admin: exportar pauta das Provas Práticas (mesmo formato da pauta da Prova Final)
-function avExportarPauta(){
+function avExportarPauta(modo){
+  const fin = modo==='final';
   const linhas = _av.alunos.map(a=>{
     const p = _av.perfis[a.aluno_id] || {};
-    const r = avResumoAluno(a.aluno_id);
-    return { posto:p.posto||'', nome:p.nome||'—', nota:r.geral, prov:r.geral!=null && r.geralProvisoria, ucs:AVAL_UCS.map(u=>r.ucs[u.uc]) };
+    const r = fin ? avFinalPratica(a.aluno_id) : avResumoAluno(a.aluno_id);
+    return { posto:p.posto||'', nome:p.nome||'—', nota:r.geral, prov:!fin && r.geral!=null && r.geralProvisoria, ucs:AVAL_UCS.map(u=>r.ucs[u.uc]) };
   }).sort((a,b)=>(b.nota??-1)-(a.nota??-1) || a.nome.localeCompare(b.nome,'pt'));
   if(!linhas.length){ alert('Sem alunos inscritos nesta edição.'); return; }
   linhas.forEach((r,i)=>{ r.pos = (i>0 && r.nota===linhas[i-1].nota) ? linhas[i-1].pos : i+1; });
@@ -8354,7 +8386,7 @@ function avExportarPauta(){
     doc.setFontSize(12.5); doc.setTextColor(200,168,75);
     doc.text(curso.toUpperCase(), W/2, 20, {align:'center'});
     doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(255,255,255);
-    doc.text('Provas Práticas — Pauta de classificações', W/2, 27.5, {align:'center'});
+    doc.text(fin ? 'Notas Finais — Prática' : 'Provas Práticas — Pauta de classificações', W/2, 27.5, {align:'center'});
     doc.setFontSize(7.5); doc.setTextColor(190,205,192);
     doc.text('Escala 0–20 valores · ordenada da nota mais alta para a mais baixa', W/2, 33, {align:'center'});
   };
@@ -8372,7 +8404,7 @@ function avExportarPauta(){
     return y+10;
   };
   const cor = v => avBaixo(v) ? [192,57,43] : [31,77,46];
-  const origem = x => x.nn!=null ? ('NN'+(x.nnPend?' · '+x.nnPend+' p/ validar':'')) : (x.epq!=null ? 'EPQ (provisória)' : '');
+  const origem = x => fin ? (x.n ? x.n+' avaliaç'+(x.n===1?'ão':'ões') : '') : x.nn!=null ? ('NN'+(x.nnPend?' · '+x.nnPend+' p/ validar':'')) : (x.epq!=null ? 'EPQ (provisória)' : '');
   cab(); let y = cabTab(48);
   linhas.forEach((r,i)=>{
     doc.setFont('helvetica','normal'); doc.setFontSize(9);
@@ -8403,7 +8435,7 @@ function avExportarPauta(){
   doc.setTextColor(200,168,75); doc.setFontSize(10.5); doc.text(avFmt(avMedia(linhas.map(r=>r.nota))), x+wFin/2, y+5.9, {align:'center'});
   y += 9;
   doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(90,90,90);
-  doc.splitTextToSize('UC '+AVAL_UCS.map(u=>u.uc+' – '+u.nome).join(' · UC ')+'. A nota de cada UC é a do Núcleo de Negociação (NN); sem avaliação do NN, fica provisória com a média dos negociadores EPQ. A média geral corresponde à média das '+nUC+' Unidades Curriculares. Valores inferiores a '+AV_LIMIAR+' assinalados a vermelho.', W-2*M)
+  doc.splitTextToSize('UC '+AVAL_UCS.map(u=>u.uc+' – '+u.nome).join(' · UC ')+'. '+(fin ? 'A nota de cada UC é a média de todas as avaliações registadas (NN e EPQ), todas consideradas validadas e assumidas como nota do Núcleo de Negociação.' : 'A nota de cada UC é a do Núcleo de Negociação (NN); sem avaliação do NN, fica provisória com a média dos negociadores EPQ.')+' A média geral corresponde à média das '+nUC+' Unidades Curriculares. Valores inferiores a '+AV_LIMIAR+' assinalados a vermelho.', W-2*M)
     .forEach((l,k)=>doc.text(l, M, y+6+k*3.6));
   const np = doc.getNumberOfPages();
   for(let i=1;i<=np;i++){ doc.setPage(i);
@@ -8412,7 +8444,7 @@ function avExportarPauta(){
     doc.text('Guarda Nacional Republicana — '+curso+' — Documento interno', M, H-4);
     doc.setTextColor(190,205,192);
     doc.text('Gerado em '+new Date().toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})+'  ·  Pág. '+i+'/'+np, W-M, H-4, {align:'right'}); }
-  sgiMostrarPDFGerado(doc, 'pauta_provas_praticas.pdf');
+  sgiMostrarPDFGerado(doc, fin ? 'notas_finais_pratica.pdf' : 'pauta_provas_praticas.pdf');
 }
 // Admin: avaliações individuais de um aluno numa UC (uma por avaliador)
 function avVerIndividuais(alunoId, uc){
